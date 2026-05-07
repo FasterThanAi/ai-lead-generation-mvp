@@ -1,7 +1,7 @@
 import { useState } from "react";
 import api from "../services/api";
 
-function CampaignForm() {
+function CampaignForm({ onCampaignCreated }) {
   const [formData, setFormData] = useState({
     campaign_name: "",
     industry: "",
@@ -11,6 +11,7 @@ function CampaignForm() {
   });
 
   const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
     setFormData((prev) => ({
@@ -21,6 +22,7 @@ function CampaignForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
     try {
       const res = await api.post("/campaigns/create", formData);
@@ -32,9 +34,12 @@ function CampaignForm() {
         target_role: "",
         offer: "",
       });
+      onCampaignCreated?.();
     } catch (error) {
       setMessage("Failed to create campaign");
       console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -93,8 +98,11 @@ function CampaignForm() {
           required
         />
 
-        <button className="bg-blue-600 text-white px-5 py-3 rounded hover:bg-blue-700">
-          Create Campaign
+        <button
+          className="bg-blue-600 text-white px-5 py-3 rounded hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Creating..." : "Create Campaign"}
         </button>
       </form>
     </div>
