@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import EmailExtraction from "../components/EmailExtraction";
 import LeadTable from "../components/LeadTable";
 import LeadUpload from "../components/LeadUpload";
 import api from "../services/api";
@@ -12,6 +13,9 @@ function Leads() {
   const [isLoadingLeads, setIsLoadingLeads] = useState(false);
   const [leadsError, setLeadsError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [extractingLeadId, setExtractingLeadId] = useState(null);
+  const [leadExtractionMessage, setLeadExtractionMessage] = useState("");
+  const [leadExtractionError, setLeadExtractionError] = useState("");
 
   useEffect(() => {
     const fetchCampaigns = async () => {
@@ -64,6 +68,32 @@ function Leads() {
     setSelectedCampaignId(e.target.value);
     setLeads([]);
     setLeadsError("");
+    setLeadExtractionMessage("");
+    setLeadExtractionError("");
+  };
+
+  const handleExtractLeadEmail = async (leadId) => {
+    setExtractingLeadId(leadId);
+    setLeadExtractionMessage("");
+    setLeadExtractionError("");
+
+    try {
+      const res = await api.post(`/leads/extract-email/${leadId}`);
+      const savedEmail = res.data.saved_email;
+
+      setLeadExtractionMessage(
+        savedEmail
+          ? `Email extraction completed. Saved email: ${savedEmail}.`
+          : "Email extraction completed. No public email was found."
+      );
+      refreshLeads();
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      setLeadExtractionError(detail || "Email extraction failed. Please try again.");
+      console.error(err);
+    } finally {
+      setExtractingLeadId(null);
+    }
   };
 
   return (
@@ -113,11 +143,34 @@ function Leads() {
           onUploadComplete={refreshLeads}
         />
 
+        <EmailExtraction
+          campaignId={selectedCampaignId}
+          onExtractionComplete={refreshLeads}
+        />
+
+        {(leadExtractionMessage || leadExtractionError) && (
+          <div className="bg-white p-6 rounded-xl shadow border">
+            {leadExtractionMessage && (
+              <p className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+                {leadExtractionMessage}
+              </p>
+            )}
+
+            {leadExtractionError && (
+              <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {leadExtractionError}
+              </p>
+            )}
+          </div>
+        )}
+
         <LeadTable
           leads={leads}
           isLoading={isLoadingLeads}
           error={leadsError}
           hasSelectedCampaign={Boolean(selectedCampaignId)}
+          onExtractEmail={handleExtractLeadEmail}
+          extractingLeadId={extractingLeadId}
         />
       </div>
     </div>

@@ -16,7 +16,26 @@ function displayValue(value) {
   return value || "N/A";
 }
 
-function LeadTable({ leads, isLoading, error, hasSelectedCampaign }) {
+function getStatusClasses(status) {
+  const statusClasses = {
+    email_found: "bg-green-100 text-green-700",
+    email_not_found: "bg-yellow-100 text-yellow-800",
+    website_missing: "bg-gray-100 text-gray-700",
+    extraction_failed: "bg-red-100 text-red-700",
+    new: "bg-blue-50 text-blue-700",
+  };
+
+  return statusClasses[status] || "bg-gray-100 text-gray-700";
+}
+
+function LeadTable({
+  leads,
+  isLoading,
+  error,
+  hasSelectedCampaign,
+  onExtractEmail,
+  extractingLeadId,
+}) {
   return (
     <div className="bg-white p-6 rounded-xl shadow border">
       <div className="mb-4">
@@ -72,6 +91,7 @@ function LeadTable({ leads, isLoading, error, hasSelectedCampaign }) {
                 <th className="px-4 py-3 font-semibold">Source</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 font-semibold">Created At</th>
+                <th className="px-4 py-3 font-semibold">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -92,7 +112,7 @@ function LeadTable({ leads, isLoading, error, hasSelectedCampaign }) {
                         {lead.website}
                       </a>
                     ) : (
-                      "N/A"
+                      <span className="text-gray-500">No website</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-gray-700">{displayValue(lead.industry)}</td>
@@ -105,17 +125,26 @@ function LeadTable({ leads, isLoading, error, hasSelectedCampaign }) {
                         {lead.email}
                       </a>
                     ) : (
-                      "N/A"
+                      <span className="text-gray-500">No email yet</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-gray-700">{displayValue(lead.source)}</td>
                   <td className="px-4 py-3">
-                    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusClasses(lead.status)}`}>
                       {displayValue(lead.status)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                     {formatDate(lead.created_at)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      className="whitespace-nowrap rounded bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                      disabled={!lead.website || extractingLeadId === lead.id}
+                      onClick={() => onExtractEmail?.(lead.id)}
+                    >
+                      {extractingLeadId === lead.id ? "Extracting..." : "Extract Email"}
+                    </button>
                   </td>
                 </tr>
               ))}
