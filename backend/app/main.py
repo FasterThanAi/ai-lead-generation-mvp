@@ -27,3 +27,4 @@ def root():
     return {
         "message": "AI Lead Generation MVP Backend is running"
     }
+print("DATABASE TYPE:", settings.DATABASE_URL.split(":")[0])
