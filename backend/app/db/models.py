@@ -18,6 +18,7 @@ class Campaign(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     leads = relationship("Lead", back_populates="campaign", cascade="all, delete-orphan")
+    email_drafts = relationship("EmailDraft", back_populates="campaign", cascade="all, delete-orphan")
 
 
 class Lead(Base):
@@ -37,3 +38,21 @@ class Lead(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     campaign = relationship("Campaign", back_populates="leads")
+    email_drafts = relationship("EmailDraft", back_populates="lead", cascade="all, delete-orphan")
+
+
+class EmailDraft(Base):
+    __tablename__ = "email_drafts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
+    lead_id = Column(Integer, ForeignKey("leads.id"), nullable=False, index=True)
+    subject = Column(String(255), nullable=False)
+    body = Column(Text, nullable=False)
+    status = Column(String(100), default="generated", nullable=False)
+    ai_model = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    campaign = relationship("Campaign", back_populates="email_drafts")
+    lead = relationship("Lead", back_populates="email_drafts")
