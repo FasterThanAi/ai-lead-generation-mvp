@@ -106,6 +106,7 @@ def _build_oauth_flow():
         _get_gmail_client_config(),
         scopes=GMAIL_SCOPES,
         redirect_uri=settings.GMAIL_REDIRECT_URI,
+        autogenerate_code_verifier=False,
     )
 
 
