@@ -28,10 +28,14 @@ def serialize_email_draft(email_draft: EmailDraft):
         "body": email_draft.body,
         "status": email_draft.status,
         "ai_model": email_draft.ai_model,
+        "sent_at": email_draft.sent_at,
+        "send_error": email_draft.send_error,
+        "gmail_message_id": email_draft.gmail_message_id,
         "created_at": email_draft.created_at,
         "lead_company_name": lead.company_name if lead else None,
         "lead_contact_name": lead.contact_name if lead else None,
         "lead_contact_role": lead.contact_role if lead else None,
+        "lead_email": lead.email if lead else None,
     }
 
 

@@ -20,6 +20,13 @@ def get_frontend_origins():
     return list(dict.fromkeys(origin.strip().rstrip("/") for origin in origins if origin.strip()))
 
 
+def get_int_env(name, default):
+    try:
+        return int(os.getenv(name, str(default)) or default)
+    except ValueError:
+        return default
+
+
 class Settings:
     APP_NAME: str = os.getenv("APP_NAME", "AI Lead Generation MVP")
     APP_ENV: str = os.getenv("APP_ENV", "development")
@@ -28,7 +35,12 @@ class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./leadgen.db")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    GMAIL_CLIENT_ID: str = os.getenv("GMAIL_CLIENT_ID", "")
+    GMAIL_CLIENT_SECRET: str = os.getenv("GMAIL_CLIENT_SECRET", "")
+    GMAIL_REDIRECT_URI: str = os.getenv("GMAIL_REDIRECT_URI", "")
+    GMAIL_SENDER_EMAIL: str = os.getenv("GMAIL_SENDER_EMAIL", "")
+    GMAIL_DAILY_LIMIT: int = get_int_env("GMAIL_DAILY_LIMIT", 20)
     BACKEND_HOST: str = os.getenv("BACKEND_HOST", "127.0.0.1")
-    BACKEND_PORT: int = int(os.getenv("BACKEND_PORT", "8000"))
+    BACKEND_PORT: int = get_int_env("BACKEND_PORT", 8000)
 
 settings = Settings()

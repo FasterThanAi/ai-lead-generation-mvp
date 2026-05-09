@@ -4,10 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.api_router import api_router
 from app.db.database import Base, engine
-from app.db.models import Campaign, EmailDraft, Lead  # noqa: F401
+from app.db.database_utils import ensure_email_draft_columns
+from app.db.models import Campaign, EmailDraft, GmailToken, Lead  # noqa: F401
 
 # Import models above so Base.metadata includes all MVP tables before create_all.
 Base.metadata.create_all(bind=engine)
+ensure_email_draft_columns(engine)
 
 app = FastAPI(
     title=settings.APP_NAME,

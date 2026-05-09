@@ -51,8 +51,21 @@ class EmailDraft(Base):
     body = Column(Text, nullable=False)
     status = Column(String(100), default="generated", nullable=False)
     ai_model = Column(String(255), nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+    send_error = Column(Text, nullable=True)
+    gmail_message_id = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     campaign = relationship("Campaign", back_populates="email_drafts")
     lead = relationship("Lead", back_populates="email_drafts")
+
+
+class GmailToken(Base):
+    __tablename__ = "gmail_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), nullable=True)
+    token_json = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
