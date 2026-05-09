@@ -191,10 +191,12 @@ def get_gmail_status(db: Session = Depends(get_db)):
 
 
 @router.get("/oauth/start")
-def start_gmail_oauth():
+def start_gmail_oauth(db: Session = Depends(get_db)):
     try:
-        auth_url = build_gmail_oauth_url()
+        auth_url = build_gmail_oauth_url(db)
     except GmailConfigurationError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except GmailConnectionError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return {
@@ -206,6 +208,7 @@ def start_gmail_oauth():
 @router.get("/oauth/callback", response_class=HTMLResponse)
 def gmail_oauth_callback(
     code: str | None = None,
+    state: str | None = None,
     error: str | None = None,
     db: Session = Depends(get_db),
 ):
@@ -216,7 +219,7 @@ def gmail_oauth_callback(
         raise HTTPException(status_code=400, detail="Gmail OAuth code is missing.")
 
     try:
-        exchange_code_for_token(code, db)
+        exchange_code_for_token(code, state, db)
     except GmailConfigurationError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except GmailConnectionError as exc:

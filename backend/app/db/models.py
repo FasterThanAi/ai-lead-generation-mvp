@@ -69,3 +69,12 @@ class GmailToken(Base):
     token_json = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class GmailOAuthState(Base):
+    __tablename__ = "gmail_oauth_states"
+
+    id = Column(Integer, primary_key=True, index=True)
+    state = Column(String(255), unique=True, nullable=False, index=True)
+    code_verifier = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

@@ -3,12 +3,13 @@ import json
 import os
 from datetime import datetime
 from email.mime.text import MIMEText
+from urllib.parse import parse_qs, urlparse
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db.models import GmailToken
+from app.db.models import GmailOAuthState, GmailToken
 
 GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 GOOGLE_AUTH_URI = "https://accounts.google.com/o/oauth2/auth"
@@ -98,7 +99,7 @@ def _allow_local_oauth_redirects():
         os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
 
 
-def _build_oauth_flow():
+def _build_oauth_flow(code_verifier=None, autogenerate_code_verifier=True):
     _allow_local_oauth_redirects()
     Flow = _load_flow_class()
 
@@ -106,16 +107,37 @@ def _build_oauth_flow():
         _get_gmail_client_config(),
         scopes=GMAIL_SCOPES,
         redirect_uri=settings.GMAIL_REDIRECT_URI,
-        autogenerate_code_verifier=False,
+        code_verifier=code_verifier,
+        autogenerate_code_verifier=autogenerate_code_verifier,
     )
 
 
-def build_gmail_oauth_url() -> str:
+def build_gmail_oauth_url(db: Session) -> str:
     flow = _build_oauth_flow()
-    auth_url, _ = flow.authorization_url(
+    auth_url, state = flow.authorization_url(
         access_type="offline",
         prompt="consent",
     )
+    query_params = parse_qs(urlparse(auth_url).query)
+    has_code_challenge = "code_challenge" in query_params
+    code_verifier = getattr(flow, "code_verifier", None)
+
+    print(f"Gmail OAuth start: auth_url_contains_code_challenge={has_code_challenge}")
+
+    if not state:
+        raise GmailConnectionError("Gmail OAuth state could not be generated.")
+
+    oauth_state = GmailOAuthState(
+        state=state,
+        code_verifier=code_verifier,
+    )
+
+    try:
+        db.add(oauth_state)
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise GmailConnectionError("Gmail OAuth state could not be saved.") from exc
 
     return auth_url
 
@@ -132,8 +154,28 @@ def get_connected_gmail_token(db: Session):
     )
 
 
-def exchange_code_for_token(code: str, db: Session) -> dict:
-    flow = _build_oauth_flow()
+def exchange_code_for_token(code: str, state: str | None, db: Session) -> dict:
+    print(f"Gmail OAuth callback: received_state={bool(state)}")
+
+    if not state:
+        raise GmailConnectionError("Gmail OAuth state is missing. Please start Gmail connection again.")
+
+    oauth_state = (
+        db.query(GmailOAuthState)
+        .filter(GmailOAuthState.state == state)
+        .first()
+    )
+    saved_code_verifier = oauth_state.code_verifier if oauth_state else None
+
+    print(f"Gmail OAuth callback: saved_code_verifier_exists={bool(saved_code_verifier)}")
+
+    if not oauth_state:
+        raise GmailConnectionError("Gmail OAuth state is invalid or expired. Please start Gmail connection again.")
+
+    flow = _build_oauth_flow(
+        code_verifier=saved_code_verifier,
+        autogenerate_code_verifier=False,
+    )
 
     try:
         flow.fetch_token(code=code)
@@ -156,6 +198,7 @@ def exchange_code_for_token(code: str, db: Session) -> dict:
         db.add(token_record)
 
     try:
+        db.delete(oauth_state)
         db.commit()
         db.refresh(token_record)
     except SQLAlchemyError as exc:
