@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../services/api";
+import { getFriendlyErrorMessage } from "../utils/errorMessages";
 
 function formatDate(value) {
   if (!value) {
@@ -13,16 +14,6 @@ function formatDate(value) {
   }
 
   return date.toLocaleString();
-}
-
-function getErrorMessage(err, fallbackMessage) {
-  const detail = err.response?.data?.detail;
-
-  if (typeof detail === "string") {
-    return detail;
-  }
-
-  return fallbackMessage;
 }
 
 function getStatusClasses(status) {
@@ -66,6 +57,14 @@ function Emails() {
     [drafts]
   );
 
+  const draftSummary = useMemo(() => ({
+    total: drafts.length,
+    generated: drafts.filter((draft) => draft.status === "generated").length,
+    approved: drafts.filter((draft) => draft.status === "approved").length,
+    sent: drafts.filter((draft) => draft.status === "sent").length,
+    failed: drafts.filter((draft) => draft.status === "failed").length,
+  }), [drafts]);
+
   useEffect(() => {
     const fetchCampaigns = async () => {
       setIsLoadingCampaigns(true);
@@ -75,7 +74,7 @@ function Emails() {
         const res = await api.get("/campaigns/");
         setCampaigns(Array.isArray(res.data.data) ? res.data.data : []);
       } catch (err) {
-        setCampaignsError("Could not load campaigns. Please try again.");
+        setCampaignsError(getFriendlyErrorMessage(err, "Could not load campaigns. Please try again."));
         console.error(err);
       } finally {
         setIsLoadingCampaigns(false);
@@ -98,7 +97,7 @@ function Emails() {
       const res = await api.get(`/emails/campaign/${campaignId}`);
       setDrafts(Array.isArray(res.data.data) ? res.data.data : []);
     } catch (err) {
-      setDraftsError(getErrorMessage(err, "Could not load email drafts. Please try again."));
+      setDraftsError(getFriendlyErrorMessage(err, "Could not load email drafts. Please try again."));
       console.error(err);
     } finally {
       setIsLoadingDrafts(false);
@@ -141,7 +140,7 @@ function Emails() {
       });
       await fetchDrafts(selectedCampaignId);
     } catch (err) {
-      setGenerationError(getErrorMessage(err, "Email generation failed. Please try again."));
+      setGenerationError(getFriendlyErrorMessage(err, "AI generation failed. Please check Gemini API key or try again.", "ai"));
       console.error(err);
     } finally {
       setIsGenerating(false);
@@ -166,7 +165,7 @@ function Emails() {
       );
       setStatusMessage("Email status updated successfully.");
     } catch (err) {
-      setStatusError(getErrorMessage(err, "Could not update email status. Please try again."));
+      setStatusError(getFriendlyErrorMessage(err, "Something went wrong. Please try again."));
       console.error(err);
     } finally {
       setUpdatingDraftId(null);
@@ -186,12 +185,16 @@ function Emails() {
       if (result?.status === "sent") {
         setStatusMessage("Email sent successfully.");
       } else {
-        setStatusError(result?.error || "Email could not be sent.");
+        setStatusError(
+          result?.error === "Lead email is missing."
+            ? "This lead does not have an email address."
+            : result?.error || "Something went wrong. Please try again."
+        );
       }
 
       await fetchDrafts(selectedCampaignId);
     } catch (err) {
-      setStatusError(getErrorMessage(err, "Could not send email draft. Please try again."));
+      setStatusError(getFriendlyErrorMessage(err, "Something went wrong. Please try again.", "gmail"));
       console.error(err);
     } finally {
       setSendingDraftId(null);
@@ -217,7 +220,7 @@ function Emails() {
       });
       await fetchDrafts(selectedCampaignId);
     } catch (err) {
-      setStatusError(getErrorMessage(err, "Could not send approved emails. Please try again."));
+      setStatusError(getFriendlyErrorMessage(err, "Something went wrong. Please try again.", "gmail"));
       console.error(err);
     } finally {
       setIsSendingCampaign(false);
@@ -258,10 +261,42 @@ function Emails() {
 
           {!isLoadingCampaigns && !campaignsError && campaigns.length === 0 && (
             <p className="mt-3 text-sm text-gray-500">
-              No campaigns found.
+              Create your first campaign to start lead outreach.
             </p>
           )}
         </div>
+
+        {selectedCampaign && (
+          <div className="bg-white p-6 rounded-xl shadow border">
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold">Campaign Summary</h2>
+              <p className="text-sm text-gray-500 mt-1">{selectedCampaign.campaign_name}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+              <div className="rounded-lg border bg-gray-50 p-4">
+                <p className="text-xs text-gray-500">Total Drafts</p>
+                <p className="mt-1 text-2xl font-semibold text-gray-900">{draftSummary.total}</p>
+              </div>
+              <div className="rounded-lg border bg-blue-50 p-4">
+                <p className="text-xs text-blue-700">Generated</p>
+                <p className="mt-1 text-2xl font-semibold text-blue-900">{draftSummary.generated}</p>
+              </div>
+              <div className="rounded-lg border bg-green-50 p-4">
+                <p className="text-xs text-green-700">Approved</p>
+                <p className="mt-1 text-2xl font-semibold text-green-900">{draftSummary.approved}</p>
+              </div>
+              <div className="rounded-lg border bg-purple-50 p-4">
+                <p className="text-xs text-purple-700">Sent</p>
+                <p className="mt-1 text-2xl font-semibold text-purple-900">{draftSummary.sent}</p>
+              </div>
+              <div className="rounded-lg border bg-red-50 p-4">
+                <p className="text-xs text-red-700">Failed</p>
+                <p className="mt-1 text-2xl font-semibold text-red-900">{draftSummary.failed}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white p-6 rounded-xl shadow border">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -294,7 +329,10 @@ function Emails() {
           </div>
 
           <p className="mt-3 text-sm text-gray-500">
-            For safety, only 5 drafts are generated or sent per click. Sending is limited to approved drafts.
+            For safety, only 5 leads are processed per click.
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
+            Only approved drafts are sent. Sending is limited to 5 per click.
           </p>
 
           {generationSummary && (
@@ -341,7 +379,7 @@ function Emails() {
             <div className="border border-dashed rounded-lg p-6 text-center">
               <h3 className="font-medium text-gray-800">Select a campaign</h3>
               <p className="text-sm text-gray-500 mt-1">
-                Choose a campaign to view drafts.
+                Select a campaign to generate and manage email drafts.
               </p>
             </div>
           )}
@@ -360,9 +398,9 @@ function Emails() {
 
           {selectedCampaignId && !isLoadingDrafts && !draftsError && drafts.length === 0 && (
             <div className="border border-dashed rounded-lg p-6 text-center">
-              <h3 className="font-medium text-gray-800">No email drafts found for this campaign</h3>
+              <h3 className="font-medium text-gray-800">No email drafts found.</h3>
               <p className="text-sm text-gray-500 mt-1">
-                Click generate to create AI email drafts.
+                Generate AI drafts for this campaign.
               </p>
             </div>
           )}
@@ -422,40 +460,41 @@ function Emails() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      <button
-                        className="rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
-                        disabled={
-                          updatingDraftId === draft.id ||
-                          sendingDraftId === draft.id ||
-                          draft.status === "approved" ||
-                          draft.status === "sending" ||
-                          draft.status === "sent"
-                        }
-                        onClick={() => handleUpdateStatus(draft.id, "approved")}
-                      >
-                        {updatingDraftId === draft.id ? "Updating..." : "Approve"}
-                      </button>
-                      <button
-                        className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
-                        disabled={
-                          updatingDraftId === draft.id ||
-                          sendingDraftId === draft.id ||
-                          draft.status === "rejected" ||
-                          draft.status === "sending" ||
-                          draft.status === "sent"
-                        }
-                        onClick={() => handleUpdateStatus(draft.id, "rejected")}
-                      >
-                        {updatingDraftId === draft.id ? "Updating..." : "Reject"}
-                      </button>
+                      {draft.status === "generated" && (
+                        <>
+                          <button
+                            className="rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
+                            disabled={updatingDraftId === draft.id || sendingDraftId === draft.id}
+                            onClick={() => handleUpdateStatus(draft.id, "approved")}
+                          >
+                            {updatingDraftId === draft.id ? "Updating..." : "Approve"}
+                          </button>
+                          <button
+                            className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                            disabled={updatingDraftId === draft.id || sendingDraftId === draft.id}
+                            onClick={() => handleUpdateStatus(draft.id, "rejected")}
+                          >
+                            {updatingDraftId === draft.id ? "Updating..." : "Reject"}
+                          </button>
+                        </>
+                      )}
                       {draft.status === "approved" && (
-                        <button
-                          className="rounded bg-purple-600 px-3 py-2 text-xs font-medium text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-purple-300"
-                          disabled={sendingDraftId === draft.id || isSendingCampaign}
-                          onClick={() => handleSendDraft(draft.id)}
-                        >
-                          {sendingDraftId === draft.id ? "Sending..." : "Send"}
-                        </button>
+                        <>
+                          <button
+                            className="rounded bg-purple-600 px-3 py-2 text-xs font-medium text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-purple-300"
+                            disabled={sendingDraftId === draft.id || isSendingCampaign}
+                            onClick={() => handleSendDraft(draft.id)}
+                          >
+                            {sendingDraftId === draft.id ? "Sending..." : "Send"}
+                          </button>
+                          <button
+                            className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                            disabled={updatingDraftId === draft.id || sendingDraftId === draft.id}
+                            onClick={() => handleUpdateStatus(draft.id, "rejected")}
+                          >
+                            {updatingDraftId === draft.id ? "Updating..." : "Reject"}
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>

@@ -49,7 +49,7 @@ function LeadTable({
         <div className="border border-dashed rounded-lg p-6 text-center">
           <h3 className="font-medium text-gray-800">Select a campaign</h3>
           <p className="text-sm text-gray-500 mt-1">
-            Choose a campaign above to view its leads.
+            Select a campaign to upload and manage leads.
           </p>
         </div>
       )}
@@ -68,9 +68,9 @@ function LeadTable({
 
       {hasSelectedCampaign && !isLoading && !error && leads.length === 0 && (
         <div className="border border-dashed rounded-lg p-6 text-center">
-          <h3 className="font-medium text-gray-800">No leads found</h3>
+          <h3 className="font-medium text-gray-800">No leads found for this campaign.</h3>
           <p className="text-sm text-gray-500 mt-1">
-            No leads found for this campaign. Upload a CSV to get started.
+            Upload a CSV to get started.
           </p>
         </div>
       )}

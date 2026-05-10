@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import EmailExtraction from "../components/EmailExtraction";
 import LeadTable from "../components/LeadTable";
 import LeadUpload from "../components/LeadUpload";
 import api from "../services/api";
+import { getFriendlyErrorMessage } from "../utils/errorMessages";
 
 function Leads() {
   const [campaigns, setCampaigns] = useState([]);
@@ -17,6 +18,16 @@ function Leads() {
   const [leadExtractionMessage, setLeadExtractionMessage] = useState("");
   const [leadExtractionError, setLeadExtractionError] = useState("");
 
+  const selectedCampaign = useMemo(
+    () => campaigns.find((campaign) => String(campaign.id) === String(selectedCampaignId)),
+    [campaigns, selectedCampaignId]
+  );
+
+  const emailsFoundCount = useMemo(
+    () => leads.filter((lead) => lead.email || lead.status === "email_found").length,
+    [leads]
+  );
+
   useEffect(() => {
     const fetchCampaigns = async () => {
       setIsLoadingCampaigns(true);
@@ -26,7 +37,7 @@ function Leads() {
         const res = await api.get("/campaigns/");
         setCampaigns(Array.isArray(res.data.data) ? res.data.data : []);
       } catch (err) {
-        setCampaignsError("Could not load campaigns. Please try again.");
+        setCampaignsError(getFriendlyErrorMessage(err, "Could not load campaigns. Please try again."));
         console.error(err);
       } finally {
         setIsLoadingCampaigns(false);
@@ -50,7 +61,7 @@ function Leads() {
         setLeads(Array.isArray(res.data.data) ? res.data.data : []);
       } catch (err) {
         const detail = err.response?.data?.detail;
-        setLeadsError(detail || "Could not load leads. Please try again.");
+        setLeadsError(err.response ? detail || "Could not load leads. Please try again." : getFriendlyErrorMessage(err));
         console.error(err);
       } finally {
         setIsLoadingLeads(false);
@@ -89,7 +100,7 @@ function Leads() {
       refreshLeads();
     } catch (err) {
       const detail = err.response?.data?.detail;
-      setLeadExtractionError(detail || "Email extraction failed. Please try again.");
+      setLeadExtractionError(err.response ? detail || "Email extraction failed. Please try again." : getFriendlyErrorMessage(err));
       console.error(err);
     } finally {
       setExtractingLeadId(null);
@@ -133,10 +144,46 @@ function Leads() {
 
           {!isLoadingCampaigns && !campaignsError && campaigns.length === 0 && (
             <p className="mt-3 text-sm text-gray-500">
-              No campaigns found. Create a campaign before uploading leads.
+              Create your first campaign to start lead outreach.
             </p>
           )}
         </div>
+
+        {selectedCampaign && (
+          <div className="bg-white p-6 rounded-xl shadow border">
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold">Campaign Summary</h2>
+              <p className="text-sm text-gray-500 mt-1">{selectedCampaign.campaign_name}</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="rounded-lg border bg-gray-50 p-4">
+                <p className="text-xs text-gray-500">Industry</p>
+                <p className="mt-1 font-medium text-gray-900">{selectedCampaign.industry || "N/A"}</p>
+              </div>
+              <div className="rounded-lg border bg-gray-50 p-4">
+                <p className="text-xs text-gray-500">Location</p>
+                <p className="mt-1 font-medium text-gray-900">{selectedCampaign.location || "N/A"}</p>
+              </div>
+              <div className="rounded-lg border bg-gray-50 p-4">
+                <p className="text-xs text-gray-500">Target Role</p>
+                <p className="mt-1 font-medium text-gray-900">{selectedCampaign.target_role || "N/A"}</p>
+              </div>
+              <div className="rounded-lg border bg-gray-50 p-4 md:col-span-3">
+                <p className="text-xs text-gray-500">Offer</p>
+                <p className="mt-1 text-sm text-gray-900">{selectedCampaign.offer || "N/A"}</p>
+              </div>
+              <div className="rounded-lg border bg-blue-50 p-4">
+                <p className="text-xs text-blue-700">Lead Count</p>
+                <p className="mt-1 text-2xl font-semibold text-blue-900">{leads.length}</p>
+              </div>
+              <div className="rounded-lg border bg-green-50 p-4">
+                <p className="text-xs text-green-700">Emails Found</p>
+                <p className="mt-1 text-2xl font-semibold text-green-900">{emailsFoundCount}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <LeadUpload
           campaignId={selectedCampaignId}

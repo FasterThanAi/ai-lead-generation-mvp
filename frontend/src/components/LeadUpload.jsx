@@ -1,5 +1,6 @@
 import { useState } from "react";
 import api from "../services/api";
+import { getFriendlyErrorMessage } from "../utils/errorMessages";
 
 function LeadUpload({ campaignId, onUploadComplete }) {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -46,7 +47,7 @@ function LeadUpload({ campaignId, onUploadComplete }) {
       onUploadComplete?.();
     } catch (err) {
       const detail = err.response?.data?.detail;
-      setError(detail || "Failed to upload CSV. Please check the file and try again.");
+      setError(err.response ? detail || "Failed to upload CSV. Please check the file and try again." : getFriendlyErrorMessage(err));
       console.error(err);
     } finally {
       setIsUploading(false);

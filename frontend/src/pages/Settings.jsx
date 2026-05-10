@@ -1,15 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../services/api";
-
-function getErrorMessage(err, fallbackMessage) {
-  const detail = err.response?.data?.detail;
-
-  if (typeof detail === "string") {
-    return detail;
-  }
-
-  return fallbackMessage;
-}
+import { getFriendlyErrorMessage } from "../utils/errorMessages";
 
 function Settings() {
   const [gmailStatus, setGmailStatus] = useState({
@@ -18,7 +9,7 @@ function Settings() {
   });
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("");
+  const [showAuthorizationHint, setShowAuthorizationHint] = useState(false);
   const [statusError, setStatusError] = useState("");
 
   const fetchGmailStatus = async () => {
@@ -31,8 +22,12 @@ function Settings() {
         connected: Boolean(res.data.connected),
         email: res.data.email || "",
       });
+
+      if (res.data.connected) {
+        setShowAuthorizationHint(false);
+      }
     } catch (err) {
-      setStatusError(getErrorMessage(err, "Could not load Gmail connection status."));
+      setStatusError(getFriendlyErrorMessage(err, "Could not load Gmail connection status."));
       console.error(err);
     } finally {
       setIsLoadingStatus(false);
@@ -54,9 +49,13 @@ function Settings() {
           connected: Boolean(res.data.connected),
           email: res.data.email || "",
         });
+
+        if (res.data.connected) {
+          setShowAuthorizationHint(false);
+        }
       } catch (err) {
         if (isMounted) {
-          setStatusError(getErrorMessage(err, "Could not load Gmail connection status."));
+          setStatusError(getFriendlyErrorMessage(err, "Could not load Gmail connection status."));
         }
         console.error(err);
       } finally {
@@ -75,7 +74,7 @@ function Settings() {
 
   const handleConnectGmail = async () => {
     setIsConnecting(true);
-    setStatusMessage("");
+    setShowAuthorizationHint(false);
     setStatusError("");
 
     try {
@@ -87,9 +86,9 @@ function Settings() {
       }
 
       window.open(authUrl, "_blank", "noopener,noreferrer");
-      setStatusMessage("Complete Gmail authorization in the new tab, then refresh the status here.");
+      setShowAuthorizationHint(true);
     } catch (err) {
-      setStatusError(getErrorMessage(err, "Could not start Gmail connection."));
+      setStatusError(getFriendlyErrorMessage(err, "Could not start Gmail connection."));
       console.error(err);
     } finally {
       setIsConnecting(false);
@@ -106,7 +105,7 @@ function Settings() {
             <div>
               <h3 className="text-xl font-semibold">Gmail Connection</h3>
               <p className="mt-2 text-sm text-gray-500">
-                Emails will only be sent for approved drafts.
+                Gmail sending is restricted to approved drafts only.
               </p>
             </div>
 
@@ -124,17 +123,17 @@ function Settings() {
               <p className="text-sm text-gray-600">Checking Gmail connection...</p>
             ) : gmailStatus.connected ? (
               <div>
-                <p className="text-sm font-medium text-green-700">Gmail connected</p>
-                <p className="mt-1 text-sm text-gray-600">
-                  {gmailStatus.email ? `Connected as ${gmailStatus.email}` : "Connected Gmail account is ready."}
+                <p className="text-sm font-medium text-green-700">
+                  {gmailStatus.email ? `Gmail connected as ${gmailStatus.email}` : "Gmail connected"}
                 </p>
+                <p className="mt-1 text-sm text-gray-600">Approved drafts can be sent from the Emails page.</p>
               </div>
             ) : (
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-800">Gmail is not connected</p>
+                  <p className="text-sm font-medium text-gray-800">Gmail not connected</p>
                   <p className="mt-1 text-sm text-gray-500">
-                    Connect Gmail before sending approved email drafts.
+                    Connect Gmail to send approved email drafts.
                   </p>
                 </div>
 
@@ -149,9 +148,9 @@ function Settings() {
             )}
           </div>
 
-          {statusMessage && (
+          {showAuthorizationHint && !gmailStatus.connected && (
             <p className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
-              {statusMessage}
+              Complete Gmail authorization in the new tab, then refresh the status here.
             </p>
           )}
 

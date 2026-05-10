@@ -1,5 +1,6 @@
 import { useState } from "react";
 import api from "../services/api";
+import { getFriendlyErrorMessage } from "../utils/errorMessages";
 
 function EmailExtraction({ campaignId, onExtractionComplete }) {
   const [isExtracting, setIsExtracting] = useState(false);
@@ -27,7 +28,7 @@ function EmailExtraction({ campaignId, onExtractionComplete }) {
       onExtractionComplete?.();
     } catch (err) {
       const detail = err.response?.data?.detail;
-      setError(detail || "Email extraction failed. Please try again.");
+      setError(err.response ? detail || "Email extraction failed. Please try again." : getFriendlyErrorMessage(err));
       console.error(err);
     } finally {
       setIsExtracting(false);

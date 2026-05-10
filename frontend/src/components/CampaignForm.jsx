@@ -1,5 +1,6 @@
 import { useState } from "react";
 import api from "../services/api";
+import { getFriendlyErrorMessage } from "../utils/errorMessages";
 
 function CampaignForm({ onCampaignCreated }) {
   const [formData, setFormData] = useState({
@@ -11,6 +12,7 @@ function CampaignForm({ onCampaignCreated }) {
   });
 
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
@@ -23,6 +25,8 @@ function CampaignForm({ onCampaignCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setMessage("");
+    setError("");
 
     try {
       const res = await api.post("/campaigns/create", formData);
@@ -35,9 +39,9 @@ function CampaignForm({ onCampaignCreated }) {
         offer: "",
       });
       onCampaignCreated?.();
-    } catch (error) {
-      setMessage("Failed to create campaign");
-      console.error(error);
+    } catch (err) {
+      setError(getFriendlyErrorMessage(err, "Something went wrong. Please try again."));
+      console.error(err);
     } finally {
       setIsSubmitting(false);
     }
@@ -49,6 +53,12 @@ function CampaignForm({ onCampaignCreated }) {
 
       {message && (
         <p className="mb-4 text-sm text-blue-600">{message}</p>
+      )}
+
+      {error && (
+        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </p>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">

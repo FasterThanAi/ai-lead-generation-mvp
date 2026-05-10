@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../services/api";
+import { getFriendlyErrorMessage } from "../utils/errorMessages";
 
 function formatDate(value) {
   if (!value) {
@@ -29,7 +30,7 @@ function CampaignList({ refreshKey }) {
         const res = await api.get("/campaigns/");
         setCampaigns(Array.isArray(res.data.data) ? res.data.data : []);
       } catch (err) {
-        setError("Could not load campaigns. Please try again.");
+        setError(getFriendlyErrorMessage(err, "Could not load campaigns. Please try again."));
         console.error(err);
       } finally {
         setIsLoading(false);
@@ -66,7 +67,7 @@ function CampaignList({ refreshKey }) {
         <div className="border border-dashed rounded-lg p-6 text-center">
           <h3 className="font-medium text-gray-800">No campaigns yet</h3>
           <p className="text-sm text-gray-500 mt-1">
-            Create your first campaign using the form above.
+            Create your first campaign to start lead outreach.
           </p>
         </div>
       )}

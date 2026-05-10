@@ -1,0 +1,87 @@
+from fastapi import APIRouter, Depends
+from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload
+
+from app.db.database import get_db
+from app.db.models import Campaign, EmailDraft, GmailToken, Lead
+
+router = APIRouter(
+    prefix="/dashboard",
+    tags=["Dashboard"]
+)
+
+
+def count_rows(db: Session, model, *filters):
+    query = db.query(func.count(model.id))
+
+    if filters:
+        query = query.filter(*filters)
+
+    return query.scalar() or 0
+
+
+def serialize_campaign(campaign: Campaign):
+    return {
+        "id": campaign.id,
+        "campaign_name": campaign.campaign_name,
+        "industry": campaign.industry,
+        "location": campaign.location,
+        "target_role": campaign.target_role,
+        "offer": campaign.offer,
+        "created_at": campaign.created_at,
+    }
+
+
+def serialize_recent_email_draft(email_draft: EmailDraft):
+    lead = email_draft.lead
+    campaign = email_draft.campaign
+
+    return {
+        "id": email_draft.id,
+        "campaign_id": email_draft.campaign_id,
+        "lead_id": email_draft.lead_id,
+        "subject": email_draft.subject,
+        "status": email_draft.status,
+        "sent_at": email_draft.sent_at,
+        "send_error": email_draft.send_error,
+        "gmail_message_id": email_draft.gmail_message_id,
+        "created_at": email_draft.created_at,
+        "campaign_name": campaign.campaign_name if campaign else None,
+        "lead_company_name": lead.company_name if lead else None,
+        "lead_email": lead.email if lead else None,
+    }
+
+
+@router.get("/stats")
+def get_dashboard_stats(db: Session = Depends(get_db)):
+    latest_campaigns = (
+        db.query(Campaign)
+        .order_by(Campaign.created_at.desc(), Campaign.id.desc())
+        .limit(5)
+        .all()
+    )
+    recent_email_drafts = (
+        db.query(EmailDraft)
+        .options(joinedload(EmailDraft.lead), joinedload(EmailDraft.campaign))
+        .order_by(EmailDraft.created_at.desc(), EmailDraft.id.desc())
+        .limit(5)
+        .all()
+    )
+
+    return {
+        "status": "success",
+        "data": {
+            "total_campaigns": count_rows(db, Campaign),
+            "total_leads": count_rows(db, Lead),
+            "emails_generated": count_rows(db, EmailDraft, EmailDraft.status == "generated"),
+            "emails_approved": count_rows(db, EmailDraft, EmailDraft.status == "approved"),
+            "emails_sent": count_rows(db, EmailDraft, EmailDraft.status == "sent"),
+            "emails_failed": count_rows(db, EmailDraft, EmailDraft.status == "failed"),
+            "gmail_connected": db.query(GmailToken.id).first() is not None,
+            "latest_campaigns": [serialize_campaign(campaign) for campaign in latest_campaigns],
+            "recent_email_drafts": [
+                serialize_recent_email_draft(email_draft)
+                for email_draft in recent_email_drafts
+            ],
+        }
+    }
