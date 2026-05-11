@@ -1,4 +1,5 @@
 import base64
+import html
 import json
 import os
 import re
@@ -419,6 +420,36 @@ def _existing_reply_result(email_draft: EmailDraft):
     }
 
 
+def _clean_reply_snippet(snippet: str | None):
+    if not snippet:
+        return None
+
+    try:
+        cleaned_snippet = html.unescape(str(snippet)).strip()
+        quote_markers = [
+            r"\bOn\b.{0,240}?\bwrote:",
+            r"-----Original Message-----",
+            r"\bFrom:",
+            r"\bSent:",
+            r"\bTo:",
+            r"\bSubject:",
+        ]
+        marker_pattern = re.compile("|".join(quote_markers), re.IGNORECASE | re.DOTALL)
+        marker_match = marker_pattern.search(cleaned_snippet)
+
+        if marker_match:
+            cleaned_snippet = cleaned_snippet[:marker_match.start()]
+
+        cleaned_snippet = re.sub(r"\s+", " ", cleaned_snippet).strip()
+
+        if cleaned_snippet:
+            return cleaned_snippet
+
+        return None if marker_match else str(snippet).strip()
+    except Exception:
+        return str(snippet).strip()
+
+
 def check_reply_for_draft(db: Session, email_draft: EmailDraft) -> dict:
     if email_draft.status not in {"sent", "replied"}:
         raise ValueError("Only sent drafts can be checked for replies.")
@@ -477,7 +508,8 @@ def check_reply_for_draft(db: Session, email_draft: EmailDraft) -> dict:
             if not _message_is_after_sent_at(message_datetime, email_draft.sent_at):
                 continue
 
-            reply_snippet = (message_detail.get("snippet") or "").strip()
+            original_reply_snippet = (message_detail.get("snippet") or "").strip()
+            reply_snippet = _clean_reply_snippet(original_reply_snippet)
             email_draft.status = "replied"
             email_draft.reply_message_id = message_detail.get("id")
             email_draft.reply_snippet = reply_snippet[:500] if reply_snippet else None
