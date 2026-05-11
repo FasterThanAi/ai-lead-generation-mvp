@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.db.database import get_db
-from app.db.models import Campaign, EmailDraft
+from app.db.models import Campaign, EmailDraft, FollowUpDraft
 from app.services.gmail_service import (
     GmailConfigurationError,
     GmailConnectionError,
@@ -104,7 +104,7 @@ def mark_email_draft_failed(db: Session, email_draft: EmailDraft, error_message:
 def get_daily_sent_count(db: Session):
     start_of_day = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
-    return (
+    original_sent_count = (
         db.query(func.count(EmailDraft.id))
         .filter(
             EmailDraft.status.in_(("sent", "replied")),
@@ -113,6 +113,17 @@ def get_daily_sent_count(db: Session):
         .scalar()
         or 0
     )
+    follow_up_sent_count = (
+        db.query(func.count(FollowUpDraft.id))
+        .filter(
+            FollowUpDraft.status == "sent",
+            FollowUpDraft.sent_at >= start_of_day,
+        )
+        .scalar()
+        or 0
+    )
+
+    return original_sent_count + follow_up_sent_count
 
 
 def get_remaining_daily_capacity(db: Session):

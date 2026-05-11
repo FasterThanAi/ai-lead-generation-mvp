@@ -40,6 +40,22 @@ function getStatusClasses(status) {
   return statusClasses[status] || "bg-gray-50 text-gray-700 border-gray-100";
 }
 
+function getLatestFollowUp(followUps) {
+  if (!followUps.length) {
+    return null;
+  }
+
+  return [...followUps].sort((a, b) => {
+    const numberDiff = (b.follow_up_number || 0) - (a.follow_up_number || 0);
+
+    if (numberDiff !== 0) {
+      return numberDiff;
+    }
+
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+  })[0];
+}
+
 function Emails() {
   const [campaigns, setCampaigns] = useState([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState("");
@@ -48,12 +64,21 @@ function Emails() {
   const [drafts, setDrafts] = useState([]);
   const [isLoadingDrafts, setIsLoadingDrafts] = useState(false);
   const [draftsError, setDraftsError] = useState("");
+  const [followUps, setFollowUps] = useState([]);
+  const [isLoadingFollowUps, setIsLoadingFollowUps] = useState(false);
+  const [followUpsError, setFollowUpsError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingFollowUps, setIsGeneratingFollowUps] = useState(false);
+  const [generatingFollowUpDraftId, setGeneratingFollowUpDraftId] = useState(null);
   const [generationError, setGenerationError] = useState("");
   const [generationSummary, setGenerationSummary] = useState(null);
+  const [followUpSummary, setFollowUpSummary] = useState(null);
   const [updatingDraftId, setUpdatingDraftId] = useState(null);
+  const [updatingFollowUpId, setUpdatingFollowUpId] = useState(null);
   const [sendingDraftId, setSendingDraftId] = useState(null);
+  const [sendingFollowUpId, setSendingFollowUpId] = useState(null);
   const [isSendingCampaign, setIsSendingCampaign] = useState(false);
+  const [isSendingFollowUps, setIsSendingFollowUps] = useState(false);
   const [sendSummary, setSendSummary] = useState(null);
   const [campaignAnalytics, setCampaignAnalytics] = useState(null);
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
@@ -73,6 +98,28 @@ function Emails() {
     () => drafts.filter((draft) => draft.status === "approved").length,
     [drafts]
   );
+
+  const approvedFollowUpCount = useMemo(
+    () => followUps.filter((followUp) => followUp.status === "approved").length,
+    [followUps]
+  );
+
+  const followUpsByDraftId = useMemo(() => (
+    followUps.reduce((groupedFollowUps, followUp) => {
+      const key = String(followUp.original_email_draft_id);
+
+      if (!groupedFollowUps[key]) {
+        groupedFollowUps[key] = [];
+      }
+
+      groupedFollowUps[key].push(followUp);
+      groupedFollowUps[key].sort((a, b) => (
+        (a.follow_up_number || 0) - (b.follow_up_number || 0)
+      ));
+
+      return groupedFollowUps;
+    }, {})
+  ), [followUps]);
 
   const draftSummary = useMemo(() => ({
     total: drafts.length,
@@ -122,6 +169,26 @@ function Emails() {
     }
   };
 
+  const fetchFollowUps = async (campaignId) => {
+    if (!campaignId) {
+      setFollowUps([]);
+      return;
+    }
+
+    setIsLoadingFollowUps(true);
+    setFollowUpsError("");
+
+    try {
+      const res = await api.get(`/followups/campaign/${campaignId}`);
+      setFollowUps(Array.isArray(res.data.data) ? res.data.data : []);
+    } catch (err) {
+      setFollowUpsError(getFriendlyErrorMessage(err, "Could not load follow-up drafts. Please try again."));
+      console.error(err);
+    } finally {
+      setIsLoadingFollowUps(false);
+    }
+  };
+
   const fetchCampaignAnalytics = async (campaignId) => {
     if (!campaignId) {
       setCampaignAnalytics(null);
@@ -145,6 +212,7 @@ function Emails() {
   const refreshCampaignData = async (campaignId) => {
     await Promise.all([
       fetchDrafts(campaignId),
+      fetchFollowUps(campaignId),
       fetchCampaignAnalytics(campaignId),
     ]);
   };
@@ -154,12 +222,15 @@ function Emails() {
 
     setSelectedCampaignId(nextCampaignId);
     setDrafts([]);
+    setFollowUps([]);
     setCampaignAnalytics(null);
     setDraftsError("");
+    setFollowUpsError("");
     setAnalyticsError("");
     setGenerationSummary(null);
     setGenerationError("");
     setSendSummary(null);
+    setFollowUpSummary(null);
     setReplyCheckSummary(null);
     setStatusMessage("");
     setStatusError("");
@@ -174,6 +245,7 @@ function Emails() {
     setIsGenerating(true);
     setGenerationError("");
     setGenerationSummary(null);
+    setFollowUpSummary(null);
     setSendSummary(null);
     setStatusMessage("");
     setStatusError("");
@@ -257,6 +329,7 @@ function Emails() {
 
     setIsSendingCampaign(true);
     setSendSummary(null);
+    setFollowUpSummary(null);
     setStatusMessage("");
     setStatusError("");
 
@@ -325,6 +398,132 @@ function Emails() {
       console.error(err);
     } finally {
       setCheckingReplyDraftId(null);
+    }
+  };
+
+  const handleGenerateFollowUp = async (emailId) => {
+    setGeneratingFollowUpDraftId(emailId);
+    setFollowUpSummary(null);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.post(`/followups/generate/${emailId}`);
+      setStatusMessage(res.data.message || "Follow-up draft generated.");
+      await refreshCampaignData(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Follow-up generation failed. Please try again.", "followup"));
+      console.error(err);
+    } finally {
+      setGeneratingFollowUpDraftId(null);
+    }
+  };
+
+  const handleGenerateCampaignFollowUps = async () => {
+    if (!selectedCampaignId) {
+      return;
+    }
+
+    setIsGeneratingFollowUps(true);
+    setFollowUpSummary(null);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.post(`/followups/generate-campaign/${selectedCampaignId}?limit=5`);
+      setFollowUpSummary({
+        mode: "generated",
+        processed: res.data.processed ?? 0,
+        generated: res.data.generated ?? 0,
+        skipped: res.data.skipped ?? 0,
+        failed: res.data.failed ?? 0,
+        remaining: res.data.remaining ?? 0,
+      });
+      await refreshCampaignData(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Follow-up generation failed. Please try again.", "followup"));
+      console.error(err);
+    } finally {
+      setIsGeneratingFollowUps(false);
+    }
+  };
+
+  const handleUpdateFollowUpStatus = async (followUpId, nextStatus) => {
+    setUpdatingFollowUpId(followUpId);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.patch(`/followups/${followUpId}/status`, {
+        status: nextStatus,
+      });
+      const updatedFollowUp = res.data.data;
+
+      setFollowUps((currentFollowUps) =>
+        currentFollowUps.map((followUp) => (
+          followUp.id === followUpId ? updatedFollowUp : followUp
+        ))
+      );
+      setStatusMessage("Follow-up status updated successfully.");
+      await fetchCampaignAnalytics(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Something went wrong. Please try again.", "followup"));
+      console.error(err);
+    } finally {
+      setUpdatingFollowUpId(null);
+    }
+  };
+
+  const handleSendFollowUp = async (followUpId) => {
+    setSendingFollowUpId(followUpId);
+    setFollowUpSummary(null);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.post(`/followups/send/${followUpId}`);
+      const result = res.data.data;
+
+      if (result?.status === "sent") {
+        setStatusMessage("Follow-up sent successfully.");
+      } else {
+        setStatusError(result?.send_error || "Follow-up sending failed. Please try again.");
+      }
+
+      await refreshCampaignData(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Follow-up sending failed. Please try again.", "followup"));
+      console.error(err);
+    } finally {
+      setSendingFollowUpId(null);
+    }
+  };
+
+  const handleSendApprovedCampaignFollowUps = async () => {
+    if (!selectedCampaignId) {
+      return;
+    }
+
+    setIsSendingFollowUps(true);
+    setFollowUpSummary(null);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.post(`/followups/send-approved/campaign/${selectedCampaignId}?limit=5`);
+      setFollowUpSummary({
+        mode: "sent",
+        sent: res.data.sent ?? 0,
+        failed: res.data.failed ?? 0,
+        skipped: res.data.skipped ?? 0,
+        remainingApproved: res.data.remaining_approved ?? 0,
+      });
+      await refreshCampaignData(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Follow-up sending failed. Please try again.", "followup"));
+      console.error(err);
+    } finally {
+      setIsSendingFollowUps(false);
     }
   };
 
@@ -459,6 +658,22 @@ function Emails() {
                     <p className="text-xs text-yellow-700">Needs Follow-up</p>
                     <p className="mt-1 text-2xl font-semibold text-yellow-900">{campaignAnalytics.needs_follow_up_count}</p>
                   </div>
+                  <div className="rounded-lg border bg-blue-50 p-4">
+                    <p className="text-xs text-blue-700">Follow-ups Generated</p>
+                    <p className="mt-1 text-2xl font-semibold text-blue-900">{campaignAnalytics.followups_generated_count ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border bg-green-50 p-4">
+                    <p className="text-xs text-green-700">Follow-ups Approved</p>
+                    <p className="mt-1 text-2xl font-semibold text-green-900">{campaignAnalytics.followups_approved_count ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border bg-purple-50 p-4">
+                    <p className="text-xs text-purple-700">Follow-ups Sent</p>
+                    <p className="mt-1 text-2xl font-semibold text-purple-900">{campaignAnalytics.followups_sent_count ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border bg-red-50 p-4">
+                    <p className="text-xs text-red-700">Follow-ups Failed</p>
+                    <p className="mt-1 text-2xl font-semibold text-red-900">{campaignAnalytics.followups_failed_count ?? 0}</p>
+                  </div>
                 </div>
 
                 {campaignAnalytics.recent_replies?.length > 0 && (
@@ -497,10 +712,10 @@ function Emails() {
               )}
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <button
                 className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                disabled={!selectedCampaignId || isGenerating || isSendingCampaign}
+                disabled={!selectedCampaignId || isGenerating || isSendingCampaign || isGeneratingFollowUps}
                 onClick={handleGenerateCampaignEmails}
               >
                 {isGenerating ? "Generating emails..." : "Generate Next 5 Emails"}
@@ -516,10 +731,26 @@ function Emails() {
 
               <button
                 className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
-                disabled={!selectedCampaignId || isCheckingReplies || isSendingCampaign || isGenerating}
+                disabled={!selectedCampaignId || isCheckingReplies || isSendingCampaign || isGenerating || isGeneratingFollowUps}
                 onClick={handleCheckCampaignReplies}
               >
                 {isCheckingReplies ? "Checking replies..." : "Check Replies"}
+              </button>
+
+              <button
+                className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
+                disabled={!selectedCampaignId || isGeneratingFollowUps || isGenerating || isSendingFollowUps}
+                onClick={handleGenerateCampaignFollowUps}
+              >
+                {isGeneratingFollowUps ? "Generating follow-ups..." : "Generate Follow-ups"}
+              </button>
+
+              <button
+                className="rounded bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                disabled={!selectedCampaignId || isSendingFollowUps || approvedFollowUpCount === 0}
+                onClick={handleSendApprovedCampaignFollowUps}
+              >
+                {isSendingFollowUps ? "Sending follow-ups..." : "Send Approved Follow-ups"}
               </button>
             </div>
           </div>
@@ -532,6 +763,12 @@ function Emails() {
           </p>
           <p className="mt-1 text-sm text-gray-500">
             Reply checking uses Gmail readonly access and does not send emails.
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
+            Follow-ups are generated only for sent emails without replies.
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
+            Follow-ups are never sent automatically. Only approved follow-ups can be sent.
           </p>
 
           {generationSummary && (
@@ -555,6 +792,18 @@ function Emails() {
           {replyCheckSummary && (
             <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
               Checked: {replyCheckSummary.processed}, Replies found: {replyCheckSummary.replied}, No reply: {replyCheckSummary.noReply}, Failed: {replyCheckSummary.failed}
+            </p>
+          )}
+
+          {followUpSummary?.mode === "generated" && (
+            <p className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-700">
+              Processed: {followUpSummary.processed}, Generated: {followUpSummary.generated}, Skipped: {followUpSummary.skipped}, Failed: {followUpSummary.failed}, Remaining: {followUpSummary.remaining}
+            </p>
+          )}
+
+          {followUpSummary?.mode === "sent" && (
+            <p className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              Follow-ups sent: {followUpSummary.sent}, Failed: {followUpSummary.failed}, Skipped: {followUpSummary.skipped}, Remaining approved: {followUpSummary.remainingApproved}
             </p>
           )}
         </div>
@@ -595,9 +844,21 @@ function Emails() {
             </div>
           )}
 
+          {selectedCampaignId && !isLoadingDrafts && isLoadingFollowUps && (
+            <div className="mb-4 border rounded-lg p-4 text-sm text-gray-600">
+              Loading follow-up drafts...
+            </div>
+          )}
+
           {selectedCampaignId && !isLoadingDrafts && draftsError && (
             <div className="border border-red-200 bg-red-50 text-red-700 rounded-lg p-4 text-sm">
               {draftsError}
+            </div>
+          )}
+
+          {selectedCampaignId && !isLoadingDrafts && !draftsError && followUpsError && (
+            <div className="mb-4 border border-red-200 bg-red-50 text-red-700 rounded-lg p-4 text-sm">
+              {followUpsError}
             </div>
           )}
 
@@ -612,7 +873,16 @@ function Emails() {
 
           {selectedCampaignId && !isLoadingDrafts && !draftsError && drafts.length > 0 && (
             <div className="space-y-4">
-              {drafts.map((draft) => (
+              {drafts.map((draft) => {
+                const draftFollowUps = followUpsByDraftId[String(draft.id)] || [];
+                const latestFollowUp = getLatestFollowUp(draftFollowUps);
+                const canGenerateFollowUp = (
+                  draft.status === "sent" &&
+                  draftFollowUps.length < 2 &&
+                  (!latestFollowUp || latestFollowUp.status === "sent")
+                );
+
+                return (
                 <div key={draft.id} className="rounded-lg border p-5">
                   <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
@@ -714,18 +984,113 @@ function Emails() {
                         </>
                       )}
                       {draft.status === "sent" && (
-                        <button
-                          className="rounded bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
-                          disabled={checkingReplyDraftId === draft.id || isCheckingReplies}
-                          onClick={() => handleCheckDraftReply(draft.id)}
-                        >
-                          {checkingReplyDraftId === draft.id ? "Checking..." : "Check Reply"}
-                        </button>
+                        <>
+                          <button
+                            className="rounded bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                            disabled={checkingReplyDraftId === draft.id || isCheckingReplies}
+                            onClick={() => handleCheckDraftReply(draft.id)}
+                          >
+                            {checkingReplyDraftId === draft.id ? "Checking..." : "Check Reply"}
+                          </button>
+                          {canGenerateFollowUp && (
+                            <button
+                              className="rounded bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
+                              disabled={generatingFollowUpDraftId === draft.id || isGeneratingFollowUps}
+                              onClick={() => handleGenerateFollowUp(draft.id)}
+                            >
+                              {generatingFollowUpDraftId === draft.id ? "Generating..." : "Generate Follow-up"}
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
+
+                  {draftFollowUps.length > 0 && (
+                    <div className="mt-5 border-t pt-4">
+                      <h4 className="text-sm font-semibold text-gray-900">Follow-ups</h4>
+                      <div className="mt-3 divide-y">
+                        {draftFollowUps.map((followUp) => (
+                          <div key={followUp.id} className="py-4 first:pt-0 last:pb-0">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <p className="text-xs font-medium text-gray-500">
+                                  Follow-up #{followUp.follow_up_number}
+                                </p>
+                                <h5 className="mt-1 text-sm font-semibold text-gray-900">
+                                  {followUp.subject}
+                                </h5>
+                              </div>
+
+                              <span className={`w-fit rounded-full border px-3 py-1 text-xs font-medium ${getStatusClasses(followUp.status)}`}>
+                                {followUp.status}
+                              </span>
+                            </div>
+
+                            <p className="mt-3 whitespace-pre-line text-sm leading-6 text-gray-700">
+                              {followUp.body}
+                            </p>
+
+                            <div className="mt-3 text-xs text-gray-500">
+                              <p>Generated: {formatDate(followUp.generated_at || followUp.created_at)}</p>
+                              {followUp.sent_at && (
+                                <p>Sent at: {formatDate(followUp.sent_at)}</p>
+                              )}
+                              {followUp.gmail_message_id && (
+                                <p>Gmail message ID: {followUp.gmail_message_id}</p>
+                              )}
+                              {followUp.send_error && (
+                                <p className="text-red-700">Send error: {followUp.send_error}</p>
+                              )}
+                            </div>
+
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {followUp.status === "generated" && (
+                                <>
+                                  <button
+                                    className="rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
+                                    disabled={updatingFollowUpId === followUp.id}
+                                    onClick={() => handleUpdateFollowUpStatus(followUp.id, "approved")}
+                                  >
+                                    {updatingFollowUpId === followUp.id ? "Updating..." : "Approve"}
+                                  </button>
+                                  <button
+                                    className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                                    disabled={updatingFollowUpId === followUp.id}
+                                    onClick={() => handleUpdateFollowUpStatus(followUp.id, "rejected")}
+                                  >
+                                    {updatingFollowUpId === followUp.id ? "Updating..." : "Reject"}
+                                  </button>
+                                </>
+                              )}
+
+                              {followUp.status === "approved" && (
+                                <>
+                                  <button
+                                    className="rounded bg-slate-700 px-3 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                                    disabled={sendingFollowUpId === followUp.id || isSendingFollowUps}
+                                    onClick={() => handleSendFollowUp(followUp.id)}
+                                  >
+                                    {sendingFollowUpId === followUp.id ? "Sending..." : "Send"}
+                                  </button>
+                                  <button
+                                    className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                                    disabled={updatingFollowUpId === followUp.id || sendingFollowUpId === followUp.id}
+                                    onClick={() => handleUpdateFollowUpStatus(followUp.id, "rejected")}
+                                  >
+                                    {updatingFollowUpId === followUp.id ? "Updating..." : "Reject"}
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

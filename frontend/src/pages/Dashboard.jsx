@@ -35,6 +35,8 @@ const emptyStats = {
   emails_failed: 0,
   emails_replied: 0,
   reply_rate: 0,
+  total_followups_generated: 0,
+  total_followups_sent: 0,
   gmail_connected: false,
   latest_campaigns: [],
   recent_email_drafts: [],
@@ -76,6 +78,8 @@ function Dashboard() {
     ["Emails Failed", stats.emails_failed],
     ["Emails Replied", stats.emails_replied],
     ["Reply Rate", formatPercent(stats.reply_rate)],
+    ["Follow-ups Generated", stats.total_followups_generated],
+    ["Follow-ups Sent", stats.total_followups_sent],
     ["Gmail Status", stats.gmail_connected ? "Connected" : "Not connected"],
   ];
 

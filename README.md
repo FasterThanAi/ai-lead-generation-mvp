@@ -2,7 +2,7 @@
 
 ## 1. Project Overview
 
-This is an AI-powered lead generation and cold email outreach MVP. It supports campaign creation, lead upload, public email extraction, AI-generated email drafts, Gmail OAuth connection, sending approved drafts, manual reply checks, and campaign analytics.
+This is an AI-powered lead generation and cold email outreach MVP. It supports campaign creation, lead upload, public email extraction, AI-generated email drafts, Gmail OAuth connection, sending approved drafts, manual reply checks, campaign analytics, and safe follow-up drafts.
 
 ## 2. Features
 
@@ -14,6 +14,7 @@ This is an AI-powered lead generation and cold email outreach MVP. It supports c
 - Gmail OAuth connection
 - Send approved emails
 - Manual Gmail reply checks
+- Follow-up draft generation and sending
 - Campaign analytics and reply rate
 - Dashboard stats
 
@@ -50,6 +51,7 @@ Main data flow:
 5. Users approve or reject drafts.
 6. Gmail OAuth enables sending approved drafts only.
 7. Users manually check sent emails for replies and review campaign analytics.
+8. If there is no reply, users generate, approve, and send follow-up drafts manually.
 
 ## 5. Week-wise Progress
 
@@ -98,6 +100,13 @@ Week 7:
 - Sent draft reply tracking
 - Campaign reply analytics
 - Dashboard reply stats
+
+Week 8:
+- Follow-up draft generation
+- Follow-up approval/rejection
+- Follow-up sending through Gmail
+- Follow-up safety rules and limits
+- Follow-up analytics
 
 ## 6. Local Setup
 
@@ -163,19 +172,21 @@ Backend:
 
 1. Create campaign
 2. Upload leads CSV
-3. Extract emails
-4. Generate AI email drafts
-5. Approve draft
-6. Connect Gmail
-7. Send approved draft
-8. Reply from the recipient inbox
-9. Check replies from the Emails page
-10. Review reply status and analytics
+3. Generate first email
+4. Approve and send first email
+5. Check replies
+6. If no reply, generate follow-up draft
+7. Approve follow-up
+8. Send follow-up
+9. Track follow-up status
 
 ## 10. Safety Notes
 
 - Emails are not sent automatically.
 - Only approved drafts can be sent.
+- Follow-ups are never sent automatically.
+- Only approved follow-ups can be sent.
+- Follow-ups are limited to 2 per original email.
 - Gmail sending is limited.
 - Reply checks use Gmail readonly access and do not send emails.
 - Credentials stay backend-only.
@@ -183,7 +194,6 @@ Backend:
 
 ## 11. Future Improvements
 
-- Follow-up sequences
 - Google Search lead discovery
 - Authentication
 - CRM integration

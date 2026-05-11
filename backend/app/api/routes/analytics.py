@@ -3,7 +3,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.database import get_db
-from app.db.models import Campaign, EmailDraft, Lead
+from app.db.models import Campaign, EmailDraft, FollowUpDraft, Lead
 
 router = APIRouter(
     prefix="/analytics",
@@ -37,6 +37,21 @@ def serialize_recent_reply(email_draft: EmailDraft):
         "lead_email": lead.email if lead else None,
         "reply_snippet": email_draft.reply_snippet,
         "replied_at": email_draft.replied_at,
+    }
+
+
+def serialize_recent_follow_up(follow_up: FollowUpDraft):
+    lead = follow_up.lead
+
+    return {
+        "follow_up_id": follow_up.id,
+        "original_email_draft_id": follow_up.original_email_draft_id,
+        "lead_id": follow_up.lead_id,
+        "company_name": lead.company_name if lead else None,
+        "lead_email": lead.email if lead else None,
+        "follow_up_number": follow_up.follow_up_number,
+        "status": follow_up.status,
+        "sent_at": follow_up.sent_at,
     }
 
 
@@ -105,6 +120,44 @@ def get_campaign_analytics(campaign_id: int, db: Session = Depends(get_db)):
         .limit(5)
         .all()
     )
+    followups_generated_count = count_rows(
+        db,
+        FollowUpDraft,
+        FollowUpDraft.campaign_id == campaign_id,
+        FollowUpDraft.status == "generated",
+    )
+    followups_approved_count = count_rows(
+        db,
+        FollowUpDraft,
+        FollowUpDraft.campaign_id == campaign_id,
+        FollowUpDraft.status == "approved",
+    )
+    followups_sent_count = count_rows(
+        db,
+        FollowUpDraft,
+        FollowUpDraft.campaign_id == campaign_id,
+        FollowUpDraft.status == "sent",
+    )
+    followups_failed_count = count_rows(
+        db,
+        FollowUpDraft,
+        FollowUpDraft.campaign_id == campaign_id,
+        FollowUpDraft.status == "failed",
+    )
+    followups_pending_count = count_rows(
+        db,
+        FollowUpDraft,
+        FollowUpDraft.campaign_id == campaign_id,
+        FollowUpDraft.status.in_(("generated", "approved", "sending")),
+    )
+    recent_followups = (
+        db.query(FollowUpDraft)
+        .options(joinedload(FollowUpDraft.lead))
+        .filter(FollowUpDraft.campaign_id == campaign_id)
+        .order_by(FollowUpDraft.created_at.desc(), FollowUpDraft.id.desc())
+        .limit(5)
+        .all()
+    )
 
     return {
         "status": "success",
@@ -122,9 +175,18 @@ def get_campaign_analytics(campaign_id: int, db: Session = Depends(get_db)):
             "reply_rate": rate_percentage(replied_count, sent_count),
             "send_success_rate": rate_percentage(sent_count, sent_count + failed_count),
             "needs_follow_up_count": needs_follow_up_count,
+            "followups_generated_count": followups_generated_count,
+            "followups_approved_count": followups_approved_count,
+            "followups_sent_count": followups_sent_count,
+            "followups_failed_count": followups_failed_count,
+            "followups_pending_count": followups_pending_count,
             "recent_replies": [
                 serialize_recent_reply(email_draft)
                 for email_draft in recent_replies
+            ],
+            "recent_followups": [
+                serialize_recent_follow_up(follow_up)
+                for follow_up in recent_followups
             ],
         }
     }

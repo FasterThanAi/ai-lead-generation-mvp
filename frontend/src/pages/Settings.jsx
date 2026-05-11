@@ -108,7 +108,7 @@ function Settings() {
             <div>
               <h3 className="text-xl font-semibold">Gmail Connection</h3>
               <p className="mt-2 text-sm text-gray-500">
-                Gmail sending is restricted to approved drafts only.
+                Gmail sending is restricted to approved drafts and approved follow-ups only.
               </p>
               <p className="mt-1 text-sm text-gray-500">
                 Reply tracking requires Gmail readonly permission. If reply check fails, reconnect Gmail.
@@ -133,7 +133,7 @@ function Settings() {
                   <p className="text-sm font-medium text-green-700">
                     {gmailStatus.email ? `Gmail connected as ${gmailStatus.email}` : "Gmail connected"}
                   </p>
-                  <p className="mt-1 text-sm text-gray-600">Approved drafts can be sent from the Emails page.</p>
+                  <p className="mt-1 text-sm text-gray-600">Approved drafts and approved follow-ups can be sent from the Emails page.</p>
                   <p className="mt-1 text-sm text-gray-600">
                     Reconnect Gmail if reply tracking is not available.
                   </p>

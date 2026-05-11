@@ -29,7 +29,33 @@ export function getFriendlyErrorMessage(err, fallbackMessage = DEFAULT_ERROR_MES
     normalizedMessage.includes("only sent drafts") ||
     normalizedMessage.includes("only sent emails")
   ) {
+    if (context === "followup") {
+      return "Only sent emails can receive follow-ups.";
+    }
+
     return "Only sent emails can be checked for replies.";
+  }
+
+  if (
+    normalizedMessage.includes("already replied") ||
+    normalizedMessage.includes("has already replied")
+  ) {
+    if (normalizedMessage.includes("send follow-up")) {
+      return "Cannot send follow-up because this lead has already replied.";
+    }
+
+    return "Cannot generate follow-up because this lead has already replied.";
+  }
+
+  if (normalizedMessage.includes("maximum follow-up limit")) {
+    return "Maximum follow-up limit reached.";
+  }
+
+  if (
+    normalizedMessage.includes("approve the follow-up") ||
+    normalizedMessage.includes("before sending")
+  ) {
+    return "Approve the follow-up before sending.";
   }
 
   if (
@@ -61,6 +87,10 @@ export function getFriendlyErrorMessage(err, fallbackMessage = DEFAULT_ERROR_MES
 
   if (context === "reply") {
     return "Reply check failed. Please try again.";
+  }
+
+  if (context === "followup" && normalizedMessage.includes("send")) {
+    return "Follow-up sending failed. Please try again.";
   }
 
   return fallbackMessage || DEFAULT_ERROR_MESSAGE;

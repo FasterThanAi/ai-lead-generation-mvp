@@ -312,7 +312,7 @@ def get_gmail_service(db: Session):
     return build("gmail", "v1", credentials=credentials, cache_discovery=False)
 
 
-def create_message(to_email, subject, body, sender_email):
+def create_message(to_email, subject, body, sender_email, thread_id=None):
     message = MIMEText(body or "", "plain", "utf-8")
     message["to"] = to_email
     message["subject"] = subject or ""
@@ -321,8 +321,12 @@ def create_message(to_email, subject, body, sender_email):
         message["from"] = sender_email
 
     encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
+    payload = {"raw": encoded_message}
 
-    return {"raw": encoded_message}
+    if thread_id:
+        payload["threadId"] = thread_id
+
+    return payload
 
 
 def _format_gmail_api_error(exc: Exception) -> str:
@@ -401,6 +405,23 @@ def _handle_reply_gmail_api_error(exc: Exception):
         raise GmailConnectionError("Gmail authorization failed. Please reconnect Gmail.") from exc
 
     raise GmailConnectionError("Reply check failed. Please try again.") from exc
+
+
+def get_gmail_message_thread_id(db: Session, gmail_message_id: str | None):
+    if not gmail_message_id:
+        return None
+
+    try:
+        service = get_gmail_service(db)
+        message_detail = (
+            service.users()
+            .messages()
+            .get(userId="me", id=gmail_message_id, format="metadata")
+            .execute()
+        )
+        return message_detail.get("threadId")
+    except Exception:
+        return None
 
 
 def _save_reply_check_result(db: Session, email_draft: EmailDraft):
@@ -532,7 +553,7 @@ def check_reply_for_draft(db: Session, email_draft: EmailDraft) -> dict:
     return {"replied": False}
 
 
-def send_email_via_gmail(db: Session, to_email, subject, body) -> dict:
+def send_email_via_gmail(db: Session, to_email, subject, body, thread_id=None) -> dict:
     cleaned_to_email = (to_email or "").strip()
 
     if not cleaned_to_email:
@@ -562,7 +583,7 @@ def send_email_via_gmail(db: Session, to_email, subject, body) -> dict:
             "error": "Gmail sender email is not configured.",
         }
 
-    message = create_message(cleaned_to_email, subject, body, sender_email)
+    message = create_message(cleaned_to_email, subject, body, sender_email, thread_id=thread_id)
 
     try:
         sent_message = (
@@ -580,4 +601,5 @@ def send_email_via_gmail(db: Session, to_email, subject, body) -> dict:
     return {
         "success": True,
         "gmail_message_id": sent_message.get("id"),
+        "gmail_thread_id": sent_message.get("threadId"),
     }

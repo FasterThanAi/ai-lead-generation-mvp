@@ -3,7 +3,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.database import get_db
-from app.db.models import Campaign, EmailDraft, GmailToken, Lead
+from app.db.models import Campaign, EmailDraft, FollowUpDraft, GmailToken, Lead
 
 router = APIRouter(
     prefix="/dashboard",
@@ -88,6 +88,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             "emails_failed": count_rows(db, EmailDraft, EmailDraft.status == "failed"),
             "emails_replied": emails_replied,
             "reply_rate": rate_percentage(emails_replied, emails_sent),
+            "total_followups_generated": count_rows(db, FollowUpDraft, FollowUpDraft.status == "generated"),
+            "total_followups_sent": count_rows(db, FollowUpDraft, FollowUpDraft.status == "sent"),
             "gmail_connected": db.query(GmailToken.id).first() is not None,
             "latest_campaigns": [serialize_campaign(campaign) for campaign in latest_campaigns],
             "recent_email_drafts": [
