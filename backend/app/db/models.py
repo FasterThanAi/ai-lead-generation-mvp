@@ -54,6 +54,10 @@ class EmailDraft(Base):
     sent_at = Column(DateTime, nullable=True)
     send_error = Column(Text, nullable=True)
     gmail_message_id = Column(String(255), nullable=True)
+    reply_checked_at = Column(DateTime, nullable=True)
+    reply_message_id = Column(String(255), nullable=True)
+    reply_snippet = Column(Text, nullable=True)
+    replied_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

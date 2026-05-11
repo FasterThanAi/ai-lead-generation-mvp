@@ -2,7 +2,7 @@
 
 ## 1. Project Overview
 
-This is an AI-powered lead generation and cold email outreach MVP. It supports campaign creation, lead upload, public email extraction, AI-generated email drafts, Gmail OAuth connection, and sending approved drafts.
+This is an AI-powered lead generation and cold email outreach MVP. It supports campaign creation, lead upload, public email extraction, AI-generated email drafts, Gmail OAuth connection, sending approved drafts, manual reply checks, and campaign analytics.
 
 ## 2. Features
 
@@ -13,6 +13,8 @@ This is an AI-powered lead generation and cold email outreach MVP. It supports c
 - Draft approve/reject workflow
 - Gmail OAuth connection
 - Send approved emails
+- Manual Gmail reply checks
+- Campaign analytics and reply rate
 - Dashboard stats
 
 ## 3. Tech Stack
@@ -47,6 +49,7 @@ Main data flow:
 4. Gemini generates cold email drafts.
 5. Users approve or reject drafts.
 6. Gmail OAuth enables sending approved drafts only.
+7. Users manually check sent emails for replies and review campaign analytics.
 
 ## 5. Week-wise Progress
 
@@ -89,6 +92,12 @@ Week 6:
 - Campaign summary cards
 - Better empty states and error messages
 - Demo documentation and sample CSVs
+
+Week 7:
+- Gmail readonly scope for manual reply checks
+- Sent draft reply tracking
+- Campaign reply analytics
+- Dashboard reply stats
 
 ## 6. Local Setup
 
@@ -159,21 +168,22 @@ Backend:
 5. Approve draft
 6. Connect Gmail
 7. Send approved draft
-8. Check sent status
+8. Reply from the recipient inbox
+9. Check replies from the Emails page
+10. Review reply status and analytics
 
 ## 10. Safety Notes
 
 - Emails are not sent automatically.
 - Only approved drafts can be sent.
 - Gmail sending is limited.
+- Reply checks use Gmail readonly access and do not send emails.
 - Credentials stay backend-only.
 - Sample CSV files use placeholder data only.
 
 ## 11. Future Improvements
 
-- Reply tracking
 - Follow-up sequences
 - Google Search lead discovery
 - Authentication
 - CRM integration
-- Analytics

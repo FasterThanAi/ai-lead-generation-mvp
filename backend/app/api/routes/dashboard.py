@@ -20,6 +20,13 @@ def count_rows(db: Session, model, *filters):
     return query.scalar() or 0
 
 
+def rate_percentage(numerator: int, denominator: int):
+    if denominator <= 0:
+        return 0.0
+
+    return round((numerator / denominator) * 100, 1)
+
+
 def serialize_campaign(campaign: Campaign):
     return {
         "id": campaign.id,
@@ -54,6 +61,8 @@ def serialize_recent_email_draft(email_draft: EmailDraft):
 
 @router.get("/stats")
 def get_dashboard_stats(db: Session = Depends(get_db)):
+    emails_sent = count_rows(db, EmailDraft, EmailDraft.status.in_(("sent", "replied")))
+    emails_replied = count_rows(db, EmailDraft, EmailDraft.status == "replied")
     latest_campaigns = (
         db.query(Campaign)
         .order_by(Campaign.created_at.desc(), Campaign.id.desc())
@@ -75,8 +84,10 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             "total_leads": count_rows(db, Lead),
             "emails_generated": count_rows(db, EmailDraft, EmailDraft.status == "generated"),
             "emails_approved": count_rows(db, EmailDraft, EmailDraft.status == "approved"),
-            "emails_sent": count_rows(db, EmailDraft, EmailDraft.status == "sent"),
+            "emails_sent": emails_sent,
             "emails_failed": count_rows(db, EmailDraft, EmailDraft.status == "failed"),
+            "emails_replied": emails_replied,
+            "reply_rate": rate_percentage(emails_replied, emails_sent),
             "gmail_connected": db.query(GmailToken.id).first() is not None,
             "latest_campaigns": [serialize_campaign(campaign) for campaign in latest_campaigns],
             "recent_email_drafts": [

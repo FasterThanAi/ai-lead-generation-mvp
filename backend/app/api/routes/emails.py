@@ -11,7 +11,7 @@ router = APIRouter(
     tags=["Email Drafts"]
 )
 
-ALLOWED_EMAIL_STATUSES = {"generated", "approved", "rejected", "failed"}
+ALLOWED_EMAIL_STATUSES = {"generated", "approved", "rejected", "failed", "replied"}
 
 
 def serialize_email_draft(email_draft: EmailDraft):
@@ -28,6 +28,10 @@ def serialize_email_draft(email_draft: EmailDraft):
         "sent_at": email_draft.sent_at,
         "send_error": email_draft.send_error,
         "gmail_message_id": email_draft.gmail_message_id,
+        "reply_checked_at": email_draft.reply_checked_at,
+        "reply_message_id": email_draft.reply_message_id,
+        "reply_snippet": email_draft.reply_snippet,
+        "replied_at": email_draft.replied_at,
         "created_at": email_draft.created_at,
         "lead_company_name": lead.company_name if lead else None,
         "lead_contact_name": lead.contact_name if lead else None,
@@ -93,7 +97,7 @@ def update_email_draft_status(
     if email_update.status not in ALLOWED_EMAIL_STATUSES:
         raise HTTPException(
             status_code=400,
-            detail="Status must be one of: generated, approved, rejected, failed"
+            detail="Status must be one of: generated, approved, rejected, failed, replied"
         )
 
     email_draft = (
@@ -108,10 +112,16 @@ def update_email_draft_status(
             detail=f"Email draft with id {email_id} was not found"
         )
 
-    if email_draft.status in {"sending", "sent"}:
+    if email_draft.status in {"sending", "sent", "replied"}:
         raise HTTPException(
             status_code=400,
-            detail="Sending or sent email drafts cannot be manually updated."
+            detail="Sending, sent, or replied email drafts cannot be manually updated."
+        )
+
+    if email_update.status == "replied":
+        raise HTTPException(
+            status_code=400,
+            detail="Use reply checking to mark sent drafts as replied."
         )
 
     email_draft.status = email_update.status

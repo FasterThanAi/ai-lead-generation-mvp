@@ -6,6 +6,7 @@ function Settings() {
   const [gmailStatus, setGmailStatus] = useState({
     connected: false,
     email: "",
+    replyTrackingAvailable: false,
   });
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -21,6 +22,7 @@ function Settings() {
       setGmailStatus({
         connected: Boolean(res.data.connected),
         email: res.data.email || "",
+        replyTrackingAvailable: Boolean(res.data.reply_tracking_available),
       });
 
       if (res.data.connected) {
@@ -48,6 +50,7 @@ function Settings() {
         setGmailStatus({
           connected: Boolean(res.data.connected),
           email: res.data.email || "",
+          replyTrackingAvailable: Boolean(res.data.reply_tracking_available),
         });
 
         if (res.data.connected) {
@@ -107,6 +110,9 @@ function Settings() {
               <p className="mt-2 text-sm text-gray-500">
                 Gmail sending is restricted to approved drafts only.
               </p>
+              <p className="mt-1 text-sm text-gray-500">
+                Reply tracking requires Gmail readonly permission. If reply check fails, reconnect Gmail.
+              </p>
             </div>
 
             <button
@@ -122,11 +128,29 @@ function Settings() {
             {isLoadingStatus ? (
               <p className="text-sm text-gray-600">Checking Gmail connection...</p>
             ) : gmailStatus.connected ? (
-              <div>
-                <p className="text-sm font-medium text-green-700">
-                  {gmailStatus.email ? `Gmail connected as ${gmailStatus.email}` : "Gmail connected"}
-                </p>
-                <p className="mt-1 text-sm text-gray-600">Approved drafts can be sent from the Emails page.</p>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-700">
+                    {gmailStatus.email ? `Gmail connected as ${gmailStatus.email}` : "Gmail connected"}
+                  </p>
+                  <p className="mt-1 text-sm text-gray-600">Approved drafts can be sent from the Emails page.</p>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Reconnect Gmail if reply tracking is not available.
+                  </p>
+                  {!gmailStatus.replyTrackingAvailable && (
+                    <p className="mt-2 text-sm font-medium text-yellow-700">
+                      Gmail readonly permission may be missing.
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                  disabled={isConnecting}
+                  onClick={handleConnectGmail}
+                >
+                  {isConnecting ? "Opening Gmail..." : "Reconnect Gmail"}
+                </button>
               </div>
             ) : (
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -148,7 +172,7 @@ function Settings() {
             )}
           </div>
 
-          {showAuthorizationHint && !gmailStatus.connected && (
+          {showAuthorizationHint && (
             <p className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
               Complete Gmail authorization in the new tab, then refresh the status here.
             </p>

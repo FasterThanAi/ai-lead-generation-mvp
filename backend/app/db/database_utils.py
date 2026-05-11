@@ -13,12 +13,16 @@ def ensure_email_draft_columns(engine):
     }
 
     dialect_name = engine.dialect.name
-    sent_at_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
 
     required_columns = {
-        "sent_at": sent_at_type,
+        "sent_at": datetime_type,
         "send_error": "TEXT",
         "gmail_message_id": "VARCHAR(255)",
+        "reply_checked_at": datetime_type,
+        "reply_message_id": "VARCHAR(255)",
+        "reply_snippet": "TEXT",
+        "replied_at": datetime_type,
     }
 
     missing_columns = [

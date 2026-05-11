@@ -19,6 +19,20 @@ export function getFriendlyErrorMessage(err, fallbackMessage = DEFAULT_ERROR_MES
   const normalizedMessage = `${context} ${detail}`.toLowerCase();
 
   if (
+    normalizedMessage.includes("gmail readonly permission") ||
+    normalizedMessage.includes("readonly permission")
+  ) {
+    return "Gmail readonly permission is missing. Please reconnect Gmail.";
+  }
+
+  if (
+    normalizedMessage.includes("only sent drafts") ||
+    normalizedMessage.includes("only sent emails")
+  ) {
+    return "Only sent emails can be checked for replies.";
+  }
+
+  if (
     normalizedMessage.includes("gemini") ||
     normalizedMessage.includes("ai generation") ||
     (context === "ai" && err.response.status >= 500)
@@ -43,6 +57,10 @@ export function getFriendlyErrorMessage(err, fallbackMessage = DEFAULT_ERROR_MES
     normalizedMessage.includes("missing email")
   ) {
     return "This lead does not have an email address.";
+  }
+
+  if (context === "reply") {
+    return "Reply check failed. Please try again.";
   }
 
   return fallbackMessage || DEFAULT_ERROR_MESSAGE;

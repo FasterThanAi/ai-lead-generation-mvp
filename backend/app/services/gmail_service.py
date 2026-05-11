@@ -1,7 +1,8 @@
 import base64
 import json
 import os
-from datetime import datetime
+import re
+from datetime import datetime, timezone
 from email.mime.text import MIMEText
 from urllib.parse import parse_qs, urlparse
 
@@ -9,9 +10,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db.models import GmailOAuthState, GmailToken
+from app.db.models import EmailDraft, GmailOAuthState, GmailToken
 
-GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
+GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send"
+GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
+GMAIL_SCOPES = [GMAIL_SEND_SCOPE, GMAIL_READONLY_SCOPE]
 GOOGLE_AUTH_URI = "https://accounts.google.com/o/oauth2/auth"
 GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token"
 
@@ -21,6 +24,10 @@ class GmailConfigurationError(Exception):
 
 
 class GmailConnectionError(Exception):
+    pass
+
+
+class GmailPermissionError(GmailConnectionError):
     pass
 
 
@@ -154,6 +161,58 @@ def get_connected_gmail_token(db: Session):
     )
 
 
+def _normalize_scope_values(scope_value):
+    if not scope_value:
+        return []
+
+    if isinstance(scope_value, str):
+        return [scope for scope in scope_value.split() if scope]
+
+    if isinstance(scope_value, (list, tuple, set)):
+        return [str(scope) for scope in scope_value if scope]
+
+    return []
+
+
+def _get_scopes_from_token_info(token_info: dict):
+    return _normalize_scope_values(
+        token_info.get("scopes") or token_info.get("scope")
+    )
+
+
+def get_connected_gmail_scopes(db: Session):
+    token_record = get_connected_gmail_token(db)
+
+    if not token_record or not token_record.token_json:
+        return []
+
+    try:
+        token_info = json.loads(token_record.token_json)
+    except json.JSONDecodeError:
+        return []
+
+    return _get_scopes_from_token_info(token_info)
+
+
+def ensure_gmail_readonly_permission(db: Session):
+    token_record = get_connected_gmail_token(db)
+
+    if not token_record or not token_record.token_json:
+        raise GmailConnectionError("Gmail is not connected. Please connect Gmail first.")
+
+    try:
+        token_info = json.loads(token_record.token_json)
+    except json.JSONDecodeError as exc:
+        raise GmailConnectionError("Stored Gmail token is invalid. Please reconnect Gmail.") from exc
+
+    scopes = _get_scopes_from_token_info(token_info)
+
+    if GMAIL_READONLY_SCOPE not in scopes:
+        raise GmailPermissionError(
+            "Gmail readonly permission is required. Please reconnect Gmail."
+        )
+
+
 def exchange_code_for_token(code: str, state: str | None, db: Session) -> dict:
     print(f"Gmail OAuth callback: received_state={bool(state)}")
 
@@ -220,7 +279,11 @@ def get_gmail_service(db: Session):
     try:
         token_info = json.loads(token_record.token_json)
         Credentials = _load_credentials_class()
-        credentials = Credentials.from_authorized_user_info(token_info, GMAIL_SCOPES)
+        token_scopes = _get_scopes_from_token_info(token_info)
+        credentials = Credentials.from_authorized_user_info(
+            token_info,
+            token_scopes or GMAIL_SCOPES,
+        )
     except (json.JSONDecodeError, ValueError) as exc:
         raise GmailConnectionError("Stored Gmail token is invalid. Please reconnect Gmail.") from exc
 
@@ -269,6 +332,172 @@ def _format_gmail_api_error(exc: Exception) -> str:
         return f"Gmail API error ({status_code}): {exc}"
 
     return f"Gmail API error: {exc}"
+
+
+def _get_gmail_api_status_code(exc: Exception):
+    response = getattr(exc, "resp", None)
+    return getattr(response, "status", None)
+
+
+def _build_reply_search_queries(lead_email: str, subject: str | None):
+    base_query = f"from:{lead_email} newer_than:30d"
+    subject_words = [
+        word
+        for word in re.findall(r"[A-Za-z0-9]{4,}", subject or "")
+        if word.lower() not in {"re", "fwd", "with", "your", "from", "about"}
+    ]
+    queries = []
+
+    if subject_words:
+        subject_phrase = " ".join(subject_words[:3]).replace('"', '\\"')
+        queries.append(f'{base_query} "{subject_phrase}"')
+
+    queries.append(base_query)
+
+    return list(dict.fromkeys(queries))
+
+
+def _get_message_datetime(message: dict):
+    internal_date = message.get("internalDate")
+
+    if not internal_date:
+        return None
+
+    try:
+        return datetime.utcfromtimestamp(int(internal_date) / 1000)
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_utc_naive(value):
+    if not value:
+        return None
+
+    if value.tzinfo:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+    return value
+
+
+def _message_is_after_sent_at(message_datetime, sent_at):
+    normalized_sent_at = _to_utc_naive(sent_at)
+
+    if not normalized_sent_at or not message_datetime:
+        return True
+
+    return message_datetime > normalized_sent_at
+
+
+def _handle_reply_gmail_api_error(exc: Exception):
+    status_code = _get_gmail_api_status_code(exc)
+
+    if status_code == 403:
+        raise GmailPermissionError(
+            "Gmail readonly permission is required. Please reconnect Gmail."
+        ) from exc
+
+    if status_code == 401:
+        raise GmailConnectionError("Gmail authorization failed. Please reconnect Gmail.") from exc
+
+    raise GmailConnectionError("Reply check failed. Please try again.") from exc
+
+
+def _save_reply_check_result(db: Session, email_draft: EmailDraft):
+    try:
+        db.commit()
+        db.refresh(email_draft)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise GmailConnectionError("Reply check result could not be saved.") from exc
+
+
+def _existing_reply_result(email_draft: EmailDraft):
+    return {
+        "replied": True,
+        "reply_message_id": email_draft.reply_message_id,
+        "reply_snippet": email_draft.reply_snippet,
+    }
+
+
+def check_reply_for_draft(db: Session, email_draft: EmailDraft) -> dict:
+    if email_draft.status not in {"sent", "replied"}:
+        raise ValueError("Only sent drafts can be checked for replies.")
+
+    lead = email_draft.lead
+    lead_email = ((lead.email if lead else "") or "").strip()
+    now = datetime.utcnow()
+
+    if not lead_email:
+        email_draft.reply_checked_at = now
+        _save_reply_check_result(db, email_draft)
+        if email_draft.status == "replied":
+            return _existing_reply_result(email_draft)
+        return {"replied": False}
+
+    ensure_gmail_readonly_permission(db)
+
+    try:
+        service = get_gmail_service(db)
+    except (GmailConfigurationError, GmailConnectionError):
+        raise
+
+    seen_message_ids = set()
+
+    for query in _build_reply_search_queries(lead_email, email_draft.subject):
+        try:
+            messages_response = (
+                service.users()
+                .messages()
+                .list(userId="me", q=query, maxResults=10)
+                .execute()
+            )
+        except Exception as exc:
+            _handle_reply_gmail_api_error(exc)
+
+        for message in messages_response.get("messages", []):
+            message_id = message.get("id")
+
+            if not message_id or message_id in seen_message_ids:
+                continue
+
+            seen_message_ids.add(message_id)
+
+            try:
+                message_detail = (
+                    service.users()
+                    .messages()
+                    .get(userId="me", id=message_id, format="metadata")
+                    .execute()
+                )
+            except Exception as exc:
+                _handle_reply_gmail_api_error(exc)
+
+            message_datetime = _get_message_datetime(message_detail)
+
+            if not _message_is_after_sent_at(message_datetime, email_draft.sent_at):
+                continue
+
+            reply_snippet = (message_detail.get("snippet") or "").strip()
+            email_draft.status = "replied"
+            email_draft.reply_message_id = message_detail.get("id")
+            email_draft.reply_snippet = reply_snippet[:500] if reply_snippet else None
+            email_draft.replied_at = message_datetime or now
+            email_draft.reply_checked_at = now
+            _save_reply_check_result(db, email_draft)
+
+            return {
+                "replied": True,
+                "reply_message_id": email_draft.reply_message_id,
+                "reply_snippet": email_draft.reply_snippet,
+            }
+
+    email_draft.reply_checked_at = now
+    _save_reply_check_result(db, email_draft)
+
+    if email_draft.status == "replied":
+        return _existing_reply_result(email_draft)
+
+    return {"replied": False}
 
 
 def send_email_via_gmail(db: Session, to_email, subject, body) -> dict:

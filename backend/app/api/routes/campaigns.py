@@ -100,13 +100,19 @@ def get_campaign_summary(campaign_id: int, db: Session = Depends(get_db)):
                 db,
                 EmailDraft,
                 EmailDraft.campaign_id == campaign_id,
-                EmailDraft.status == "sent",
+                EmailDraft.status.in_(("sent", "replied")),
             ),
             "failed_count": count_rows(
                 db,
                 EmailDraft,
                 EmailDraft.campaign_id == campaign_id,
                 EmailDraft.status == "failed",
+            ),
+            "replied_count": count_rows(
+                db,
+                EmailDraft,
+                EmailDraft.campaign_id == campaign_id,
+                EmailDraft.status == "replied",
             ),
         }
     }

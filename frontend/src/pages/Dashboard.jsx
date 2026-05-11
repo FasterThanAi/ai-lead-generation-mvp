@@ -16,6 +16,16 @@ function formatDate(value) {
   return date.toLocaleString();
 }
 
+function formatPercent(value) {
+  const numericValue = Number(value);
+
+  if (Number.isNaN(numericValue)) {
+    return "0.0%";
+  }
+
+  return `${numericValue.toFixed(1)}%`;
+}
+
 const emptyStats = {
   total_campaigns: 0,
   total_leads: 0,
@@ -23,6 +33,8 @@ const emptyStats = {
   emails_approved: 0,
   emails_sent: 0,
   emails_failed: 0,
+  emails_replied: 0,
+  reply_rate: 0,
   gmail_connected: false,
   latest_campaigns: [],
   recent_email_drafts: [],
@@ -62,6 +74,8 @@ function Dashboard() {
     ["Emails Approved", stats.emails_approved],
     ["Emails Sent", stats.emails_sent],
     ["Emails Failed", stats.emails_failed],
+    ["Emails Replied", stats.emails_replied],
+    ["Reply Rate", formatPercent(stats.reply_rate)],
     ["Gmail Status", stats.gmail_connected ? "Connected" : "Not connected"],
   ];
 

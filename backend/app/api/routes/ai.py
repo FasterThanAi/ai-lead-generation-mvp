@@ -12,7 +12,7 @@ router = APIRouter(
     tags=["AI"]
 )
 
-ACTIVE_DRAFT_STATUSES = ("generated", "approved")
+ACTIVE_DRAFT_STATUSES = ("generated", "approved", "sending", "sent", "replied")
 DEFAULT_CAMPAIGN_GENERATION_LIMIT = 5
 MAX_CAMPAIGN_GENERATION_LIMIT = 10
 
@@ -31,6 +31,10 @@ def serialize_email_draft(email_draft: EmailDraft):
         "sent_at": email_draft.sent_at,
         "send_error": email_draft.send_error,
         "gmail_message_id": email_draft.gmail_message_id,
+        "reply_checked_at": email_draft.reply_checked_at,
+        "reply_message_id": email_draft.reply_message_id,
+        "reply_snippet": email_draft.reply_snippet,
+        "replied_at": email_draft.replied_at,
         "created_at": email_draft.created_at,
         "lead_company_name": lead.company_name if lead else None,
         "lead_contact_name": lead.contact_name if lead else None,
@@ -198,7 +202,7 @@ def generate_emails_for_campaign(
                 "lead_id": lead.id,
                 "company_name": lead.company_name,
                 "skipped": True,
-                "reason": "Generated or approved draft already exists"
+                "reason": "Active email draft already exists"
             })
             continue
 

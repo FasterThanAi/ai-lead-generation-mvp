@@ -16,6 +16,16 @@ function formatDate(value) {
   return date.toLocaleString();
 }
 
+function formatPercent(value) {
+  const numericValue = Number(value);
+
+  if (Number.isNaN(numericValue)) {
+    return "0.0%";
+  }
+
+  return `${numericValue.toFixed(1)}%`;
+}
+
 function getStatusClasses(status) {
   const statusClasses = {
     generated: "bg-blue-50 text-blue-700 border-blue-100",
@@ -24,6 +34,7 @@ function getStatusClasses(status) {
     sending: "bg-yellow-50 text-yellow-700 border-yellow-100",
     sent: "bg-purple-50 text-purple-700 border-purple-100",
     failed: "bg-red-50 text-red-700 border-red-100",
+    replied: "bg-emerald-50 text-emerald-700 border-emerald-100",
   };
 
   return statusClasses[status] || "bg-gray-50 text-gray-700 border-gray-100";
@@ -44,6 +55,12 @@ function Emails() {
   const [sendingDraftId, setSendingDraftId] = useState(null);
   const [isSendingCampaign, setIsSendingCampaign] = useState(false);
   const [sendSummary, setSendSummary] = useState(null);
+  const [campaignAnalytics, setCampaignAnalytics] = useState(null);
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState("");
+  const [isCheckingReplies, setIsCheckingReplies] = useState(false);
+  const [checkingReplyDraftId, setCheckingReplyDraftId] = useState(null);
+  const [replyCheckSummary, setReplyCheckSummary] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusError, setStatusError] = useState("");
 
@@ -62,6 +79,7 @@ function Emails() {
     generated: drafts.filter((draft) => draft.status === "generated").length,
     approved: drafts.filter((draft) => draft.status === "approved").length,
     sent: drafts.filter((draft) => draft.status === "sent").length,
+    replied: drafts.filter((draft) => draft.status === "replied").length,
     failed: drafts.filter((draft) => draft.status === "failed").length,
   }), [drafts]);
 
@@ -104,18 +122,48 @@ function Emails() {
     }
   };
 
+  const fetchCampaignAnalytics = async (campaignId) => {
+    if (!campaignId) {
+      setCampaignAnalytics(null);
+      return;
+    }
+
+    setIsLoadingAnalytics(true);
+    setAnalyticsError("");
+
+    try {
+      const res = await api.get(`/analytics/campaign/${campaignId}`);
+      setCampaignAnalytics(res.data.data || null);
+    } catch (err) {
+      setAnalyticsError(getFriendlyErrorMessage(err, "Could not load campaign analytics. Please try again."));
+      console.error(err);
+    } finally {
+      setIsLoadingAnalytics(false);
+    }
+  };
+
+  const refreshCampaignData = async (campaignId) => {
+    await Promise.all([
+      fetchDrafts(campaignId),
+      fetchCampaignAnalytics(campaignId),
+    ]);
+  };
+
   const handleCampaignChange = (e) => {
     const nextCampaignId = e.target.value;
 
     setSelectedCampaignId(nextCampaignId);
     setDrafts([]);
+    setCampaignAnalytics(null);
     setDraftsError("");
+    setAnalyticsError("");
     setGenerationSummary(null);
     setGenerationError("");
     setSendSummary(null);
+    setReplyCheckSummary(null);
     setStatusMessage("");
     setStatusError("");
-    fetchDrafts(nextCampaignId);
+    refreshCampaignData(nextCampaignId);
   };
 
   const handleGenerateCampaignEmails = async () => {
@@ -138,7 +186,7 @@ function Emails() {
         failed: res.data.failed ?? 0,
         remaining: res.data.remaining ?? 0,
       });
-      await fetchDrafts(selectedCampaignId);
+      await refreshCampaignData(selectedCampaignId);
     } catch (err) {
       setGenerationError(getFriendlyErrorMessage(err, "AI generation failed. Please check Gemini API key or try again.", "ai"));
       console.error(err);
@@ -164,6 +212,7 @@ function Emails() {
         ))
       );
       setStatusMessage("Email status updated successfully.");
+      await fetchCampaignAnalytics(selectedCampaignId);
     } catch (err) {
       setStatusError(getFriendlyErrorMessage(err, "Something went wrong. Please try again."));
       console.error(err);
@@ -192,7 +241,7 @@ function Emails() {
         );
       }
 
-      await fetchDrafts(selectedCampaignId);
+      await refreshCampaignData(selectedCampaignId);
     } catch (err) {
       setStatusError(getFriendlyErrorMessage(err, "Something went wrong. Please try again.", "gmail"));
       console.error(err);
@@ -218,12 +267,64 @@ function Emails() {
         failed: res.data.failed ?? 0,
         remainingApproved: res.data.remaining_approved ?? 0,
       });
-      await fetchDrafts(selectedCampaignId);
+      await refreshCampaignData(selectedCampaignId);
     } catch (err) {
       setStatusError(getFriendlyErrorMessage(err, "Something went wrong. Please try again.", "gmail"));
       console.error(err);
     } finally {
       setIsSendingCampaign(false);
+    }
+  };
+
+  const handleCheckCampaignReplies = async () => {
+    if (!selectedCampaignId) {
+      return;
+    }
+
+    setIsCheckingReplies(true);
+    setReplyCheckSummary(null);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.post(`/replies/check-campaign/${selectedCampaignId}?limit=5`);
+      setReplyCheckSummary({
+        processed: res.data.processed ?? 0,
+        replied: res.data.replied ?? 0,
+        noReply: res.data.no_reply ?? 0,
+        failed: res.data.failed ?? 0,
+      });
+      setStatusMessage("Reply check completed.");
+      await refreshCampaignData(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Reply check failed. Please try again.", "reply"));
+      console.error(err);
+    } finally {
+      setIsCheckingReplies(false);
+    }
+  };
+
+  const handleCheckDraftReply = async (emailId) => {
+    setCheckingReplyDraftId(emailId);
+    setReplyCheckSummary(null);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.post(`/replies/check-draft/${emailId}`);
+
+      if (res.data.replied) {
+        setStatusMessage("Reply found for this email.");
+      } else {
+        setStatusMessage("No reply found for this email yet.");
+      }
+
+      await refreshCampaignData(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Reply check failed. Please try again.", "reply"));
+      console.error(err);
+    } finally {
+      setCheckingReplyDraftId(null);
     }
   };
 
@@ -273,7 +374,7 @@ function Emails() {
               <p className="text-sm text-gray-500 mt-1">{selectedCampaign.campaign_name}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
               <div className="rounded-lg border bg-gray-50 p-4">
                 <p className="text-xs text-gray-500">Total Drafts</p>
                 <p className="mt-1 text-2xl font-semibold text-gray-900">{draftSummary.total}</p>
@@ -290,11 +391,98 @@ function Emails() {
                 <p className="text-xs text-purple-700">Sent</p>
                 <p className="mt-1 text-2xl font-semibold text-purple-900">{draftSummary.sent}</p>
               </div>
+              <div className="rounded-lg border bg-emerald-50 p-4">
+                <p className="text-xs text-emerald-700">Replied</p>
+                <p className="mt-1 text-2xl font-semibold text-emerald-900">{draftSummary.replied}</p>
+              </div>
               <div className="rounded-lg border bg-red-50 p-4">
                 <p className="text-xs text-red-700">Failed</p>
                 <p className="mt-1 text-2xl font-semibold text-red-900">{draftSummary.failed}</p>
               </div>
             </div>
+          </div>
+        )}
+
+        {selectedCampaign && (
+          <div className="bg-white p-6 rounded-xl shadow border">
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold">Campaign Analytics</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Reply tracking uses Gmail readonly access and does not send emails.
+              </p>
+            </div>
+
+            {isLoadingAnalytics && (
+              <div className="rounded-lg border bg-gray-50 p-4 text-sm text-gray-600">
+                Loading campaign analytics...
+              </div>
+            )}
+
+            {!isLoadingAnalytics && analyticsError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {analyticsError}
+              </div>
+            )}
+
+            {!isLoadingAnalytics && !analyticsError && campaignAnalytics && (
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                  <div className="rounded-lg border bg-gray-50 p-4">
+                    <p className="text-xs text-gray-500">Leads</p>
+                    <p className="mt-1 text-2xl font-semibold text-gray-900">{campaignAnalytics.lead_count}</p>
+                  </div>
+                  <div className="rounded-lg border bg-gray-50 p-4">
+                    <p className="text-xs text-gray-500">Drafts</p>
+                    <p className="mt-1 text-2xl font-semibold text-gray-900">{campaignAnalytics.draft_count}</p>
+                  </div>
+                  <div className="rounded-lg border bg-purple-50 p-4">
+                    <p className="text-xs text-purple-700">Sent</p>
+                    <p className="mt-1 text-2xl font-semibold text-purple-900">{campaignAnalytics.sent_count}</p>
+                  </div>
+                  <div className="rounded-lg border bg-red-50 p-4">
+                    <p className="text-xs text-red-700">Failed</p>
+                    <p className="mt-1 text-2xl font-semibold text-red-900">{campaignAnalytics.failed_count}</p>
+                  </div>
+                  <div className="rounded-lg border bg-emerald-50 p-4">
+                    <p className="text-xs text-emerald-700">Replied</p>
+                    <p className="mt-1 text-2xl font-semibold text-emerald-900">{campaignAnalytics.replied_count}</p>
+                  </div>
+                  <div className="rounded-lg border bg-blue-50 p-4">
+                    <p className="text-xs text-blue-700">Reply Rate</p>
+                    <p className="mt-1 text-2xl font-semibold text-blue-900">{formatPercent(campaignAnalytics.reply_rate)}</p>
+                  </div>
+                  <div className="rounded-lg border bg-green-50 p-4">
+                    <p className="text-xs text-green-700">Send Success</p>
+                    <p className="mt-1 text-2xl font-semibold text-green-900">{formatPercent(campaignAnalytics.send_success_rate)}</p>
+                  </div>
+                  <div className="rounded-lg border bg-yellow-50 p-4">
+                    <p className="text-xs text-yellow-700">Needs Follow-up</p>
+                    <p className="mt-1 text-2xl font-semibold text-yellow-900">{campaignAnalytics.needs_follow_up_count}</p>
+                  </div>
+                </div>
+
+                {campaignAnalytics.recent_replies?.length > 0 && (
+                  <div className="rounded-lg border bg-gray-50 p-4">
+                    <h3 className="text-sm font-semibold text-gray-900">Recent Replies</h3>
+                    <div className="mt-3 space-y-3">
+                      {campaignAnalytics.recent_replies.map((reply) => (
+                        <div key={reply.email_draft_id} className="border-t pt-3 first:border-t-0 first:pt-0">
+                          <p className="text-sm font-medium text-gray-900">
+                            {reply.company_name || reply.lead_email || `Lead ID ${reply.lead_id}`}
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {[reply.lead_email, formatDate(reply.replied_at)].filter(Boolean).join(" | ")}
+                          </p>
+                          {reply.reply_snippet && (
+                            <p className="mt-2 text-sm text-gray-700">{reply.reply_snippet}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -325,6 +513,14 @@ function Emails() {
               >
                 {isSendingCampaign ? "Sending approved emails..." : "Send Approved Emails"}
               </button>
+
+              <button
+                className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                disabled={!selectedCampaignId || isCheckingReplies || isSendingCampaign || isGenerating}
+                onClick={handleCheckCampaignReplies}
+              >
+                {isCheckingReplies ? "Checking replies..." : "Check Replies"}
+              </button>
             </div>
           </div>
 
@@ -333,6 +529,9 @@ function Emails() {
           </p>
           <p className="mt-1 text-sm text-gray-500">
             Only approved drafts are sent. Sending is limited to 5 per click.
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
+            Reply checking uses Gmail readonly access and does not send emails.
           </p>
 
           {generationSummary && (
@@ -350,6 +549,12 @@ function Emails() {
           {sendSummary && (
             <p className="mt-4 rounded-lg border border-purple-200 bg-purple-50 p-3 text-sm text-purple-700">
               Sent: {sendSummary.sent}, Failed: {sendSummary.failed}, Remaining approved: {sendSummary.remainingApproved}
+            </p>
+          )}
+
+          {replyCheckSummary && (
+            <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+              Checked: {replyCheckSummary.processed}, Replies found: {replyCheckSummary.replied}, No reply: {replyCheckSummary.noReply}, Failed: {replyCheckSummary.failed}
             </p>
           )}
         </div>
@@ -452,6 +657,18 @@ function Emails() {
                     </div>
                   )}
 
+                  {draft.status === "replied" && (draft.reply_snippet || draft.replied_at) && (
+                    <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                      <p className="font-medium">Replied</p>
+                      {draft.replied_at && (
+                        <p className="mt-1 text-xs text-emerald-700">Replied at: {formatDate(draft.replied_at)}</p>
+                      )}
+                      {draft.reply_snippet && (
+                        <p className="mt-2 text-sm leading-6">{draft.reply_snippet}</p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="mt-5 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-xs text-gray-500">
                       <span>{draft.ai_model || "AI model unavailable"}</span>
@@ -495,6 +712,15 @@ function Emails() {
                             {updatingDraftId === draft.id ? "Updating..." : "Reject"}
                           </button>
                         </>
+                      )}
+                      {draft.status === "sent" && (
+                        <button
+                          className="rounded bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                          disabled={checkingReplyDraftId === draft.id || isCheckingReplies}
+                          onClick={() => handleCheckDraftReply(draft.id)}
+                        >
+                          {checkingReplyDraftId === draft.id ? "Checking..." : "Check Reply"}
+                        </button>
                       )}
                     </div>
                   </div>

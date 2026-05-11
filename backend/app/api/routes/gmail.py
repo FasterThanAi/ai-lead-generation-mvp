@@ -13,8 +13,10 @@ from app.db.models import Campaign, EmailDraft
 from app.services.gmail_service import (
     GmailConfigurationError,
     GmailConnectionError,
+    GMAIL_READONLY_SCOPE,
     build_gmail_oauth_url,
     exchange_code_for_token,
+    get_connected_gmail_scopes,
     get_connected_gmail_token,
     get_gmail_service,
     send_email_via_gmail,
@@ -105,7 +107,7 @@ def get_daily_sent_count(db: Session):
     return (
         db.query(func.count(EmailDraft.id))
         .filter(
-            EmailDraft.status == "sent",
+            EmailDraft.status.in_(("sent", "replied")),
             EmailDraft.sent_at >= start_of_day,
         )
         .scalar()
@@ -176,17 +178,20 @@ def count_remaining_approved(campaign_id: int, db: Session):
 @router.get("/status")
 def get_gmail_status(db: Session = Depends(get_db)):
     token_record = get_connected_gmail_token(db)
+    scopes = get_connected_gmail_scopes(db)
 
     if not token_record:
         return {
             "status": "success",
             "connected": False,
+            "reply_tracking_available": False,
         }
 
     return {
         "status": "success",
         "connected": True,
         "email": token_record.email or settings.GMAIL_SENDER_EMAIL or None,
+        "reply_tracking_available": GMAIL_READONLY_SCOPE in scopes,
     }
 
 
