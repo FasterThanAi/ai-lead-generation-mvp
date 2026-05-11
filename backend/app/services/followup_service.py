@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import timezone
 
 from google import genai
 from sqlalchemy.exc import SQLAlchemyError
@@ -12,6 +12,7 @@ from app.services.ai_service import (
     clean_value,
     extract_json_from_text,
 )
+from app.utils.time_utils import utc_now
 
 MAX_FOLLOW_UPS_PER_EMAIL = 2
 UNSENT_FOLLOW_UP_STATUSES = {"generated", "approved", "rejected", "sending", "failed"}
@@ -56,13 +57,23 @@ def _get_follow_ups_for_original(db: Session, original_email_draft_id: int):
     )
 
 
+def _sortable_datetime(value):
+    if not value:
+        return 0
+
+    if value.tzinfo:
+        return value.astimezone(timezone.utc).timestamp()
+
+    return value.replace(tzinfo=timezone.utc).timestamp()
+
+
 def _get_latest_follow_up(follow_ups: list[FollowUpDraft]):
     if not follow_ups:
         return None
 
     return sorted(
         follow_ups,
-        key=lambda follow_up: (follow_up.follow_up_number or 0, follow_up.created_at or datetime.min, follow_up.id or 0),
+        key=lambda follow_up: (follow_up.follow_up_number or 0, _sortable_datetime(follow_up.created_at), follow_up.id or 0),
         reverse=True,
     )[0]
 
@@ -250,7 +261,7 @@ def generate_follow_up_for_draft(
         original_email_draft,
         target_follow_up_number,
     )
-    now = datetime.utcnow()
+    now = utc_now()
 
     if existing_follow_up and force:
         existing_follow_up.subject = generated_email["subject"]

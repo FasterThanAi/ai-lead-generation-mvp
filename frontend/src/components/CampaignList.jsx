@@ -1,20 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../services/api";
+import { formatDateTimeIST } from "../utils/dateUtils";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
-
-function formatDate(value) {
-  if (!value) {
-    return "N/A";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString();
-}
 
 function CampaignList({ refreshKey }) {
   const [campaigns, setCampaigns] = useState([]);
@@ -100,7 +87,7 @@ function CampaignList({ refreshKey }) {
                     <span className="line-clamp-2">{campaign.offer}</span>
                   </td>
                   <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                    {formatDate(campaign.created_at)}
+                    {formatDateTimeIST(campaign.created_at)}
                   </td>
                 </tr>
               ))}

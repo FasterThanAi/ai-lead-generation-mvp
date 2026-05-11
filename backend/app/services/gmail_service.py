@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.models import EmailDraft, GmailOAuthState, GmailToken
+from app.utils.time_utils import utc_now
 
 GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send"
 GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
@@ -249,7 +250,7 @@ def exchange_code_for_token(code: str, state: str | None, db: Session) -> dict:
     if token_record:
         token_record.email = sender_email
         token_record.token_json = credentials.to_json()
-        token_record.updated_at = datetime.utcnow()
+        token_record.updated_at = utc_now()
     else:
         token_record = GmailToken(
             email=sender_email,
@@ -296,7 +297,7 @@ def get_gmail_service(db: Session):
             Request = _load_google_request_class()
             credentials.refresh(Request())
             token_record.token_json = credentials.to_json()
-            token_record.updated_at = datetime.utcnow()
+            token_record.updated_at = utc_now()
             db.commit()
         except SQLAlchemyError as exc:
             db.rollback()
@@ -369,28 +370,29 @@ def _get_message_datetime(message: dict):
         return None
 
     try:
-        return datetime.utcfromtimestamp(int(internal_date) / 1000)
+        return datetime.fromtimestamp(int(internal_date) / 1000, timezone.utc)
     except (TypeError, ValueError):
         return None
 
 
-def _to_utc_naive(value):
+def _to_utc_aware(value):
     if not value:
         return None
 
     if value.tzinfo:
-        return value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value.astimezone(timezone.utc)
 
-    return value
+    return value.replace(tzinfo=timezone.utc)
 
 
 def _message_is_after_sent_at(message_datetime, sent_at):
-    normalized_sent_at = _to_utc_naive(sent_at)
+    normalized_message_datetime = _to_utc_aware(message_datetime)
+    normalized_sent_at = _to_utc_aware(sent_at)
 
-    if not normalized_sent_at or not message_datetime:
+    if not normalized_sent_at or not normalized_message_datetime:
         return True
 
-    return message_datetime > normalized_sent_at
+    return normalized_message_datetime > normalized_sent_at
 
 
 def _handle_reply_gmail_api_error(exc: Exception):
@@ -477,7 +479,7 @@ def check_reply_for_draft(db: Session, email_draft: EmailDraft) -> dict:
 
     lead = email_draft.lead
     lead_email = ((lead.email if lead else "") or "").strip()
-    now = datetime.utcnow()
+    now = utc_now()
 
     if not lead_email:
         email_draft.reply_checked_at = now

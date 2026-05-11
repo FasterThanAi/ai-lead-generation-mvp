@@ -1,9 +1,8 @@
-from datetime import datetime
-
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.db.database import Base
+from app.utils.time_utils import utc_now
 
 
 class Campaign(Base):
@@ -15,7 +14,7 @@ class Campaign(Base):
     location = Column(String(255), nullable=False)
     target_role = Column(String(255), nullable=False)
     offer = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     leads = relationship("Lead", back_populates="campaign", cascade="all, delete-orphan")
     email_drafts = relationship("EmailDraft", back_populates="campaign", cascade="all, delete-orphan")
@@ -36,7 +35,7 @@ class Lead(Base):
     email = Column(String(255), nullable=True)
     source = Column(String(100), default="CSV")
     status = Column(String(100), default="new")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     campaign = relationship("Campaign", back_populates="leads")
     email_drafts = relationship("EmailDraft", back_populates="lead", cascade="all, delete-orphan")
@@ -60,8 +59,8 @@ class EmailDraft(Base):
     reply_message_id = Column(String(255), nullable=True)
     reply_snippet = Column(Text, nullable=True)
     replied_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     campaign = relationship("Campaign", back_populates="email_drafts")
     lead = relationship("Lead", back_populates="email_drafts")
@@ -87,8 +86,8 @@ class FollowUpDraft(Base):
     gmail_message_id = Column(String(255), nullable=True)
     gmail_thread_id = Column(String(255), nullable=True)
     send_error = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     original_email_draft = relationship("EmailDraft", back_populates="follow_up_drafts")
     campaign = relationship("Campaign", back_populates="follow_up_drafts")
@@ -101,8 +100,8 @@ class GmailToken(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), nullable=True)
     token_json = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
 
 class GmailOAuthState(Base):
@@ -111,4 +110,4 @@ class GmailOAuthState(Base):
     id = Column(Integer, primary_key=True, index=True)
     state = Column(String(255), unique=True, nullable=False, index=True)
     code_verifier = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)

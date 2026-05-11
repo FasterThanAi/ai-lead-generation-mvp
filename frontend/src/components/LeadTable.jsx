@@ -1,16 +1,4 @@
-function formatDate(value) {
-  if (!value) {
-    return "N/A";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString();
-}
+import { formatDateTimeIST } from "../utils/dateUtils";
 
 function displayValue(value) {
   return value || "N/A";
@@ -135,7 +123,7 @@ function LeadTable({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                    {formatDate(lead.created_at)}
+                    {formatDateTimeIST(lead.created_at)}
                   </td>
                   <td className="px-4 py-3">
                     <button

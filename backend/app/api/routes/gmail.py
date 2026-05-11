@@ -1,5 +1,4 @@
 import time
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
@@ -21,6 +20,7 @@ from app.services.gmail_service import (
     get_gmail_service,
     send_email_via_gmail,
 )
+from app.utils.time_utils import utc_now
 
 router = APIRouter(
     prefix="/gmail",
@@ -102,7 +102,7 @@ def mark_email_draft_failed(db: Session, email_draft: EmailDraft, error_message:
 
 
 def get_daily_sent_count(db: Session):
-    start_of_day = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_day = utc_now().replace(hour=0, minute=0, second=0, microsecond=0)
 
     original_sent_count = (
         db.query(func.count(EmailDraft.id))
@@ -162,7 +162,7 @@ def send_approved_email_draft(db: Session, email_draft: EmailDraft):
 
     if send_result.get("success"):
         email_draft.status = "sent"
-        email_draft.sent_at = datetime.utcnow()
+        email_draft.sent_at = utc_now()
         email_draft.gmail_message_id = send_result.get("gmail_message_id")
         email_draft.send_error = None
     else:

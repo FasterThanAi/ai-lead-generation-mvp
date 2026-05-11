@@ -1,5 +1,4 @@
 import time
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
@@ -23,6 +22,7 @@ from app.services.gmail_service import (
     get_gmail_service,
     send_email_via_gmail,
 )
+from app.utils.time_utils import utc_now
 
 router = APIRouter(
     prefix="/followups",
@@ -175,7 +175,7 @@ def ensure_gmail_ready(db: Session):
 
 
 def count_daily_sent_emails(db: Session):
-    start_of_day = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_day = utc_now().replace(hour=0, minute=0, second=0, microsecond=0)
     original_sent_count = (
         db.query(func.count(EmailDraft.id))
         .filter(
@@ -295,7 +295,7 @@ def send_approved_follow_up(db: Session, follow_up: FollowUpDraft):
 
     if send_result.get("success"):
         follow_up.status = "sent"
-        follow_up.sent_at = datetime.utcnow()
+        follow_up.sent_at = utc_now()
         follow_up.gmail_message_id = send_result.get("gmail_message_id")
         follow_up.gmail_thread_id = send_result.get("gmail_thread_id")
         follow_up.send_error = None
@@ -474,7 +474,7 @@ def update_follow_up_status(
             detail="Invalid follow-up status transition."
         )
 
-    now = datetime.utcnow()
+    now = utc_now()
     follow_up.status = next_status
 
     if next_status == "approved":

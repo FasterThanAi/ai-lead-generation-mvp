@@ -1,20 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../services/api";
 import StatCard from "../components/StatCard";
-
-function formatDate(value) {
-  if (!value) {
-    return "N/A";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString();
-}
+import { formatDateTimeIST } from "../utils/dateUtils";
 
 function formatPercent(value) {
   const numericValue = Number(value);
@@ -133,7 +120,7 @@ function Dashboard() {
                       </td>
                       <td className="px-4 py-3 text-gray-700">{campaign.industry || "N/A"}</td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                        {formatDate(campaign.created_at)}
+                        {formatDateTimeIST(campaign.created_at)}
                       </td>
                     </tr>
                   ))}
@@ -167,7 +154,7 @@ function Dashboard() {
                       {draft.status}
                     </span>
                   </div>
-                  <p className="mt-2 text-xs text-gray-500">{formatDate(draft.created_at)}</p>
+                  <p className="mt-2 text-xs text-gray-500">{formatDateTimeIST(draft.created_at)}</p>
                 </div>
               ))}
             </div>

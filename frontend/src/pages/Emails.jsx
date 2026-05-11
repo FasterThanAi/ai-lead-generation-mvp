@@ -1,20 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../services/api";
+import { formatDateTimeIST, getDateTimestampISTSafe } from "../utils/dateUtils";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
-
-function formatDate(value) {
-  if (!value) {
-    return "N/A";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString();
-}
 
 function formatPercent(value) {
   const numericValue = Number(value);
@@ -52,7 +39,7 @@ function getLatestFollowUp(followUps) {
       return numberDiff;
     }
 
-    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    return getDateTimestampISTSafe(b.created_at) - getDateTimestampISTSafe(a.created_at);
   })[0];
 }
 
@@ -686,7 +673,7 @@ function Emails() {
                             {reply.company_name || reply.lead_email || `Lead ID ${reply.lead_id}`}
                           </p>
                           <p className="mt-1 text-xs text-gray-500">
-                            {[reply.lead_email, formatDate(reply.replied_at)].filter(Boolean).join(" | ")}
+                            {[reply.lead_email, formatDateTimeIST(reply.replied_at)].filter(Boolean).join(" | ")}
                           </p>
                           {reply.reply_snippet && (
                             <p className="mt-2 text-sm text-gray-700">{reply.reply_snippet}</p>
@@ -916,7 +903,7 @@ function Emails() {
                   {(draft.sent_at || draft.send_error || draft.gmail_message_id) && (
                     <div className="mt-4 rounded-lg border bg-gray-50 p-3 text-xs text-gray-600">
                       {draft.sent_at && (
-                        <p>Sent at: {formatDate(draft.sent_at)}</p>
+                        <p>Sent at: {formatDateTimeIST(draft.sent_at)}</p>
                       )}
                       {draft.gmail_message_id && (
                         <p>Gmail message ID: {draft.gmail_message_id}</p>
@@ -931,7 +918,7 @@ function Emails() {
                     <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
                       <p className="font-medium">Replied</p>
                       {draft.replied_at && (
-                        <p className="mt-1 text-xs text-emerald-700">Replied at: {formatDate(draft.replied_at)}</p>
+                        <p className="mt-1 text-xs text-emerald-700">Replied at: {formatDateTimeIST(draft.replied_at)}</p>
                       )}
                       {draft.reply_snippet && (
                         <p className="mt-2 text-sm leading-6">{draft.reply_snippet}</p>
@@ -943,7 +930,7 @@ function Emails() {
                     <div className="text-xs text-gray-500">
                       <span>{draft.ai_model || "AI model unavailable"}</span>
                       <span className="mx-2">|</span>
-                      <span>{formatDate(draft.created_at)}</span>
+                      <span>{formatDateTimeIST(draft.created_at)}</span>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
@@ -1032,9 +1019,9 @@ function Emails() {
                             </p>
 
                             <div className="mt-3 text-xs text-gray-500">
-                              <p>Generated: {formatDate(followUp.generated_at || followUp.created_at)}</p>
+                              <p>Generated: {formatDateTimeIST(followUp.generated_at || followUp.created_at)}</p>
                               {followUp.sent_at && (
-                                <p>Sent at: {formatDate(followUp.sent_at)}</p>
+                                <p>Sent at: {formatDateTimeIST(followUp.sent_at)}</p>
                               )}
                               {followUp.gmail_message_id && (
                                 <p>Gmail message ID: {followUp.gmail_message_id}</p>
