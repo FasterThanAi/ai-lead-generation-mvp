@@ -59,10 +59,30 @@ def serialize_recent_email_draft(email_draft: EmailDraft):
     }
 
 
+def serialize_top_ai_lead(lead: Lead):
+    campaign = lead.campaign
+
+    return {
+        "lead_id": lead.id,
+        "campaign_id": lead.campaign_id,
+        "company_name": lead.company_name,
+        "lead_email": lead.email,
+        "ai_score": lead.ai_score,
+        "ai_priority": lead.ai_priority,
+        "ai_qualification": lead.ai_qualification,
+        "campaign_name": campaign.campaign_name if campaign else None,
+    }
+
+
 @router.get("/stats")
 def get_dashboard_stats(db: Session = Depends(get_db)):
     emails_sent = count_rows(db, EmailDraft, EmailDraft.status.in_(("sent", "replied")))
     emails_replied = count_rows(db, EmailDraft, EmailDraft.status == "replied")
+    average_ai_score = (
+        db.query(func.avg(Lead.ai_score))
+        .filter(Lead.ai_score.isnot(None))
+        .scalar()
+    )
     latest_campaigns = (
         db.query(Campaign)
         .order_by(Campaign.created_at.desc(), Campaign.id.desc())
@@ -73,6 +93,14 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         db.query(EmailDraft)
         .options(joinedload(EmailDraft.lead), joinedload(EmailDraft.campaign))
         .order_by(EmailDraft.created_at.desc(), EmailDraft.id.desc())
+        .limit(5)
+        .all()
+    )
+    top_ai_leads = (
+        db.query(Lead)
+        .options(joinedload(Lead.campaign))
+        .filter(Lead.ai_score.isnot(None))
+        .order_by(Lead.ai_score.desc(), Lead.ai_scored_at.desc(), Lead.id.desc())
         .limit(5)
         .all()
     )
@@ -90,11 +118,16 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             "reply_rate": rate_percentage(emails_replied, emails_sent),
             "total_followups_generated": count_rows(db, FollowUpDraft, FollowUpDraft.status == "generated"),
             "total_followups_sent": count_rows(db, FollowUpDraft, FollowUpDraft.status == "sent"),
+            "total_scored_leads": count_rows(db, Lead, Lead.ai_score.isnot(None)),
+            "average_ai_score": round(float(average_ai_score), 1) if average_ai_score is not None else 0.0,
+            "high_priority_leads": count_rows(db, Lead, Lead.ai_priority == "High"),
+            "hot_leads": count_rows(db, Lead, Lead.ai_qualification == "Hot"),
             "gmail_connected": db.query(GmailToken.id).first() is not None,
             "latest_campaigns": [serialize_campaign(campaign) for campaign in latest_campaigns],
             "recent_email_drafts": [
                 serialize_recent_email_draft(email_draft)
                 for email_draft in recent_email_drafts
             ],
+            "top_ai_leads": [serialize_top_ai_lead(lead) for lead in top_ai_leads],
         }
     }

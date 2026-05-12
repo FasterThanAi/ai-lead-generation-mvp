@@ -51,6 +51,30 @@ export function getFriendlyErrorMessage(err, fallbackMessage = DEFAULT_ERROR_MES
     return "Maximum follow-up limit reached.";
   }
 
+  if (context === "lead-scoring") {
+    if (
+      normalizedMessage.includes("gemini") ||
+      normalizedMessage.includes("api key") ||
+      normalizedMessage.includes("quota")
+    ) {
+      return "Gemini API key may be missing or quota may be exceeded.";
+    }
+
+    if (normalizedMessage.includes("no leads")) {
+      return "This campaign has no leads to score.";
+    }
+
+    if (normalizedMessage.includes("no unscored leads")) {
+      return "No unscored leads found.";
+    }
+
+    if (normalizedMessage.includes("some failures")) {
+      return "Lead scoring completed with some failures.";
+    }
+
+    return "AI lead scoring failed. Please try again.";
+  }
+
   if (
     normalizedMessage.includes("approve the follow-up") ||
     normalizedMessage.includes("before sending")

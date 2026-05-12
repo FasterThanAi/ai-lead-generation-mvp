@@ -24,9 +24,14 @@ const emptyStats = {
   reply_rate: 0,
   total_followups_generated: 0,
   total_followups_sent: 0,
+  total_scored_leads: 0,
+  average_ai_score: 0,
+  high_priority_leads: 0,
+  hot_leads: 0,
   gmail_connected: false,
   latest_campaigns: [],
   recent_email_drafts: [],
+  top_ai_leads: [],
 };
 
 function Dashboard() {
@@ -67,6 +72,10 @@ function Dashboard() {
     ["Reply Rate", formatPercent(stats.reply_rate)],
     ["Follow-ups Generated", stats.total_followups_generated],
     ["Follow-ups Sent", stats.total_followups_sent],
+    ["Total Scored Leads", stats.total_scored_leads],
+    ["Average AI Score", Number(stats.average_ai_score ?? 0).toFixed(1)],
+    ["High Priority Leads", stats.high_priority_leads],
+    ["Hot Leads", stats.hot_leads],
     ["Gmail Status", stats.gmail_connected ? "Connected" : "Not connected"],
   ];
 
@@ -93,6 +102,49 @@ function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div className="bg-white p-6 rounded-xl shadow border xl:col-span-2">
+          <div className="mb-4">
+            <h3 className="text-xl font-semibold">Top AI-Scored Leads</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Review these recommendations before contacting leads.
+            </p>
+          </div>
+
+          {stats.top_ai_leads.length === 0 ? (
+            <div className="border border-dashed rounded-lg p-6 text-center text-sm text-gray-500">
+              No scored leads yet.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+              {stats.top_ai_leads.map((lead) => (
+                <div key={lead.lead_id || lead.id} className="rounded-lg border bg-gray-50 p-4">
+                  <p className="text-sm font-semibold text-gray-900">
+                    {lead.company_name || `Lead ID ${lead.lead_id || lead.id}`}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {lead.campaign_name || "Campaign unavailable"}
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
+                      Score {lead.ai_score ?? 0}
+                    </span>
+                    {lead.ai_priority && (
+                      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                        {lead.ai_priority}
+                      </span>
+                    )}
+                    {lead.ai_qualification && (
+                      <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
+                        {lead.ai_qualification}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="bg-white p-6 rounded-xl shadow border">
           <div className="mb-4">
             <h3 className="text-xl font-semibold">Latest Campaigns</h3>

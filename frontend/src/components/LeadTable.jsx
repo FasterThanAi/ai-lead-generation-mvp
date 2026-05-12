@@ -16,6 +16,27 @@ function getStatusClasses(status) {
   return statusClasses[status] || "bg-gray-100 text-gray-700";
 }
 
+function getPriorityClasses(priority) {
+  const priorityClasses = {
+    High: "bg-green-100 text-green-700",
+    Medium: "bg-yellow-100 text-yellow-800",
+    Low: "bg-gray-100 text-gray-700",
+  };
+
+  return priorityClasses[priority] || "bg-gray-100 text-gray-700";
+}
+
+function getQualificationClasses(qualification) {
+  const qualificationClasses = {
+    Hot: "bg-green-100 text-green-700",
+    Warm: "bg-yellow-100 text-yellow-800",
+    Cold: "bg-gray-100 text-gray-700",
+    "Not Relevant": "bg-red-100 text-red-700",
+  };
+
+  return qualificationClasses[qualification] || "bg-gray-100 text-gray-700";
+}
+
 function LeadTable({
   leads,
   isLoading,
@@ -23,6 +44,8 @@ function LeadTable({
   hasSelectedCampaign,
   onExtractEmail,
   extractingLeadId,
+  onScoreLead,
+  scoringLeadId,
 }) {
   return (
     <div className="bg-white p-6 rounded-xl shadow border">
@@ -78,6 +101,10 @@ function LeadTable({
                 <th className="px-4 py-3 font-semibold">Email</th>
                 <th className="px-4 py-3 font-semibold">Source</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
+                <th className="px-4 py-3 font-semibold">AI Score</th>
+                <th className="px-4 py-3 font-semibold">Priority</th>
+                <th className="px-4 py-3 font-semibold">Qualification</th>
+                <th className="px-4 py-3 font-semibold">AI Insights</th>
                 <th className="px-4 py-3 font-semibold">Created At</th>
                 <th className="px-4 py-3 font-semibold">Action</th>
               </tr>
@@ -122,10 +149,64 @@ function LeadTable({
                       {displayValue(lead.status)}
                     </span>
                   </td>
+                  <td className="px-4 py-3 text-gray-700">
+                    {lead.ai_score !== null && lead.ai_score !== undefined ? (
+                      <div>
+                        <p className="text-lg font-semibold text-gray-900">{lead.ai_score}</p>
+                        {lead.ai_scored_at && (
+                          <p className="mt-1 text-xs text-gray-500">{formatDateTimeIST(lead.ai_scored_at)}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">Not scored</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {lead.ai_priority ? (
+                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${getPriorityClasses(lead.ai_priority)}`}>
+                        {lead.ai_priority}
+                      </span>
+                    ) : (
+                      <span className="text-gray-500">-</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {lead.ai_qualification ? (
+                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${getQualificationClasses(lead.ai_qualification)}`}>
+                        {lead.ai_qualification}
+                      </span>
+                    ) : (
+                      <span className="text-gray-500">-</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-gray-700 min-w-72">
+                    {lead.ai_score_reason || lead.ai_outreach_angle || lead.ai_pain_point || lead.ai_recommended_cta ? (
+                      <div className="space-y-2 text-xs leading-5">
+                        {lead.ai_score_reason && (
+                          <p><span className="font-semibold text-gray-900">Reason:</span> {lead.ai_score_reason}</p>
+                        )}
+                        {lead.ai_outreach_angle && (
+                          <p><span className="font-semibold text-gray-900">Angle:</span> {lead.ai_outreach_angle}</p>
+                        )}
+                        {lead.ai_pain_point && (
+                          <p><span className="font-semibold text-gray-900">Pain:</span> {lead.ai_pain_point}</p>
+                        )}
+                        {lead.ai_recommended_cta && (
+                          <p><span className="font-semibold text-gray-900">CTA:</span> {lead.ai_recommended_cta}</p>
+                        )}
+                        {lead.ai_score_error && (
+                          <p className="text-yellow-700">{lead.ai_score_error}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">No AI insights yet</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                     {formatDateTimeIST(lead.created_at)}
                   </td>
                   <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
                     <button
                       className="whitespace-nowrap rounded bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
                       disabled={!lead.website || extractingLeadId === lead.id}
@@ -133,6 +214,18 @@ function LeadTable({
                     >
                       {extractingLeadId === lead.id ? "Extracting..." : "Extract Email"}
                     </button>
+                    <button
+                      className="whitespace-nowrap rounded bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
+                      disabled={scoringLeadId === lead.id}
+                      onClick={() => onScoreLead?.(lead)}
+                    >
+                      {scoringLeadId === lead.id
+                        ? "Scoring..."
+                        : lead.ai_score !== null && lead.ai_score !== undefined
+                          ? "Rescore"
+                          : "Score"}
+                    </button>
+                    </div>
                   </td>
                 </tr>
               ))}

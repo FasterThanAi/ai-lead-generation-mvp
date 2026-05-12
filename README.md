@@ -2,13 +2,15 @@
 
 ## 1. Project Overview
 
-This is an AI-powered lead generation and cold email outreach MVP. It supports campaign creation, lead upload, public email extraction, AI-generated email drafts, Gmail OAuth connection, sending approved drafts, manual reply checks, campaign analytics, and safe follow-up drafts.
+This is an AI-powered lead generation and cold email outreach MVP. It supports campaign creation, lead upload, public email extraction, AI lead scoring, AI-generated email drafts, Gmail OAuth connection, sending approved drafts, manual reply checks, campaign analytics, and safe follow-up drafts.
 
 ## 2. Features
 
 - Campaign management
 - Lead CSV upload
 - Public email extraction from websites
+- AI lead scoring and qualification
+- Lead priority, outreach angle, pain point, and CTA recommendations
 - AI email generation using Gemini
 - Draft approve/reject workflow
 - Gmail OAuth connection
@@ -47,11 +49,12 @@ Main data flow:
 1. Campaigns are created in the app.
 2. Leads are uploaded from CSV and linked to campaigns.
 3. Website extraction searches public pages for lead emails.
-4. Gemini generates cold email drafts.
-5. Users approve or reject drafts.
-6. Gmail OAuth enables sending approved drafts only.
-7. Users manually check sent emails for replies and review campaign analytics.
-8. If there is no reply, users generate, approve, and send follow-up drafts manually.
+4. Gemini scores leads and explains priority, fit, outreach angle, pain point, and CTA.
+5. Gemini generates cold email drafts.
+6. Users approve or reject drafts.
+7. Gmail OAuth enables sending approved drafts only.
+8. Users manually check sent emails for replies and review campaign analytics.
+9. If there is no reply, users generate, approve, and send follow-up drafts manually.
 
 ## 5. Week-wise Progress
 
@@ -107,6 +110,15 @@ Week 8:
 - Follow-up sending through Gmail
 - Follow-up safety rules and limits
 - Follow-up analytics
+
+Week 9:
+- AI lead scoring
+- Lead priority and qualification labels
+- Explainable score reason
+- Suggested outreach angle
+- Likely pain point
+- Recommended CTA
+- Dashboard and campaign analytics for scored leads
 
 ## 6. Local Setup
 
@@ -172,17 +184,20 @@ Backend:
 
 1. Create campaign
 2. Upload leads CSV
-3. Generate first email
-4. Approve and send first email
-5. Check replies
-6. If no reply, generate follow-up draft
-7. Approve follow-up
-8. Send follow-up
-9. Track follow-up status
+3. Score leads with AI
+4. Review top priority leads
+5. Generate first email
+6. Approve and send first email
+7. Check replies
+8. If no reply, generate follow-up draft
+9. Approve follow-up
+10. Send follow-up
+11. Track follow-up status
 
 ## 10. Safety Notes
 
 - Emails are not sent automatically.
+- AI scoring is a recommendation and should be reviewed before outreach.
 - Only approved drafts can be sent.
 - Follow-ups are never sent automatically.
 - Only approved follow-ups can be sent.

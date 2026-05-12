@@ -55,6 +55,18 @@ def serialize_recent_follow_up(follow_up: FollowUpDraft):
     }
 
 
+def serialize_top_ai_lead(lead: Lead):
+    return {
+        "lead_id": lead.id,
+        "company_name": lead.company_name,
+        "lead_email": lead.email,
+        "ai_score": lead.ai_score,
+        "ai_priority": lead.ai_priority,
+        "ai_qualification": lead.ai_qualification,
+        "ai_score_reason": lead.ai_score_reason,
+    }
+
+
 @router.get("/campaign/{campaign_id}")
 def get_campaign_analytics(campaign_id: int, db: Session = Depends(get_db)):
     campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
@@ -158,6 +170,25 @@ def get_campaign_analytics(campaign_id: int, db: Session = Depends(get_db)):
         .limit(5)
         .all()
     )
+    scored_leads = count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_score.isnot(None))
+    average_ai_score = (
+        db.query(func.avg(Lead.ai_score))
+        .filter(
+            Lead.campaign_id == campaign_id,
+            Lead.ai_score.isnot(None),
+        )
+        .scalar()
+    )
+    top_ai_leads = (
+        db.query(Lead)
+        .filter(
+            Lead.campaign_id == campaign_id,
+            Lead.ai_score.isnot(None),
+        )
+        .order_by(Lead.ai_score.desc(), Lead.ai_scored_at.desc(), Lead.id.desc())
+        .limit(5)
+        .all()
+    )
 
     return {
         "status": "success",
@@ -180,6 +211,20 @@ def get_campaign_analytics(campaign_id: int, db: Session = Depends(get_db)):
             "followups_sent_count": followups_sent_count,
             "followups_failed_count": followups_failed_count,
             "followups_pending_count": followups_pending_count,
+            "scored_leads": scored_leads,
+            "unscored_leads": max(lead_count - scored_leads, 0),
+            "average_ai_score": round(float(average_ai_score), 1) if average_ai_score is not None else 0.0,
+            "high_priority_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_priority == "High"),
+            "medium_priority_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_priority == "Medium"),
+            "low_priority_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_priority == "Low"),
+            "hot_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_qualification == "Hot"),
+            "warm_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_qualification == "Warm"),
+            "cold_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_qualification == "Cold"),
+            "not_relevant_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_qualification == "Not Relevant"),
+            "top_ai_leads": [
+                serialize_top_ai_lead(lead)
+                for lead in top_ai_leads
+            ],
             "recent_replies": [
                 serialize_recent_reply(email_draft)
                 for email_draft in recent_replies

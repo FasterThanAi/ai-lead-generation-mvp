@@ -23,6 +23,9 @@ class EmailDraftResponse(BaseModel):
     lead_contact_name: str | None = None
     lead_contact_role: str | None = None
     lead_email: str | None = None
+    lead_ai_score: int | None = None
+    lead_ai_priority: str | None = None
+    lead_ai_qualification: str | None = None
 
     class Config:
         from_attributes = True

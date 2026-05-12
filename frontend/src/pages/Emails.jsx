@@ -661,6 +661,26 @@ function Emails() {
                     <p className="text-xs text-red-700">Follow-ups Failed</p>
                     <p className="mt-1 text-2xl font-semibold text-red-900">{campaignAnalytics.followups_failed_count ?? 0}</p>
                   </div>
+                  <div className="rounded-lg border bg-indigo-50 p-4">
+                    <p className="text-xs text-indigo-700">AI Scored Leads</p>
+                    <p className="mt-1 text-2xl font-semibold text-indigo-900">{campaignAnalytics.scored_leads ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border bg-gray-50 p-4">
+                    <p className="text-xs text-gray-500">Unscored Leads</p>
+                    <p className="mt-1 text-2xl font-semibold text-gray-900">{campaignAnalytics.unscored_leads ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border bg-indigo-50 p-4">
+                    <p className="text-xs text-indigo-700">Avg AI Score</p>
+                    <p className="mt-1 text-2xl font-semibold text-indigo-900">{Number(campaignAnalytics.average_ai_score ?? 0).toFixed(1)}</p>
+                  </div>
+                  <div className="rounded-lg border bg-green-50 p-4">
+                    <p className="text-xs text-green-700">High Priority</p>
+                    <p className="mt-1 text-2xl font-semibold text-green-900">{campaignAnalytics.high_priority_leads ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border bg-emerald-50 p-4">
+                    <p className="text-xs text-emerald-700">Hot Leads</p>
+                    <p className="mt-1 text-2xl font-semibold text-emerald-900">{campaignAnalytics.hot_leads ?? 0}</p>
+                  </div>
                 </div>
 
                 {campaignAnalytics.recent_replies?.length > 0 && (
@@ -887,6 +907,17 @@ function Emails() {
                       {draft.lead_email && (
                         <p className="mt-1 text-sm text-gray-500">
                           To: {draft.lead_email}
+                        </p>
+                      )}
+                      {draft.lead_ai_score !== null && draft.lead_ai_score !== undefined ? (
+                        <p className="mt-2 text-sm font-medium text-indigo-700">
+                          AI Score: {draft.lead_ai_score}
+                          {draft.lead_ai_priority ? ` | ${draft.lead_ai_priority}` : ""}
+                          {draft.lead_ai_qualification ? ` | ${draft.lead_ai_qualification}` : ""}
+                        </p>
+                      ) : (
+                        <p className="mt-2 text-sm text-yellow-700">
+                          This lead has not been AI-scored yet.
                         </p>
                       )}
                     </div>
