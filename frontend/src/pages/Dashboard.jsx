@@ -126,8 +126,18 @@ function Dashboard() {
                   </p>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
-                      Score {lead.ai_score ?? 0}
+                      Final {lead.ai_score ?? 0}
                     </span>
+                    {lead.ai_fit_score !== null && lead.ai_fit_score !== undefined && (
+                      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                        Fit {lead.ai_fit_score}
+                      </span>
+                    )}
+                    {lead.ai_contact_confidence_score !== null && lead.ai_contact_confidence_score !== undefined && (
+                      <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
+                        Contact {lead.ai_contact_confidence_score}
+                      </span>
+                    )}
                     {lead.ai_priority && (
                       <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
                         {lead.ai_priority}

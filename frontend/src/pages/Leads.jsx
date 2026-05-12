@@ -171,7 +171,11 @@ function Leads() {
     setLeadScoringError("");
 
     try {
-      await api.post(`/lead-scoring/score/${lead.id}${isRescore ? "?force=true" : ""}`);
+      await api.post(`/lead-scoring/score/${lead.id}`, null, {
+        params: {
+          force: isRescore,
+        },
+      });
       setLeadScoringMessage(isRescore ? "Lead rescored successfully." : "Lead scored successfully.");
       refreshLeads();
     } catch (err) {
@@ -272,6 +276,17 @@ function Leads() {
                 <p className="mt-1 text-sm text-gray-500">
                   AI scoring is a recommendation. Review before contacting leads.
                 </p>
+                <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-gray-600 md:grid-cols-3">
+                  <p className="rounded border bg-green-50 p-3">
+                    <span className="font-semibold text-green-800">Fit Score</span> = company and campaign match.
+                  </p>
+                  <p className="rounded border bg-yellow-50 p-3">
+                    <span className="font-semibold text-yellow-800">Contact Confidence</span> = quality of contact details.
+                  </p>
+                  <p className="rounded border bg-indigo-50 p-3">
+                    <span className="font-semibold text-indigo-800">Final AI Score</span> = outreach readiness.
+                  </p>
+                </div>
               </div>
 
               <button
@@ -320,7 +335,7 @@ function Leads() {
                   onChange={(e) => setSortByScore(e.target.checked)}
                   className="h-4 w-4"
                 />
-                Sort by AI score
+                Sort by final AI score
               </label>
             </div>
           </div>

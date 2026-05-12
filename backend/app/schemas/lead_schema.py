@@ -28,12 +28,16 @@ class LeadResponse(LeadBase):
     source: str
     status: str
     ai_score: int | None = None
+    ai_fit_score: int | None = None
+    ai_contact_confidence_score: int | None = None
     ai_priority: str | None = None
     ai_qualification: str | None = None
     ai_score_reason: str | None = None
+    ai_contact_confidence_reason: str | None = None
     ai_outreach_angle: str | None = None
     ai_pain_point: str | None = None
     ai_recommended_cta: str | None = None
+    ai_final_priority_reason: str | None = None
     ai_scored_at: datetime | None = None
     ai_model_used: str | None = None
     ai_score_error: str | None = None

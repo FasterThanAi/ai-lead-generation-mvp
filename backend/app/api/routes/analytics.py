@@ -61,9 +61,13 @@ def serialize_top_ai_lead(lead: Lead):
         "company_name": lead.company_name,
         "lead_email": lead.email,
         "ai_score": lead.ai_score,
+        "ai_fit_score": lead.ai_fit_score,
+        "ai_contact_confidence_score": lead.ai_contact_confidence_score,
         "ai_priority": lead.ai_priority,
         "ai_qualification": lead.ai_qualification,
         "ai_score_reason": lead.ai_score_reason,
+        "ai_contact_confidence_reason": lead.ai_contact_confidence_reason,
+        "ai_final_priority_reason": lead.ai_final_priority_reason,
     }
 
 

@@ -57,12 +57,16 @@ def ensure_lead_ai_scoring_columns(engine):
 
     required_columns = {
         "ai_score": "INTEGER",
+        "ai_fit_score": "INTEGER",
+        "ai_contact_confidence_score": "INTEGER",
         "ai_priority": "VARCHAR(50)",
         "ai_qualification": "VARCHAR(50)",
         "ai_score_reason": "TEXT",
+        "ai_contact_confidence_reason": "TEXT",
         "ai_outreach_angle": "TEXT",
         "ai_pain_point": "TEXT",
         "ai_recommended_cta": "TEXT",
+        "ai_final_priority_reason": "TEXT",
         "ai_scored_at": datetime_type,
         "ai_model_used": "VARCHAR(255)",
         "ai_score_error": "TEXT",

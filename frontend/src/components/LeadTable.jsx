@@ -37,6 +37,30 @@ function getQualificationClasses(qualification) {
   return qualificationClasses[qualification] || "bg-gray-100 text-gray-700";
 }
 
+function hasScore(value) {
+  return value !== null && value !== undefined;
+}
+
+function ScoreCell({ value, tone = "gray", helpText }) {
+  const toneClasses = {
+    green: "text-green-700",
+    indigo: "text-indigo-700",
+    yellow: "text-yellow-700",
+    gray: "text-gray-900",
+  };
+
+  return hasScore(value) ? (
+    <div>
+      <p className={`text-lg font-semibold ${toneClasses[tone] || toneClasses.gray}`}>{value}</p>
+      {helpText && (
+        <p className="mt-1 text-xs text-gray-500">{helpText}</p>
+      )}
+    </div>
+  ) : (
+    <span className="text-gray-500">-</span>
+  );
+}
+
 function LeadTable({
   leads,
   isLoading,
@@ -101,7 +125,9 @@ function LeadTable({
                 <th className="px-4 py-3 font-semibold">Email</th>
                 <th className="px-4 py-3 font-semibold">Source</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">AI Score</th>
+                <th className="px-4 py-3 font-semibold">Fit Score</th>
+                <th className="px-4 py-3 font-semibold">Contact Confidence</th>
+                <th className="px-4 py-3 font-semibold">Final AI Score</th>
                 <th className="px-4 py-3 font-semibold">Priority</th>
                 <th className="px-4 py-3 font-semibold">Qualification</th>
                 <th className="px-4 py-3 font-semibold">AI Insights</th>
@@ -150,9 +176,23 @@ function LeadTable({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-700">
-                    {lead.ai_score !== null && lead.ai_score !== undefined ? (
+                    <ScoreCell
+                      value={lead.ai_fit_score}
+                      tone="green"
+                      helpText="Company fit"
+                    />
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">
+                    <ScoreCell
+                      value={lead.ai_contact_confidence_score}
+                      tone="yellow"
+                      helpText="Contact quality"
+                    />
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">
+                    {hasScore(lead.ai_score) ? (
                       <div>
-                        <p className="text-lg font-semibold text-gray-900">{lead.ai_score}</p>
+                        <p className="text-lg font-semibold text-indigo-700">{lead.ai_score}</p>
                         {lead.ai_scored_at && (
                           <p className="mt-1 text-xs text-gray-500">{formatDateTimeIST(lead.ai_scored_at)}</p>
                         )}
@@ -185,6 +225,9 @@ function LeadTable({
                         {lead.ai_score_reason && (
                           <p><span className="font-semibold text-gray-900">Reason:</span> {lead.ai_score_reason}</p>
                         )}
+                        {lead.ai_contact_confidence_reason && (
+                          <p><span className="font-semibold text-gray-900">Contact:</span> {lead.ai_contact_confidence_reason}</p>
+                        )}
                         {lead.ai_outreach_angle && (
                           <p><span className="font-semibold text-gray-900">Angle:</span> {lead.ai_outreach_angle}</p>
                         )}
@@ -193,6 +236,9 @@ function LeadTable({
                         )}
                         {lead.ai_recommended_cta && (
                           <p><span className="font-semibold text-gray-900">CTA:</span> {lead.ai_recommended_cta}</p>
+                        )}
+                        {lead.ai_final_priority_reason && (
+                          <p><span className="font-semibold text-gray-900">Priority:</span> {lead.ai_final_priority_reason}</p>
                         )}
                         {lead.ai_score_error && (
                           <p className="text-yellow-700">{lead.ai_score_error}</p>
@@ -221,7 +267,7 @@ function LeadTable({
                     >
                       {scoringLeadId === lead.id
                         ? "Scoring..."
-                        : lead.ai_score !== null && lead.ai_score !== undefined
+                        : hasScore(lead.ai_score)
                           ? "Rescore"
                           : "Score"}
                     </button>

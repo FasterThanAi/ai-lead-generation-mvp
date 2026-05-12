@@ -68,6 +68,8 @@ def serialize_top_ai_lead(lead: Lead):
         "company_name": lead.company_name,
         "lead_email": lead.email,
         "ai_score": lead.ai_score,
+        "ai_fit_score": lead.ai_fit_score,
+        "ai_contact_confidence_score": lead.ai_contact_confidence_score,
         "ai_priority": lead.ai_priority,
         "ai_qualification": lead.ai_qualification,
         "campaign_name": campaign.campaign_name if campaign else None,

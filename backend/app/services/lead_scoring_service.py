@@ -1,3 +1,6 @@
+import re
+from urllib.parse import urlparse
+
 from google import genai
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -7,15 +10,143 @@ from app.db.models import Campaign, Lead
 from app.services.ai_service import clean_value, extract_json_from_text
 from app.utils.time_utils import utc_now
 
-ROLE_KEYWORDS = (
+VALID_DECISION_MAKER_KEYWORDS = (
     "hr",
+    "human resources",
+    "training",
+    "learning",
+    "l&d",
+    "operations",
+    "operation",
+    "ops",
+    "admin",
     "founder",
     "owner",
-    "manager",
     "director",
-    "operations",
-    "training",
+    "head",
+    "manager",
+    "chief",
+    "ceo",
+    "coo",
+    "people",
+    "talent",
 )
+RELATED_MANAGER_KEYWORDS = ("manager", "head", "lead", "supervisor", "coordinator")
+PERSONAL_EMAIL_DOMAINS = {
+    "gmail.com",
+    "yahoo.com",
+    "outlook.com",
+    "hotmail.com",
+    "icloud.com",
+    "protonmail.com",
+    "live.com",
+    "msn.com",
+    "rediffmail.com",
+    "aol.com",
+}
+GENERIC_EMAIL_LOCAL_PARTS = {
+    "info",
+    "contact",
+    "hello",
+    "sales",
+    "support",
+    "hr",
+    "admin",
+    "careers",
+    "enquiry",
+    "inquiry",
+    "inquiries",
+    "marketing",
+}
+STUDENT_DOMAIN_KEYWORDS = (
+    "student",
+    "students",
+    "edu",
+    "ac.in",
+    "college",
+    "university",
+    "school",
+    "institute",
+    "campus",
+)
+INDIAN_LOCATION_KEYWORDS = (
+    "india",
+    "pune",
+    "mumbai",
+    "delhi",
+    "bengaluru",
+    "bangalore",
+    "chennai",
+    "hyderabad",
+    "ahmedabad",
+    "kolkata",
+    "noida",
+    "gurgaon",
+    "gurugram",
+    "jamshedpur",
+    "nagpur",
+    "surat",
+    "vadodara",
+    "coimbatore",
+    "indore",
+    "jaipur",
+)
+MANUFACTURING_TERMS = (
+    "manufacturing",
+    "manufacturer",
+    "factory",
+    "plant",
+    "industrial",
+    "production",
+    "steel",
+    "automotive",
+    "auto",
+    "component",
+    "machinery",
+    "engineering",
+    "bosch",
+    "tata steel",
+)
+TRAINING_TERMS = (
+    "training",
+    "corporate training",
+    "learning",
+    "onboarding",
+    "employee",
+    "hr",
+    "sop",
+    "l&d",
+    "education",
+    "edtech",
+    "course",
+    "academy",
+    "simplilearn",
+)
+OFFER_RELEVANCE_TERMS = (
+    "training",
+    "onboarding",
+    "sop",
+    "employee",
+    "quiz",
+    "quizzes",
+    "hr analytics",
+    "analytics",
+    "learning",
+)
+COMPANY_STOP_WORDS = {
+    "india",
+    "pvt",
+    "ltd",
+    "limited",
+    "private",
+    "inc",
+    "llc",
+    "company",
+    "corp",
+    "corporation",
+    "group",
+    "the",
+}
 
 
 class LeadScoringError(RuntimeError):
@@ -49,6 +180,10 @@ def get_qualification_for_score(score: int):
     return "Not Relevant"
 
 
+def get_final_score(fit_score: int, contact_confidence_score: int):
+    return round((fit_score * 0.75) + (contact_confidence_score * 0.25))
+
+
 def contains_match(left_value, right_value):
     left = clean_value(left_value).lower()
     right = clean_value(right_value).lower()
@@ -56,46 +191,360 @@ def contains_match(left_value, right_value):
     return bool(left and right and (left in right or right in left))
 
 
-def has_target_role_match(lead_role, campaign_role):
-    role_text = clean_value(lead_role).lower()
+def tokenize(value):
+    return [
+        token
+        for token in re.split(r"[^a-z0-9]+", clean_value(value).lower())
+        if len(token) >= 3
+    ]
 
-    if contains_match(lead_role, campaign_role):
+
+def text_contains_any(value, keywords):
+    text = clean_value(value).lower()
+
+    return any(keyword in text for keyword in keywords)
+
+
+def get_combined_lead_text(lead: Lead):
+    return " ".join(
+        clean_value(value)
+        for value in (
+            lead.company_name,
+            lead.industry,
+            lead.contact_role,
+            lead.location,
+            lead.website,
+        )
+        if clean_value(value)
+    )
+
+
+def has_direct_role_match(lead_role, campaign_role):
+    lead_text = clean_value(lead_role).lower()
+    campaign_text = clean_value(campaign_role).lower()
+
+    if contains_match(lead_text, campaign_text):
         return True
 
-    return any(keyword in role_text for keyword in ROLE_KEYWORDS)
+    target_roles = [
+        role.strip()
+        for role in re.split(r"[/,|]+", campaign_text)
+        if role.strip()
+    ]
+
+    return any(role and (role in lead_text or lead_text in role) for role in target_roles)
+
+
+def has_valid_decision_maker_role(lead_role):
+    role_text = clean_value(lead_role).lower()
+
+    return any(keyword in role_text for keyword in VALID_DECISION_MAKER_KEYWORDS)
+
+
+def has_related_manager_role(lead_role):
+    role_text = clean_value(lead_role).lower()
+
+    return any(keyword in role_text for keyword in RELATED_MANAGER_KEYWORDS)
+
+
+def get_industry_match_level(campaign: Campaign, lead: Lead):
+    campaign_text = f"{clean_value(campaign.industry)} {clean_value(campaign.offer)}".lower()
+    lead_text = get_combined_lead_text(lead).lower()
+
+    if contains_match(lead.industry, campaign.industry):
+        return "direct"
+
+    campaign_tokens = set(tokenize(campaign.industry))
+    lead_tokens = set(tokenize(f"{lead.industry} {lead.company_name}"))
+    shared_tokens = campaign_tokens.intersection(lead_tokens)
+
+    if shared_tokens:
+        return "direct"
+
+    campaign_has_manufacturing = text_contains_any(campaign_text, MANUFACTURING_TERMS)
+    lead_has_manufacturing = text_contains_any(lead_text, MANUFACTURING_TERMS)
+    campaign_has_training = text_contains_any(campaign_text, TRAINING_TERMS)
+    lead_has_training = text_contains_any(lead_text, TRAINING_TERMS)
+
+    if (
+        (campaign_has_manufacturing and lead_has_manufacturing) or
+        (campaign_has_training and lead_has_training)
+    ):
+        return "related"
+
+    if (
+        (campaign_has_manufacturing and lead_has_training) or
+        (campaign_has_training and lead_has_manufacturing)
+    ):
+        return "adjacent"
+
+    return "none"
+
+
+def get_location_score(campaign_location, lead_location):
+    campaign_text = clean_value(campaign_location).lower()
+    lead_text = clean_value(lead_location).lower()
+
+    if not lead_text:
+        return 0
+
+    if contains_match(campaign_text, lead_text):
+        return 15
+
+    if "india" in campaign_text and text_contains_any(lead_text, INDIAN_LOCATION_KEYWORDS):
+        return 10
+
+    return 5
+
+
+def has_likely_offer_relevance(campaign: Campaign, lead: Lead):
+    offer_text = clean_value(campaign.offer).lower()
+    lead_text = get_combined_lead_text(lead).lower()
+
+    return (
+        text_contains_any(offer_text, OFFER_RELEVANCE_TERMS) and
+        (
+            text_contains_any(lead_text, MANUFACTURING_TERMS) or
+            text_contains_any(lead_text, TRAINING_TERMS) or
+            has_valid_decision_maker_role(lead.contact_role)
+        )
+    )
+
+
+def is_training_vendor_like(lead: Lead):
+    lead_text = get_combined_lead_text(lead).lower()
+
+    return (
+        text_contains_any(lead_text, ("edtech", "education", "academy", "course", "online learning", "simplilearn")) or
+        ("training" in lead_text and not text_contains_any(lead_text, MANUFACTURING_TERMS))
+    )
+
+
+def get_domain_from_email(email):
+    email_value = clean_value(email).lower()
+
+    if "@" not in email_value:
+        return ""
+
+    return email_value.rsplit("@", 1)[1].strip()
+
+
+def get_local_part_from_email(email):
+    email_value = clean_value(email).lower()
+
+    if "@" not in email_value:
+        return ""
+
+    return email_value.split("@", 1)[0].strip()
+
+
+def normalize_domain(domain):
+    domain_value = clean_value(domain).lower().replace("www.", "")
+
+    return domain_value.strip("/")
+
+
+def get_domain_from_website(website):
+    website_value = clean_value(website)
+
+    if not website_value:
+        return ""
+
+    parsed_url = urlparse(website_value if "://" in website_value else f"https://{website_value}")
+
+    return normalize_domain(parsed_url.netloc or parsed_url.path)
+
+
+def is_example_website(website):
+    domain = get_domain_from_website(website)
+
+    return domain in {"example.com", "www.example.com"} or domain.endswith(".example.com")
+
+
+def is_personal_email_domain(domain):
+    return normalize_domain(domain) in PERSONAL_EMAIL_DOMAINS
+
+
+def is_student_or_institute_domain(domain):
+    normalized_domain = normalize_domain(domain)
+
+    return any(keyword in normalized_domain for keyword in STUDENT_DOMAIN_KEYWORDS)
+
+
+def get_company_tokens(company_name):
+    return [
+        token
+        for token in tokenize(company_name)
+        if token not in COMPANY_STOP_WORDS
+    ]
+
+
+def domain_matches_company_or_website(email_domain, website, company_name):
+    normalized_email_domain = normalize_domain(email_domain)
+    website_domain = get_domain_from_website(website)
+
+    if not normalized_email_domain:
+        return False
+
+    if website_domain and (
+        normalized_email_domain == website_domain or
+        normalized_email_domain.endswith(f".{website_domain}") or
+        website_domain.endswith(f".{normalized_email_domain}")
+    ):
+        return True
+
+    return any(token in normalized_email_domain for token in get_company_tokens(company_name))
+
+
+def has_specific_contact_name(contact_name):
+    contact_text = clean_value(contact_name).lower()
+
+    if not contact_text or contact_text in {"test", "student", "admin", "owner", "na", "n/a"}:
+        return False
+
+    return len(tokenize(contact_text)) >= 1
+
+
+def get_contact_confidence_score(lead: Lead):
+    score = 20
+    reasons = []
+    email = clean_value(lead.email)
+    email_domain = get_domain_from_email(email)
+    local_part = get_local_part_from_email(email)
+    website_is_usable = bool(clean_value(lead.website)) and not is_example_website(lead.website)
+    contact_cap = 100
+
+    if email:
+        score += 30
+
+        if is_student_or_institute_domain(email_domain):
+            score += 10
+            contact_cap = 45
+            reasons.append("The email appears to be a student or institute address, so contact confidence is limited.")
+        elif is_personal_email_domain(email_domain):
+            score += 15
+            contact_cap = 55
+            reasons.append("The email is a personal address, so it is usable for testing but should be replaced with a corporate contact.")
+        else:
+            if domain_matches_company_or_website(email_domain, lead.website, lead.company_name):
+                score += 30
+                reasons.append("The email domain appears to match the company or website.")
+            else:
+                score += 20
+                reasons.append("The email is non-personal, but the domain does not clearly match the company.")
+
+            if local_part in GENERIC_EMAIL_LOCAL_PARTS:
+                contact_cap = min(contact_cap, 80)
+                reasons.append("The email is generic rather than a named business contact.")
+    else:
+        contact_cap = 25
+        reasons.append("No email is available, so outreach readiness is low until a contact is found.")
+
+    if website_is_usable:
+        score += 10
+    elif clean_value(lead.website):
+        reasons.append("The website looks like placeholder data.")
+
+    if has_specific_contact_name(lead.contact_name):
+        score += 5
+
+    if clean_value(lead.contact_role):
+        score += 5
+
+    if email and is_student_or_institute_domain(email_domain):
+        score -= 10
+
+    score = min(clamp_score(score) or 0, contact_cap)
+
+    if not reasons:
+        reasons.append("Contact details look usable for outreach.")
+
+    return score, " ".join(reasons)
+
+
+def get_contact_confidence_cap(lead: Lead):
+    email = clean_value(lead.email)
+
+    if not email:
+        return 25
+
+    email_domain = get_domain_from_email(email)
+
+    if is_student_or_institute_domain(email_domain):
+        return 45
+
+    if is_personal_email_domain(email_domain):
+        return 55
+
+    if get_local_part_from_email(email) in GENERIC_EMAIL_LOCAL_PARTS:
+        return 80
+
+    return 100
 
 
 def fallback_score_lead(campaign: Campaign, lead: Lead):
-    score = 30
+    fit_score = 20
+    industry_level = get_industry_match_level(campaign, lead)
 
-    if contains_match(lead.industry, campaign.industry):
-        score += 25
-    if has_target_role_match(lead.contact_role, campaign.target_role):
-        score += 20
-    if contains_match(lead.location, campaign.location):
-        score += 15
-    if clean_value(lead.email):
-        score += 10
-    if clean_value(lead.website):
-        score += 10
+    if industry_level == "direct":
+        fit_score += 35
+    elif industry_level == "related":
+        fit_score += 25
+    elif industry_level == "adjacent":
+        fit_score += 15
 
-    score = min(score, 100)
+    if has_direct_role_match(lead.contact_role, campaign.target_role):
+        fit_score += 25
+    elif has_valid_decision_maker_role(lead.contact_role):
+        fit_score += 20
+    elif has_related_manager_role(lead.contact_role):
+        fit_score += 10
+
+    fit_score += get_location_score(campaign.location, lead.location)
+
+    if has_likely_offer_relevance(campaign, lead):
+        fit_score += 15
+    elif clean_value(campaign.offer) and (clean_value(lead.industry) or clean_value(lead.contact_role)):
+        fit_score += 8
+
+    fit_score = min(fit_score, 95)
+
+    if is_training_vendor_like(lead) and text_contains_any(campaign.offer, ("employee", "onboarding", "sop", "hr analytics")):
+        fit_score = min(fit_score, 75)
+
+    fit_score = clamp_score(fit_score) or 0
+    contact_confidence_score, contact_confidence_reason = get_contact_confidence_score(lead)
+    score = get_final_score(fit_score, contact_confidence_score)
     priority = get_priority_for_score(score)
-    qualification = get_qualification_for_score(score)
+    qualification = get_qualification_for_score(fit_score)
     company_name = clean_value(lead.company_name) or "This lead"
     campaign_offer = clean_value(campaign.offer) or "the campaign offer"
 
+    if contact_confidence_score < 60:
+        final_priority_reason = (
+            f"{company_name} has strong company fit when the fit score is high, but outreach readiness is reduced "
+            "because the contact data should be improved before serious outreach."
+        )
+    else:
+        final_priority_reason = (
+            f"{company_name} has a final readiness score based mostly on business fit with contact confidence as a secondary factor."
+        )
+
     return {
         "score": score,
+        "fit_score": fit_score,
+        "contact_confidence_score": contact_confidence_score,
         "priority": priority,
         "qualification": qualification,
         "reason": (
-            f"{company_name} was scored using available fit signals such as industry, role, "
-            "location, email, and website completeness."
+            f"{company_name} was scored for business fit using company, industry, role, location, "
+            "offer relevance, and likely pain point signals."
         ),
+        "contact_confidence_reason": contact_confidence_reason,
         "outreach_angle": f"Connect the lead's role and company context to {campaign_offer}.",
         "pain_point": "The lead may need a clearer, faster way to evaluate and adopt the offered solution.",
         "recommended_cta": "Ask whether a short call would be useful to explore fit.",
+        "final_priority_reason": final_priority_reason,
     }
 
 
@@ -124,23 +573,31 @@ Lead:
 - Status: {clean_value(lead.status)}
 
 Rules:
-- Score from 0 to 100 based on campaign fit and reachable business context.
-- Priority must be High, Medium, or Low.
-- Qualification must be Hot, Warm, Cold, or Not Relevant.
-- Explain the score in 1-3 sentences.
+- Score business fit and contact confidence separately from 0 to 100.
+- fit_score is only company/campaign fit: company industry, campaign industry, target role, lead role, location match, offer relevance, and likely pain point.
+- Do not mix contact quality into fit_score.
+- A personal, test, Gmail, student, institute, or placeholder email should reduce contact_confidence_score, not fit_score.
+- For test/demo data, do not treat Gmail or student email as proof that the company is irrelevant.
+- Large manufacturing companies like Tata Steel or Bosch should score high in fit for manufacturing, SOP, onboarding, operations, training, or HR analytics campaigns.
+- Operations Head is a valid role for SOP, training, operations, and onboarding campaigns.
+- HR Manager, Training Manager, Operations Head, Admin Head, Founder, Owner, and Director are valid decision-maker roles depending on context.
+- Explain the business fit in 1-3 sentences.
+- Explain contact confidence separately.
 - Suggest a practical outreach angle.
 - Identify the likely pain point.
 - Suggest a recommended CTA.
+- Explain final priority/readiness as a combination of fit and contact confidence.
 - Do not invent facts about the lead.
 - Return valid JSON only with this exact shape:
 {{
-  "score": 0,
-  "priority": "High|Medium|Low",
-  "qualification": "Hot|Warm|Cold|Not Relevant",
+  "fit_score": 0,
+  "contact_confidence_score": 0,
   "reason": "...",
+  "contact_confidence_reason": "...",
   "outreach_angle": "...",
   "pain_point": "...",
-  "recommended_cta": "..."
+  "recommended_cta": "...",
+  "final_priority_reason": "..."
 }}
 """.strip()
 
@@ -155,20 +612,37 @@ def parse_ai_scoring_response(response_text: str, campaign: Campaign, lead: Lead
         fallback_result["error"] = str(exc)
         return fallback_result
 
-    score = clamp_score(parsed_response.get("score"))
+    fit_score = clamp_score(parsed_response.get("fit_score"))
+    contact_confidence_score = clamp_score(parsed_response.get("contact_confidence_score"))
 
-    if score is None:
-        fallback_result["warning"] = "Gemini response did not include a valid score. Fallback scoring was used."
+    if fit_score is None or contact_confidence_score is None:
+        fallback_result["warning"] = "Gemini response did not include valid fit/contact scores. Fallback scoring was used."
         return fallback_result
+
+    if fallback_result["fit_score"] >= 80 and fit_score < fallback_result["fit_score"] - 10:
+        fit_score = fallback_result["fit_score"]
+
+    contact_confidence_score = min(contact_confidence_score, get_contact_confidence_cap(lead))
+    score = get_final_score(fit_score, contact_confidence_score)
 
     return {
         "score": score,
+        "fit_score": fit_score,
+        "contact_confidence_score": contact_confidence_score,
         "priority": get_priority_for_score(score),
-        "qualification": get_qualification_for_score(score),
+        "qualification": get_qualification_for_score(fit_score),
         "reason": clean_value(parsed_response.get("reason")) or fallback_result["reason"],
+        "contact_confidence_reason": (
+            clean_value(parsed_response.get("contact_confidence_reason")) or
+            fallback_result["contact_confidence_reason"]
+        ),
         "outreach_angle": clean_value(parsed_response.get("outreach_angle")) or fallback_result["outreach_angle"],
         "pain_point": clean_value(parsed_response.get("pain_point")) or fallback_result["pain_point"],
         "recommended_cta": clean_value(parsed_response.get("recommended_cta")) or fallback_result["recommended_cta"],
+        "final_priority_reason": (
+            clean_value(parsed_response.get("final_priority_reason")) or
+            fallback_result["final_priority_reason"]
+        ),
         "warning": None,
     }
 
@@ -177,12 +651,16 @@ def serialize_lead_score(lead: Lead):
     return {
         "lead_id": lead.id,
         "ai_score": lead.ai_score,
+        "ai_fit_score": lead.ai_fit_score,
+        "ai_contact_confidence_score": lead.ai_contact_confidence_score,
         "ai_priority": lead.ai_priority,
         "ai_qualification": lead.ai_qualification,
         "ai_score_reason": lead.ai_score_reason,
+        "ai_contact_confidence_reason": lead.ai_contact_confidence_reason,
         "ai_outreach_angle": lead.ai_outreach_angle,
         "ai_pain_point": lead.ai_pain_point,
         "ai_recommended_cta": lead.ai_recommended_cta,
+        "ai_final_priority_reason": lead.ai_final_priority_reason,
         "ai_scored_at": lead.ai_scored_at,
         "ai_model_used": lead.ai_model_used,
         "ai_score_error": lead.ai_score_error,
@@ -191,12 +669,16 @@ def serialize_lead_score(lead: Lead):
 
 def save_lead_score(db: Session, lead: Lead, result: dict, model_used: str | None, error_message: str | None = None):
     lead.ai_score = result["score"]
+    lead.ai_fit_score = result["fit_score"]
+    lead.ai_contact_confidence_score = result["contact_confidence_score"]
     lead.ai_priority = result["priority"]
     lead.ai_qualification = result["qualification"]
     lead.ai_score_reason = result["reason"]
+    lead.ai_contact_confidence_reason = result["contact_confidence_reason"]
     lead.ai_outreach_angle = result["outreach_angle"]
     lead.ai_pain_point = result["pain_point"]
     lead.ai_recommended_cta = result["recommended_cta"]
+    lead.ai_final_priority_reason = result["final_priority_reason"]
     lead.ai_scored_at = utc_now()
     lead.ai_model_used = model_used
     lead.ai_score_error = error_message or result.get("warning")

@@ -911,7 +911,9 @@ function Emails() {
                       )}
                       {draft.lead_ai_score !== null && draft.lead_ai_score !== undefined ? (
                         <p className="mt-2 text-sm font-medium text-indigo-700">
-                          AI Score: {draft.lead_ai_score}
+                          Final AI Score: {draft.lead_ai_score}
+                          {draft.lead_ai_fit_score !== null && draft.lead_ai_fit_score !== undefined ? ` | Fit ${draft.lead_ai_fit_score}` : ""}
+                          {draft.lead_ai_contact_confidence_score !== null && draft.lead_ai_contact_confidence_score !== undefined ? ` | Contact ${draft.lead_ai_contact_confidence_score}` : ""}
                           {draft.lead_ai_priority ? ` | ${draft.lead_ai_priority}` : ""}
                           {draft.lead_ai_qualification ? ` | ${draft.lead_ai_qualification}` : ""}
                         </p>

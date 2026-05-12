@@ -38,6 +38,8 @@ def serialize_email_draft(email_draft: EmailDraft):
         "lead_contact_role": lead.contact_role if lead else None,
         "lead_email": lead.email if lead else None,
         "lead_ai_score": lead.ai_score if lead else None,
+        "lead_ai_fit_score": lead.ai_fit_score if lead else None,
+        "lead_ai_contact_confidence_score": lead.ai_contact_confidence_score if lead else None,
         "lead_ai_priority": lead.ai_priority if lead else None,
         "lead_ai_qualification": lead.ai_qualification if lead else None,
     }
