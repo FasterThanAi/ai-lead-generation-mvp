@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import api from "../services/api";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
+import Badge from "../components/ui/Badge";
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
+import PageHeader from "../components/ui/PageHeader";
 
 function Settings() {
   const [gmailStatus, setGmailStatus] = useState({
@@ -100,41 +104,53 @@ function Settings() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Settings</h2>
+      <PageHeader
+        title="Settings"
+        description="Manage Gmail connection and safety controls for sending and reply tracking."
+      />
 
       <div className="space-y-6">
-        <div className="bg-white p-6 rounded-xl shadow border">
+        <Card>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h3 className="text-xl font-semibold">Gmail Connection</h3>
-              <p className="mt-2 text-sm text-gray-500">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-xl font-semibold tracking-tight text-slate-950">Gmail Connection</h3>
+                {!isLoadingStatus && (
+                  <Badge variant={gmailStatus.connected ? "success" : "neutral"}>
+                    {gmailStatus.connected ? "Connected" : "Not connected"}
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-2 text-sm text-slate-500">
                 Gmail sending is restricted to approved drafts and approved follow-ups only.
               </p>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-slate-500">
                 Reply tracking requires Gmail readonly permission. If reply check fails, reconnect Gmail.
               </p>
             </div>
 
-            <button
-              className="rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100"
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full sm:w-auto"
               disabled={isLoadingStatus}
               onClick={fetchGmailStatus}
             >
               Refresh Status
-            </button>
+            </Button>
           </div>
 
-          <div className="mt-5 rounded-lg border bg-gray-50 p-4">
+          <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
             {isLoadingStatus ? (
-              <p className="text-sm text-gray-600">Checking Gmail connection...</p>
+              <p className="text-sm text-slate-600">Checking Gmail connection...</p>
             ) : gmailStatus.connected ? (
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-green-700">
+                  <p className="break-words text-sm font-semibold text-emerald-700">
                     {gmailStatus.email ? `Gmail connected as ${gmailStatus.email}` : "Gmail connected"}
                   </p>
-                  <p className="mt-1 text-sm text-gray-600">Approved drafts and approved follow-ups can be sent from the Emails page.</p>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-slate-600">Approved drafts and approved follow-ups can be sent from the Emails page.</p>
+                  <p className="mt-1 text-sm text-slate-600">
                     Reconnect Gmail if reply tracking is not available.
                   </p>
                   {!gmailStatus.replyTrackingAvailable && (
@@ -144,30 +160,32 @@ function Settings() {
                   )}
                 </div>
 
-                <button
-                  className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                <Button
+                  type="button"
+                  className="w-full sm:w-auto"
                   disabled={isConnecting}
                   onClick={handleConnectGmail}
                 >
                   {isConnecting ? "Opening Gmail..." : "Reconnect Gmail"}
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-800">Gmail not connected</p>
-                  <p className="mt-1 text-sm text-gray-500">
+                  <p className="text-sm font-semibold text-slate-800">Gmail not connected</p>
+                  <p className="mt-1 text-sm text-slate-500">
                     Connect Gmail to send approved email drafts.
                   </p>
                 </div>
 
-                <button
-                  className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                <Button
+                  type="button"
+                  className="w-full sm:w-auto"
                   disabled={isConnecting}
                   onClick={handleConnectGmail}
                 >
                   {isConnecting ? "Opening Gmail..." : "Connect Gmail"}
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -183,7 +201,7 @@ function Settings() {
               {statusError}
             </p>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

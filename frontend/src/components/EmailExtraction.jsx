@@ -1,6 +1,8 @@
 import { useState } from "react";
 import api from "../services/api";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
+import Button from "./ui/Button";
+import Card from "./ui/Card";
 
 function EmailExtraction({ campaignId, onExtractionComplete }) {
   const [isExtracting, setIsExtracting] = useState(false);
@@ -36,10 +38,10 @@ function EmailExtraction({ campaignId, onExtractionComplete }) {
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow border">
+    <Card>
       <div className="mb-4">
-        <h2 className="text-xl font-semibold">Email Extraction</h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <h2 className="text-xl font-semibold tracking-tight text-slate-950">Email Extraction</h2>
+        <p className="mt-1 text-sm text-slate-500">
           Find public emails from lead websites for the selected campaign.
         </p>
       </div>
@@ -56,20 +58,21 @@ function EmailExtraction({ campaignId, onExtractionComplete }) {
         </p>
       )}
 
-      <button
-        className="rounded bg-blue-600 px-5 py-3 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+      <Button
+        type="button"
+        className="w-full sm:w-auto"
         disabled={!campaignId || isExtracting}
         onClick={handleExtractCampaignEmails}
       >
         {isExtracting ? "Extracting emails..." : "Extract Emails for Campaign"}
-      </button>
+      </Button>
 
       {!campaignId && (
         <p className="mt-3 text-sm text-gray-500">
           Select a campaign above to enable email extraction.
         </p>
       )}
-    </div>
+    </Card>
   );
 }
 

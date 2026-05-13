@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import api from "../services/api";
 import StatCard from "../components/StatCard";
 import { formatDateTimeIST } from "../utils/dateUtils";
+import Badge from "../components/ui/Badge";
+import Card from "../components/ui/Card";
+import EmptyState from "../components/ui/EmptyState";
+import PageHeader from "../components/ui/PageHeader";
 
 function formatPercent(value) {
   const numericValue = Number(value);
@@ -81,28 +85,31 @@ function Dashboard() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Dashboard</h2>
+      <PageHeader
+        title="Dashboard"
+        description="A quick view of campaigns, leads, replies, follow-ups, and AI scoring health."
+      />
 
       {isLoading && (
-        <div className="mb-6 rounded-lg border bg-white p-5 text-sm text-gray-600 shadow">
+        <div className="mb-6 rounded-3xl border border-white/70 bg-white/80 p-5 text-sm text-slate-600 shadow-sm">
           Loading dashboard stats...
         </div>
       )}
 
       {!isLoading && error && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {statCards.map(([title, value]) => (
           <StatCard key={title} title={title} value={String(value ?? 0)} />
         ))}
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="bg-white p-6 rounded-xl shadow border xl:col-span-2">
+        <Card className="xl:col-span-2">
           <div className="mb-4">
             <h3 className="text-xl font-semibold">Top AI-Scored Leads</h3>
             <p className="mt-1 text-sm text-gray-500">
@@ -138,73 +145,46 @@ function Dashboard() {
                         Contact {lead.ai_contact_confidence_score}
                       </span>
                     )}
-                    {lead.ai_priority && (
-                      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                        {lead.ai_priority}
-                      </span>
-                    )}
-                    {lead.ai_qualification && (
-                      <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
-                        {lead.ai_qualification}
-                      </span>
-                    )}
+                    {lead.ai_priority && <Badge variant={lead.ai_priority}>{lead.ai_priority}</Badge>}
+                    {lead.ai_qualification && <Badge variant={lead.ai_qualification}>{lead.ai_qualification}</Badge>}
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </Card>
 
-        <div className="bg-white p-6 rounded-xl shadow border">
+        <Card>
           <div className="mb-4">
             <h3 className="text-xl font-semibold">Latest Campaigns</h3>
           </div>
 
           {stats.latest_campaigns.length === 0 ? (
-            <div className="border border-dashed rounded-lg p-6 text-center text-sm text-gray-500">
-              No campaigns yet.
-            </div>
+            <EmptyState title="No campaigns yet" />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50 text-gray-600">
-                    <th className="px-4 py-3 font-semibold">Campaign</th>
-                    <th className="px-4 py-3 font-semibold">Industry</th>
-                    <th className="px-4 py-3 font-semibold">Created</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.latest_campaigns.map((campaign) => (
-                    <tr key={campaign.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">
-                        {campaign.campaign_name}
-                      </td>
-                      <td className="px-4 py-3 text-gray-700">{campaign.industry || "N/A"}</td>
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                        {formatDateTimeIST(campaign.created_at)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-3">
+              {stats.latest_campaigns.map((campaign) => (
+                <div key={campaign.id} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                  <p className="break-words text-sm font-semibold text-slate-950">{campaign.campaign_name}</p>
+                  <p className="mt-1 break-words text-sm text-slate-500">{campaign.industry || "N/A"}</p>
+                  <p className="mt-2 text-xs text-slate-400">{formatDateTimeIST(campaign.created_at)}</p>
+                </div>
+              ))}
             </div>
           )}
-        </div>
+        </Card>
 
-        <div className="bg-white p-6 rounded-xl shadow border">
+        <Card>
           <div className="mb-4">
             <h3 className="text-xl font-semibold">Recent Email Drafts</h3>
           </div>
 
           {stats.recent_email_drafts.length === 0 ? (
-            <div className="border border-dashed rounded-lg p-6 text-center text-sm text-gray-500">
-              No email drafts yet.
-            </div>
+            <EmptyState title="No email drafts yet" />
           ) : (
             <div className="space-y-3">
               {stats.recent_email_drafts.map((draft) => (
-                <div key={draft.id} className="rounded-lg border p-4">
+                <div key={draft.id} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-900">{draft.subject}</p>
@@ -212,16 +192,14 @@ function Dashboard() {
                         {[draft.campaign_name, draft.lead_company_name].filter(Boolean).join(" | ") || `Lead ID ${draft.lead_id}`}
                       </p>
                     </div>
-                    <span className="w-fit rounded-full border bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700">
-                      {draft.status}
-                    </span>
+                    <Badge variant={draft.status}>{draft.status}</Badge>
                   </div>
                   <p className="mt-2 text-xs text-gray-500">{formatDateTimeIST(draft.created_at)}</p>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

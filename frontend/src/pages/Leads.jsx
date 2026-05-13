@@ -4,6 +4,9 @@ import LeadTable from "../components/LeadTable";
 import LeadUpload from "../components/LeadUpload";
 import api from "../services/api";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
+import PageHeader from "../components/ui/PageHeader";
 
 function Leads() {
   const [campaigns, setCampaigns] = useState([]);
@@ -188,13 +191,16 @@ function Leads() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Leads</h2>
+      <PageHeader
+        title="Leads"
+        description="Upload, enrich, score, and review leads without losing the business context behind each recommendation."
+      />
 
       <div className="space-y-6">
-        <div className="bg-white p-6 rounded-xl shadow border">
+        <Card>
           <div className="mb-4">
-            <h2 className="text-xl font-semibold">Select Campaign</h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <h2 className="text-xl font-semibold tracking-tight text-slate-950">Select Campaign</h2>
+            <p className="mt-1 text-sm text-slate-500">
               Leads will be saved under the campaign you choose here.
             </p>
           </div>
@@ -208,7 +214,7 @@ function Leads() {
           <select
             value={selectedCampaignId}
             onChange={handleCampaignChange}
-            className="w-full rounded border p-3 text-gray-800"
+            className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white/80 px-4 text-sm text-slate-800 shadow-sm outline-none transition focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
             disabled={isLoadingCampaigns || campaigns.length === 0}
           >
             <option value="">
@@ -226,54 +232,54 @@ function Leads() {
               Create your first campaign to start lead outreach.
             </p>
           )}
-        </div>
+        </Card>
 
         {selectedCampaign && (
-          <div className="bg-white p-6 rounded-xl shadow border">
+          <Card>
             <div className="mb-4">
-              <h2 className="text-xl font-semibold">Campaign Summary</h2>
-              <p className="text-sm text-gray-500 mt-1">{selectedCampaign.campaign_name}</p>
+              <h2 className="text-xl font-semibold tracking-tight text-slate-950">Campaign Summary</h2>
+              <p className="mt-1 text-sm text-slate-500">{selectedCampaign.campaign_name}</p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="rounded-lg border bg-gray-50 p-4">
-                <p className="text-xs text-gray-500">Industry</p>
-                <p className="mt-1 font-medium text-gray-900">{selectedCampaign.industry || "N/A"}</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs text-slate-500">Industry</p>
+                <p className="mt-1 break-words font-medium text-slate-900">{selectedCampaign.industry || "N/A"}</p>
               </div>
-              <div className="rounded-lg border bg-gray-50 p-4">
-                <p className="text-xs text-gray-500">Location</p>
-                <p className="mt-1 font-medium text-gray-900">{selectedCampaign.location || "N/A"}</p>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs text-slate-500">Location</p>
+                <p className="mt-1 break-words font-medium text-slate-900">{selectedCampaign.location || "N/A"}</p>
               </div>
-              <div className="rounded-lg border bg-gray-50 p-4">
-                <p className="text-xs text-gray-500">Target Role</p>
-                <p className="mt-1 font-medium text-gray-900">{selectedCampaign.target_role || "N/A"}</p>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs text-slate-500">Target Role</p>
+                <p className="mt-1 break-words font-medium text-slate-900">{selectedCampaign.target_role || "N/A"}</p>
               </div>
-              <div className="rounded-lg border bg-gray-50 p-4 md:col-span-3">
-                <p className="text-xs text-gray-500">Offer</p>
-                <p className="mt-1 text-sm text-gray-900">{selectedCampaign.offer || "N/A"}</p>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2 xl:col-span-3">
+                <p className="text-xs text-slate-500">Offer</p>
+                <p className="mt-1 break-words text-sm leading-6 text-slate-900">{selectedCampaign.offer || "N/A"}</p>
               </div>
-              <div className="rounded-lg border bg-blue-50 p-4">
+              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
                 <p className="text-xs text-blue-700">Lead Count</p>
                 <p className="mt-1 text-2xl font-semibold text-blue-900">{leads.length}</p>
               </div>
-              <div className="rounded-lg border bg-green-50 p-4">
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                 <p className="text-xs text-green-700">Emails Found</p>
                 <p className="mt-1 text-2xl font-semibold text-green-900">{emailsFoundCount}</p>
               </div>
-              <div className="rounded-lg border bg-indigo-50 p-4">
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
                 <p className="text-xs text-indigo-700">AI Scored</p>
                 <p className="mt-1 text-2xl font-semibold text-indigo-900">{scoredLeadCount}</p>
               </div>
             </div>
-          </div>
+          </Card>
         )}
 
         {selectedCampaign && (
-          <div className="bg-white p-6 rounded-xl shadow border">
+          <Card>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <h2 className="text-xl font-semibold">AI Lead Scoring</h2>
-                <p className="mt-1 text-sm text-gray-500">
+                <h2 className="text-xl font-semibold tracking-tight text-slate-950">AI Lead Scoring</h2>
+                <p className="mt-1 text-sm text-slate-500">
                   AI scoring is a recommendation. Review before contacting leads.
                 </p>
                 <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-gray-600 md:grid-cols-3">
@@ -289,13 +295,15 @@ function Leads() {
                 </div>
               </div>
 
-              <button
-                className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
+              <Button
+                type="button"
+                variant="indigo"
+                className="w-full lg:w-auto"
                 disabled={!selectedCampaignId || isScoringCampaign || leads.length === 0}
                 onClick={handleScoreCampaignLeads}
               >
                 {isScoringCampaign ? "Scoring leads..." : "Score Leads with AI"}
-              </button>
+              </Button>
             </div>
 
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -304,7 +312,7 @@ function Leads() {
                 <select
                   value={priorityFilter}
                   onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="w-full rounded border p-2 text-gray-800"
+                  className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm text-slate-800 shadow-sm outline-none focus:ring-4 focus:ring-slate-100"
                 >
                   <option>All</option>
                   <option>High</option>
@@ -318,7 +326,7 @@ function Leads() {
                 <select
                   value={qualificationFilter}
                   onChange={(e) => setQualificationFilter(e.target.value)}
-                  className="w-full rounded border p-2 text-gray-800"
+                  className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm text-slate-800 shadow-sm outline-none focus:ring-4 focus:ring-slate-100"
                 >
                   <option>All</option>
                   <option>Hot</option>
@@ -328,7 +336,7 @@ function Leads() {
                 </select>
               </label>
 
-              <label className="flex items-center gap-2 self-end text-sm font-medium text-gray-700">
+              <label className="flex min-h-11 items-center gap-2 self-end rounded-2xl border border-slate-200 bg-white/70 px-3 text-sm font-medium text-slate-700">
                 <input
                   type="checkbox"
                   checked={sortByScore}
@@ -338,21 +346,23 @@ function Leads() {
                 Sort by final AI score
               </label>
             </div>
-          </div>
+          </Card>
         )}
 
-        <LeadUpload
-          campaignId={selectedCampaignId}
-          onUploadComplete={refreshLeads}
-        />
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <LeadUpload
+            campaignId={selectedCampaignId}
+            onUploadComplete={refreshLeads}
+          />
 
-        <EmailExtraction
-          campaignId={selectedCampaignId}
-          onExtractionComplete={refreshLeads}
-        />
+          <EmailExtraction
+            campaignId={selectedCampaignId}
+            onExtractionComplete={refreshLeads}
+          />
+        </div>
 
         {(leadExtractionMessage || leadExtractionError || leadScoringMessage || leadScoringError) && (
-          <div className="bg-white p-6 rounded-xl shadow border">
+          <Card>
             {leadExtractionMessage && (
               <p className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
                 {leadExtractionMessage}
@@ -376,7 +386,7 @@ function Leads() {
                 {leadScoringError}
               </p>
             )}
-          </div>
+          </Card>
         )}
 
         <LeadTable

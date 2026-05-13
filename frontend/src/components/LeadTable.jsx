@@ -1,63 +1,209 @@
 import { formatDateTimeIST } from "../utils/dateUtils";
+import Badge from "./ui/Badge";
+import Button from "./ui/Button";
+import Card from "./ui/Card";
+import EmptyState from "./ui/EmptyState";
 
 function displayValue(value) {
   return value || "N/A";
-}
-
-function getStatusClasses(status) {
-  const statusClasses = {
-    email_found: "bg-green-100 text-green-700",
-    email_not_found: "bg-yellow-100 text-yellow-800",
-    website_missing: "bg-gray-100 text-gray-700",
-    extraction_failed: "bg-red-100 text-red-700",
-    new: "bg-blue-50 text-blue-700",
-  };
-
-  return statusClasses[status] || "bg-gray-100 text-gray-700";
-}
-
-function getPriorityClasses(priority) {
-  const priorityClasses = {
-    High: "bg-green-100 text-green-700",
-    Medium: "bg-yellow-100 text-yellow-800",
-    Low: "bg-gray-100 text-gray-700",
-  };
-
-  return priorityClasses[priority] || "bg-gray-100 text-gray-700";
-}
-
-function getQualificationClasses(qualification) {
-  const qualificationClasses = {
-    Hot: "bg-green-100 text-green-700",
-    Warm: "bg-yellow-100 text-yellow-800",
-    Cold: "bg-gray-100 text-gray-700",
-    "Not Relevant": "bg-red-100 text-red-700",
-  };
-
-  return qualificationClasses[qualification] || "bg-gray-100 text-gray-700";
 }
 
 function hasScore(value) {
   return value !== null && value !== undefined;
 }
 
-function ScoreCell({ value, tone = "gray", helpText }) {
-  const toneClasses = {
-    green: "text-green-700",
-    indigo: "text-indigo-700",
-    yellow: "text-yellow-700",
-    gray: "text-gray-900",
-  };
+function getScoreTone(value) {
+  if (!hasScore(value)) {
+    return "bg-slate-100 text-slate-500";
+  }
 
-  return hasScore(value) ? (
-    <div>
-      <p className={`text-lg font-semibold ${toneClasses[tone] || toneClasses.gray}`}>{value}</p>
-      {helpText && (
-        <p className="mt-1 text-xs text-gray-500">{helpText}</p>
-      )}
+  if (value >= 80) {
+    return "bg-emerald-50 text-emerald-700";
+  }
+
+  if (value >= 50) {
+    return "bg-amber-50 text-amber-700";
+  }
+
+  return "bg-slate-100 text-slate-600";
+}
+
+function ScoreMetric({ label, value }) {
+  return (
+    <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-3 text-center sm:px-3">
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className={`mt-2 rounded-xl py-1 text-2xl font-semibold leading-none ${getScoreTone(value)}`}>
+        {hasScore(value) ? value : "-"}
+      </p>
     </div>
-  ) : (
-    <span className="text-gray-500">-</span>
+  );
+}
+
+function InfoBlock({ label, children, className = "" }) {
+  return (
+    <div className={`min-w-0 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 ${className}`}>
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+      {children}
+    </div>
+  );
+}
+
+function InsightBlock({ label, children }) {
+  if (!children) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white/70 p-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-2 break-words whitespace-normal text-sm leading-relaxed text-slate-700">
+        {children}
+      </p>
+    </div>
+  );
+}
+
+function LeadActions({ lead, onExtractEmail, extractingLeadId, onScoreLead, scoringLeadId }) {
+  return (
+    <div className="grid w-full grid-cols-1 gap-2">
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        className="w-full"
+        disabled={!lead.website || extractingLeadId === lead.id}
+        onClick={() => onExtractEmail?.(lead.id)}
+      >
+        {extractingLeadId === lead.id ? "Extracting..." : "Extract Email"}
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="indigo"
+        className="w-full"
+        disabled={scoringLeadId === lead.id}
+        onClick={() => onScoreLead?.(lead)}
+      >
+        {scoringLeadId === lead.id ? "Scoring..." : hasScore(lead.ai_score) ? "Rescore" : "Score"}
+      </Button>
+    </div>
+  );
+}
+
+function LeadItem({ lead, extractingLeadId, scoringLeadId, onExtractEmail, onScoreLead }) {
+  const hasInsights = Boolean(
+    lead.ai_score_reason ||
+    lead.ai_contact_confidence_reason ||
+    lead.ai_outreach_angle ||
+    lead.ai_pain_point ||
+    lead.ai_recommended_cta ||
+    lead.ai_final_priority_reason ||
+    lead.ai_score_error
+  );
+
+  return (
+    <article className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5 xl:p-6">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(170px,11rem)] md:items-start">
+        <div className="min-w-0">
+          <h3 className="break-words text-lg font-semibold text-slate-950">
+            {lead.company_name}
+          </h3>
+          <p className="mt-1 break-words text-sm text-slate-500">
+            {[lead.industry, lead.location].filter(Boolean).join(" | ") || "Company context unavailable"}
+          </p>
+          {lead.website && (
+            <a
+              href={lead.website}
+              target="_blank"
+              rel="noreferrer"
+              title={lead.website}
+              className="mt-2 block break-all text-sm font-medium text-blue-600 hover:text-blue-700"
+            >
+              {lead.website}
+            </a>
+          )}
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-3 md:items-end">
+          <div className="flex flex-wrap gap-2 md:justify-end">
+            <Badge variant={lead.status}>{displayValue(lead.status)}</Badge>
+            {lead.ai_priority && <Badge variant={lead.ai_priority}>{lead.ai_priority}</Badge>}
+            {lead.ai_qualification && <Badge variant={lead.ai_qualification}>{lead.ai_qualification}</Badge>}
+          </div>
+          <p className="text-xs text-slate-400 md:text-right">
+            Created: {formatDateTimeIST(lead.created_at)}
+          </p>
+          <LeadActions
+            lead={lead}
+            extractingLeadId={extractingLeadId}
+            scoringLeadId={scoringLeadId}
+            onExtractEmail={onExtractEmail}
+            onScoreLead={onScoreLead}
+          />
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-7">
+        <InfoBlock label="Contact" className="xl:col-span-2">
+          <p className="mt-2 break-words text-sm font-semibold text-slate-900">{displayValue(lead.contact_name)}</p>
+          <p className="mt-1 break-words text-sm text-slate-500">{displayValue(lead.contact_role)}</p>
+        </InfoBlock>
+
+        <InfoBlock label="Email" className="xl:col-span-2">
+          {lead.email ? (
+            <a
+              href={`mailto:${lead.email}`}
+              title={lead.email}
+              className="mt-2 block break-all text-sm font-semibold text-blue-600 hover:text-blue-700"
+            >
+              {lead.email}
+            </a>
+          ) : (
+            <p className="mt-2 text-sm text-slate-500">No email yet</p>
+          )}
+          <p className="mt-2 break-words text-xs text-slate-400">{displayValue(lead.source)}</p>
+        </InfoBlock>
+
+        <div className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 md:col-span-2 xl:col-span-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">AI Scores</p>
+          <div className="mt-3 grid min-w-0 grid-cols-3 gap-2 sm:gap-3">
+            <ScoreMetric label="Fit" value={lead.ai_fit_score} />
+            <ScoreMetric label="Contact" value={lead.ai_contact_confidence_score} />
+            <ScoreMetric label="Final" value={lead.ai_score} />
+          </div>
+        </div>
+      </div>
+
+      <details className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 open:bg-white">
+        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-700">
+          {hasInsights ? "View AI Insights" : "No AI insights yet"}
+        </summary>
+        <div className="border-t border-slate-200 px-4 py-4">
+          {hasInsights ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <InsightBlock label="Reason">{lead.ai_score_reason}</InsightBlock>
+              <InsightBlock label="Contact confidence">{lead.ai_contact_confidence_reason}</InsightBlock>
+              <InsightBlock label="Angle">{lead.ai_outreach_angle}</InsightBlock>
+              <InsightBlock label="Pain">{lead.ai_pain_point}</InsightBlock>
+              <InsightBlock label="CTA">{lead.ai_recommended_cta}</InsightBlock>
+              <InsightBlock label="Final priority">{lead.ai_final_priority_reason}</InsightBlock>
+              {lead.ai_scored_at && (
+                <p className="rounded-xl border border-slate-200 bg-white/70 p-3 text-xs text-slate-400">
+                  Scored: {formatDateTimeIST(lead.ai_scored_at)}
+                </p>
+              )}
+              {lead.ai_score_error && (
+                <p className="break-words rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm leading-relaxed text-amber-700 md:col-span-2 xl:col-span-3">
+                  {lead.ai_score_error}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">Score this lead to see fit, contact confidence, angle, pain point, and CTA.</p>
+          )}
+        </div>
+      </details>
+    </article>
   );
 }
 
@@ -72,214 +218,55 @@ function LeadTable({
   scoringLeadId,
 }) {
   return (
-    <div className="bg-white p-6 rounded-xl shadow border">
-      <div className="mb-4">
-        <h2 className="text-xl font-semibold">Lead List</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          View leads connected to the selected campaign.
+    <Card>
+      <div className="mb-5">
+        <h2 className="text-xl font-semibold tracking-tight text-slate-950">Lead List</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Spacious lead cards keep contact details, AI scores, and actions readable at every size.
         </p>
       </div>
 
       {!hasSelectedCampaign && (
-        <div className="border border-dashed rounded-lg p-6 text-center">
-          <h3 className="font-medium text-gray-800">Select a campaign</h3>
-          <p className="text-sm text-gray-500 mt-1">
-            Select a campaign to upload and manage leads.
-          </p>
-        </div>
+        <EmptyState
+          title="Select a campaign"
+          description="Select a campaign to upload and manage leads."
+        />
       )}
 
       {hasSelectedCampaign && isLoading && (
-        <div className="border rounded-lg p-5 text-sm text-gray-600">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
           Loading leads...
         </div>
       )}
 
       {hasSelectedCampaign && !isLoading && error && (
-        <div className="border border-red-200 bg-red-50 text-red-700 rounded-lg p-4 text-sm">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
         </div>
       )}
 
       {hasSelectedCampaign && !isLoading && !error && leads.length === 0 && (
-        <div className="border border-dashed rounded-lg p-6 text-center">
-          <h3 className="font-medium text-gray-800">No leads found for this campaign.</h3>
-          <p className="text-sm text-gray-500 mt-1">
-            Upload a CSV to get started.
-          </p>
-        </div>
+        <EmptyState
+          title="No leads found for this campaign"
+          description="Upload a CSV to get started."
+        />
       )}
 
       {hasSelectedCampaign && !isLoading && !error && leads.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b bg-gray-50 text-gray-600">
-                <th className="px-4 py-3 font-semibold">ID</th>
-                <th className="px-4 py-3 font-semibold">Company Name</th>
-                <th className="px-4 py-3 font-semibold">Website</th>
-                <th className="px-4 py-3 font-semibold">Industry</th>
-                <th className="px-4 py-3 font-semibold">Location</th>
-                <th className="px-4 py-3 font-semibold">Contact Name</th>
-                <th className="px-4 py-3 font-semibold">Contact Role</th>
-                <th className="px-4 py-3 font-semibold">Email</th>
-                <th className="px-4 py-3 font-semibold">Source</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">Fit Score</th>
-                <th className="px-4 py-3 font-semibold">Contact Confidence</th>
-                <th className="px-4 py-3 font-semibold">Final AI Score</th>
-                <th className="px-4 py-3 font-semibold">Priority</th>
-                <th className="px-4 py-3 font-semibold">Qualification</th>
-                <th className="px-4 py-3 font-semibold">AI Insights</th>
-                <th className="px-4 py-3 font-semibold">Created At</th>
-                <th className="px-4 py-3 font-semibold">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leads.map((lead) => (
-                <tr key={lead.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                  <td className="px-4 py-3 text-gray-600">{lead.id}</td>
-                  <td className="px-4 py-3 font-medium text-gray-900">
-                    {lead.company_name}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
-                    {lead.website ? (
-                      <a
-                        href={lead.website}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {lead.website}
-                      </a>
-                    ) : (
-                      <span className="text-gray-500">No website</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">{displayValue(lead.industry)}</td>
-                  <td className="px-4 py-3 text-gray-700">{displayValue(lead.location)}</td>
-                  <td className="px-4 py-3 text-gray-700">{displayValue(lead.contact_name)}</td>
-                  <td className="px-4 py-3 text-gray-700">{displayValue(lead.contact_role)}</td>
-                  <td className="px-4 py-3 text-gray-700">
-                    {lead.email ? (
-                      <a href={`mailto:${lead.email}`} className="text-blue-600 hover:underline">
-                        {lead.email}
-                      </a>
-                    ) : (
-                      <span className="text-gray-500">No email yet</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">{displayValue(lead.source)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusClasses(lead.status)}`}>
-                      {displayValue(lead.status)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
-                    <ScoreCell
-                      value={lead.ai_fit_score}
-                      tone="green"
-                      helpText="Company fit"
-                    />
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
-                    <ScoreCell
-                      value={lead.ai_contact_confidence_score}
-                      tone="yellow"
-                      helpText="Contact quality"
-                    />
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
-                    {hasScore(lead.ai_score) ? (
-                      <div>
-                        <p className="text-lg font-semibold text-indigo-700">{lead.ai_score}</p>
-                        {lead.ai_scored_at && (
-                          <p className="mt-1 text-xs text-gray-500">{formatDateTimeIST(lead.ai_scored_at)}</p>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-500">Not scored</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {lead.ai_priority ? (
-                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${getPriorityClasses(lead.ai_priority)}`}>
-                        {lead.ai_priority}
-                      </span>
-                    ) : (
-                      <span className="text-gray-500">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {lead.ai_qualification ? (
-                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${getQualificationClasses(lead.ai_qualification)}`}>
-                        {lead.ai_qualification}
-                      </span>
-                    ) : (
-                      <span className="text-gray-500">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700 min-w-72">
-                    {lead.ai_score_reason || lead.ai_outreach_angle || lead.ai_pain_point || lead.ai_recommended_cta ? (
-                      <div className="space-y-2 text-xs leading-5">
-                        {lead.ai_score_reason && (
-                          <p><span className="font-semibold text-gray-900">Reason:</span> {lead.ai_score_reason}</p>
-                        )}
-                        {lead.ai_contact_confidence_reason && (
-                          <p><span className="font-semibold text-gray-900">Contact:</span> {lead.ai_contact_confidence_reason}</p>
-                        )}
-                        {lead.ai_outreach_angle && (
-                          <p><span className="font-semibold text-gray-900">Angle:</span> {lead.ai_outreach_angle}</p>
-                        )}
-                        {lead.ai_pain_point && (
-                          <p><span className="font-semibold text-gray-900">Pain:</span> {lead.ai_pain_point}</p>
-                        )}
-                        {lead.ai_recommended_cta && (
-                          <p><span className="font-semibold text-gray-900">CTA:</span> {lead.ai_recommended_cta}</p>
-                        )}
-                        {lead.ai_final_priority_reason && (
-                          <p><span className="font-semibold text-gray-900">Priority:</span> {lead.ai_final_priority_reason}</p>
-                        )}
-                        {lead.ai_score_error && (
-                          <p className="text-yellow-700">{lead.ai_score_error}</p>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-500">No AI insights yet</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                    {formatDateTimeIST(lead.created_at)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col gap-2">
-                    <button
-                      className="whitespace-nowrap rounded bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                      disabled={!lead.website || extractingLeadId === lead.id}
-                      onClick={() => onExtractEmail?.(lead.id)}
-                    >
-                      {extractingLeadId === lead.id ? "Extracting..." : "Extract Email"}
-                    </button>
-                    <button
-                      className="whitespace-nowrap rounded bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
-                      disabled={scoringLeadId === lead.id}
-                      onClick={() => onScoreLead?.(lead)}
-                    >
-                      {scoringLeadId === lead.id
-                        ? "Scoring..."
-                        : hasScore(lead.ai_score)
-                          ? "Rescore"
-                          : "Score"}
-                    </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-3">
+          {leads.map((lead) => (
+            <LeadItem
+              key={lead.id}
+              lead={lead}
+              extractingLeadId={extractingLeadId}
+              scoringLeadId={scoringLeadId}
+              onExtractEmail={onExtractEmail}
+              onScoreLead={onScoreLead}
+            />
+          ))}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

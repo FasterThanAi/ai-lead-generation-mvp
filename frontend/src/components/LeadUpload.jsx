@@ -1,6 +1,8 @@
 import { useState } from "react";
 import api from "../services/api";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
+import Button from "./ui/Button";
+import Card from "./ui/Card";
 
 function LeadUpload({ campaignId, onUploadComplete }) {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -55,10 +57,10 @@ function LeadUpload({ campaignId, onUploadComplete }) {
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow border">
+    <Card>
       <div className="mb-4">
-        <h2 className="text-xl font-semibold">Upload Leads CSV</h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <h2 className="text-xl font-semibold tracking-tight text-slate-950">Upload Leads CSV</h2>
+        <p className="mt-1 text-sm text-slate-500">
           Upload leads for the selected campaign.
         </p>
       </div>
@@ -75,9 +77,9 @@ function LeadUpload({ campaignId, onUploadComplete }) {
         </p>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 md:flex-row md:items-end">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4 lg:flex-row lg:items-end">
         <div className="flex-1">
-          <label className="mb-2 block text-sm font-medium text-gray-700">
+          <label className="mb-2 block text-sm font-medium text-slate-700">
             CSV File
           </label>
           <input
@@ -85,17 +87,18 @@ function LeadUpload({ campaignId, onUploadComplete }) {
             type="file"
             accept=".csv,text/csv"
             onChange={handleFileChange}
-            className="w-full rounded border p-3 text-sm"
+            className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white/80 p-3 text-sm shadow-sm file:mr-3 file:rounded-xl file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-700"
             disabled={!campaignId || isUploading}
           />
         </div>
 
-        <button
-          className="rounded bg-blue-600 px-5 py-3 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+        <Button
+          type="submit"
+          className="w-full lg:w-auto"
           disabled={!campaignId || !selectedFile || isUploading}
         >
           {isUploading ? "Uploading..." : "Upload CSV"}
-        </button>
+        </Button>
       </form>
 
       {!campaignId && (
@@ -103,7 +106,7 @@ function LeadUpload({ campaignId, onUploadComplete }) {
           Select a campaign above to enable CSV upload.
         </p>
       )}
-    </div>
+    </Card>
   );
 }
 

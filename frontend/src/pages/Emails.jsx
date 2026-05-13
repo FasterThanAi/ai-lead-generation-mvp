@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import api from "../services/api";
 import { formatDateTimeIST, getDateTimestampISTSafe } from "../utils/dateUtils";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
+import Badge from "../components/ui/Badge";
+import Button from "../components/ui/Button";
+import PageHeader from "../components/ui/PageHeader";
 
 function formatPercent(value) {
   const numericValue = Number(value);
@@ -11,20 +14,6 @@ function formatPercent(value) {
   }
 
   return `${numericValue.toFixed(1)}%`;
-}
-
-function getStatusClasses(status) {
-  const statusClasses = {
-    generated: "bg-blue-50 text-blue-700 border-blue-100",
-    approved: "bg-green-50 text-green-700 border-green-100",
-    rejected: "bg-red-50 text-red-700 border-red-100",
-    sending: "bg-yellow-50 text-yellow-700 border-yellow-100",
-    sent: "bg-purple-50 text-purple-700 border-purple-100",
-    failed: "bg-red-50 text-red-700 border-red-100",
-    replied: "bg-emerald-50 text-emerald-700 border-emerald-100",
-  };
-
-  return statusClasses[status] || "bg-gray-50 text-gray-700 border-gray-100";
 }
 
 function getLatestFollowUp(followUps) {
@@ -41,6 +30,16 @@ function getLatestFollowUp(followUps) {
 
     return getDateTimestampISTSafe(b.created_at) - getDateTimestampISTSafe(a.created_at);
   })[0];
+}
+
+function getPreviewText(value, maxLength = 220) {
+  const text = String(value || "").trim();
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength).trim()}...`;
 }
 
 function Emails() {
@@ -75,6 +74,8 @@ function Emails() {
   const [replyCheckSummary, setReplyCheckSummary] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusError, setStatusError] = useState("");
+  const [expandedDraftIds, setExpandedDraftIds] = useState({});
+  const [expandedFollowUpIds, setExpandedFollowUpIds] = useState({});
 
   const selectedCampaign = useMemo(
     () => campaigns.find((campaign) => String(campaign.id) === String(selectedCampaignId)),
@@ -221,7 +222,23 @@ function Emails() {
     setReplyCheckSummary(null);
     setStatusMessage("");
     setStatusError("");
+    setExpandedDraftIds({});
+    setExpandedFollowUpIds({});
     refreshCampaignData(nextCampaignId);
+  };
+
+  const toggleDraftExpanded = (draftId) => {
+    setExpandedDraftIds((current) => ({
+      ...current,
+      [draftId]: !current[draftId],
+    }));
+  };
+
+  const toggleFollowUpExpanded = (followUpId) => {
+    setExpandedFollowUpIds((current) => ({
+      ...current,
+      [followUpId]: !current[followUpId],
+    }));
   };
 
   const handleGenerateCampaignEmails = async () => {
@@ -516,10 +533,13 @@ function Emails() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">AI Email Generation</h2>
+      <PageHeader
+        title="Emails"
+        description="Generate, approve, send, check replies, and manage follow-ups from one focused workspace."
+      />
 
       <div className="space-y-6">
-        <div className="bg-white p-6 rounded-xl shadow border">
+        <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-sm shadow-slate-200/70 backdrop-blur sm:p-6">
           <div className="mb-4">
             <h2 className="text-xl font-semibold">Select Campaign</h2>
           </div>
@@ -533,7 +553,7 @@ function Emails() {
           <select
             value={selectedCampaignId}
             onChange={handleCampaignChange}
-            className="w-full rounded border p-3 text-gray-800"
+            className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white/80 px-4 text-sm text-slate-800 shadow-sm outline-none transition focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
             disabled={isLoadingCampaigns || campaigns.length === 0}
           >
             <option value="">
@@ -554,7 +574,7 @@ function Emails() {
         </div>
 
         {selectedCampaign && (
-          <div className="bg-white p-6 rounded-xl shadow border">
+          <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-sm shadow-slate-200/70 backdrop-blur sm:p-6">
             <div className="mb-4">
               <h2 className="text-xl font-semibold">Campaign Summary</h2>
               <p className="text-sm text-gray-500 mt-1">{selectedCampaign.campaign_name}</p>
@@ -590,7 +610,7 @@ function Emails() {
         )}
 
         {selectedCampaign && (
-          <div className="bg-white p-6 rounded-xl shadow border">
+          <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-sm shadow-slate-200/70 backdrop-blur sm:p-6">
             <div className="mb-4">
               <h2 className="text-xl font-semibold">Campaign Analytics</h2>
               <p className="text-sm text-gray-500 mt-1">
@@ -708,57 +728,67 @@ function Emails() {
           </div>
         )}
 
-        <div className="bg-white p-6 rounded-xl shadow border">
+        <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-sm shadow-slate-200/70 backdrop-blur sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold">Generate Drafts</h2>
+              <h2 className="text-xl font-semibold tracking-tight text-slate-950">Outreach Actions</h2>
               {selectedCampaign && (
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-slate-500">
                   {selectedCampaign.campaign_name}
                 </p>
               )}
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              <button
-                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+              <Button
+                type="button"
+                variant="primary"
+                className="w-full sm:w-auto"
                 disabled={!selectedCampaignId || isGenerating || isSendingCampaign || isGeneratingFollowUps}
                 onClick={handleGenerateCampaignEmails}
               >
                 {isGenerating ? "Generating emails..." : "Generate Next 5 Emails"}
-              </button>
+              </Button>
 
-              <button
-                className="rounded bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-purple-300"
+              <Button
+                type="button"
+                variant="indigo"
+                className="w-full sm:w-auto"
                 disabled={!selectedCampaignId || isSendingCampaign || approvedDraftCount === 0}
                 onClick={handleSendApprovedCampaignEmails}
               >
                 {isSendingCampaign ? "Sending approved emails..." : "Send Approved Emails"}
-              </button>
+              </Button>
 
-              <button
-                className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+              <Button
+                type="button"
+                variant="success"
+                className="w-full sm:w-auto"
                 disabled={!selectedCampaignId || isCheckingReplies || isSendingCampaign || isGenerating || isGeneratingFollowUps}
                 onClick={handleCheckCampaignReplies}
               >
                 {isCheckingReplies ? "Checking replies..." : "Check Replies"}
-              </button>
+              </Button>
 
-              <button
-                className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full sm:w-auto"
                 disabled={!selectedCampaignId || isGeneratingFollowUps || isGenerating || isSendingFollowUps}
                 onClick={handleGenerateCampaignFollowUps}
               >
                 {isGeneratingFollowUps ? "Generating follow-ups..." : "Generate Follow-ups"}
-              </button>
+              </Button>
 
-              <button
-                className="rounded bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full sm:w-auto"
                 disabled={!selectedCampaignId || isSendingFollowUps || approvedFollowUpCount === 0}
                 onClick={handleSendApprovedCampaignFollowUps}
               >
                 {isSendingFollowUps ? "Sending follow-ups..." : "Send Approved Follow-ups"}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -816,7 +846,7 @@ function Emails() {
         </div>
 
         {(statusMessage || statusError) && (
-          <div className="bg-white p-6 rounded-xl shadow border">
+          <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-sm shadow-slate-200/70 backdrop-blur sm:p-6">
             {statusMessage && (
               <p className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
                 {statusMessage}
@@ -831,7 +861,7 @@ function Emails() {
           </div>
         )}
 
-        <div className="bg-white p-6 rounded-xl shadow border">
+        <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-sm shadow-slate-200/70 backdrop-blur sm:p-6">
           <div className="mb-4">
             <h2 className="text-xl font-semibold">Email Drafts</h2>
           </div>
@@ -888,24 +918,26 @@ function Emails() {
                   draftFollowUps.length < 2 &&
                   (!latestFollowUp || latestFollowUp.status === "sent")
                 );
+                const isDraftExpanded = Boolean(expandedDraftIds[draft.id]);
+                const shouldCollapseDraft = String(draft.body || "").length > 220;
 
                 return (
-                <div key={draft.id} className="rounded-lg border p-5">
+                <div key={draft.id} className="rounded-3xl border border-slate-200 bg-white/85 p-4 shadow-sm sm:p-5">
                   <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500">
+                    <div className="min-w-0">
+                      <p className="text-sm text-slate-500">
                         {draft.lead_company_name || `Lead ID ${draft.lead_id}`}
                       </p>
-                      <h3 className="mt-1 text-lg font-semibold text-gray-900">
+                      <h3 className="mt-1 break-words text-lg font-semibold text-slate-950">
                         {draft.subject}
                       </h3>
                       {(draft.lead_contact_name || draft.lead_contact_role) && (
-                        <p className="mt-1 text-sm text-gray-500">
+                        <p className="mt-1 break-words text-sm text-slate-500">
                           {[draft.lead_contact_name, draft.lead_contact_role].filter(Boolean).join(" · ")}
                         </p>
                       )}
                       {draft.lead_email && (
-                        <p className="mt-1 text-sm text-gray-500">
+                        <p className="mt-1 break-words text-sm text-slate-500">
                           To: {draft.lead_email}
                         </p>
                       )}
@@ -924,17 +956,26 @@ function Emails() {
                       )}
                     </div>
 
-                    <span className={`w-fit rounded-full border px-3 py-1 text-xs font-medium ${getStatusClasses(draft.status)}`}>
-                      {draft.status}
-                    </span>
+                    <Badge variant={draft.status}>{draft.status}</Badge>
                   </div>
 
-                  <p className="mt-4 whitespace-pre-line text-sm leading-6 text-gray-700">
-                    {draft.body}
-                  </p>
+                  <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                    <p className="whitespace-pre-line break-words text-sm leading-6 text-slate-700">
+                      {isDraftExpanded ? draft.body : getPreviewText(draft.body)}
+                    </p>
+                    {shouldCollapseDraft && (
+                      <button
+                        type="button"
+                        className="mt-3 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                        onClick={() => toggleDraftExpanded(draft.id)}
+                      >
+                        {isDraftExpanded ? "Hide full email" : "Show full email"}
+                      </button>
+                    )}
+                  </div>
 
                   {(draft.sent_at || draft.send_error || draft.gmail_message_id) && (
-                    <div className="mt-4 rounded-lg border bg-gray-50 p-3 text-xs text-gray-600">
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
                       {draft.sent_at && (
                         <p>Sent at: {formatDateTimeIST(draft.sent_at)}</p>
                       )}
@@ -948,7 +989,7 @@ function Emails() {
                   )}
 
                   {draft.status === "replied" && (draft.reply_snippet || draft.replied_at) && (
-                    <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
                       <p className="font-medium">Replied</p>
                       {draft.replied_at && (
                         <p className="mt-1 text-xs text-emerald-700">Replied at: {formatDateTimeIST(draft.replied_at)}</p>
@@ -959,8 +1000,8 @@ function Emails() {
                     </div>
                   )}
 
-                  <div className="mt-5 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-xs text-gray-500">
+                  <div className="mt-5 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-xs text-slate-500">
                       <span>{draft.ai_model || "AI model unavailable"}</span>
                       <span className="mx-2">|</span>
                       <span>{formatDateTimeIST(draft.created_at)}</span>
@@ -1030,7 +1071,11 @@ function Emails() {
                     <div className="mt-5 border-t pt-4">
                       <h4 className="text-sm font-semibold text-gray-900">Follow-ups</h4>
                       <div className="mt-3 divide-y">
-                        {draftFollowUps.map((followUp) => (
+                        {draftFollowUps.map((followUp) => {
+                          const isFollowUpExpanded = Boolean(expandedFollowUpIds[followUp.id]);
+                          const shouldCollapseFollowUp = String(followUp.body || "").length > 180;
+
+                          return (
                           <div key={followUp.id} className="py-4 first:pt-0 last:pb-0">
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                               <div>
@@ -1042,14 +1087,21 @@ function Emails() {
                                 </h5>
                               </div>
 
-                              <span className={`w-fit rounded-full border px-3 py-1 text-xs font-medium ${getStatusClasses(followUp.status)}`}>
-                                {followUp.status}
-                              </span>
+                              <Badge variant={followUp.status}>{followUp.status}</Badge>
                             </div>
 
                             <p className="mt-3 whitespace-pre-line text-sm leading-6 text-gray-700">
-                              {followUp.body}
+                              {isFollowUpExpanded ? followUp.body : getPreviewText(followUp.body, 180)}
                             </p>
+                            {shouldCollapseFollowUp && (
+                              <button
+                                type="button"
+                                className="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                onClick={() => toggleFollowUpExpanded(followUp.id)}
+                              >
+                                {isFollowUpExpanded ? "Hide follow-up" : "Show full follow-up"}
+                              </button>
+                            )}
 
                             <div className="mt-3 text-xs text-gray-500">
                               <p>Generated: {formatDateTimeIST(followUp.generated_at || followUp.created_at)}</p>
@@ -1104,7 +1156,8 @@ function Emails() {
                               )}
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
