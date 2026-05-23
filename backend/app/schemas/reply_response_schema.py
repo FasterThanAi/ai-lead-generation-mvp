@@ -42,6 +42,11 @@ class ReplyResponseStatusUpdateRequest(BaseModel):
     status: str
 
 
+class ReplyResponseContentUpdateRequest(BaseModel):
+    subject: str
+    body: str
+
+
 class ReplyResponseSendResponse(BaseModel):
     status: str
     message: str

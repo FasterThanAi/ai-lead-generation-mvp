@@ -50,3 +50,8 @@ class GenerateEmailResponse(BaseModel):
 
 class EmailDraftUpdate(BaseModel):
     status: str
+
+
+class EmailDraftContentUpdate(BaseModel):
+    subject: str
+    body: str

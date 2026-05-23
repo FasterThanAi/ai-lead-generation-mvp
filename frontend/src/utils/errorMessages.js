@@ -18,6 +18,18 @@ export function getFriendlyErrorMessage(err, fallbackMessage = DEFAULT_ERROR_MES
   const detail = getBackendDetail(err);
   const normalizedMessage = `${context} ${detail}`.toLowerCase();
 
+  if (normalizedMessage.includes("replace placeholders")) {
+    return "Please replace placeholders before sending.";
+  }
+
+  if (normalizedMessage.includes("subject and body")) {
+    return "Subject and body are required.";
+  }
+
+  if (normalizedMessage.includes("cannot edit a sent draft")) {
+    return "Cannot edit a sent draft.";
+  }
+
   if (
     normalizedMessage.includes("gmail readonly permission") ||
     normalizedMessage.includes("readonly permission")
@@ -124,6 +136,10 @@ export function getFriendlyErrorMessage(err, fallbackMessage = DEFAULT_ERROR_MES
     }
 
     return "Response draft generation failed. Please try again.";
+  }
+
+  if (context === "draft-edit") {
+    return "Failed to update draft. Please try again.";
   }
 
   if (

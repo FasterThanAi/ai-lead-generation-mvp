@@ -53,6 +53,11 @@ class FollowUpStatusUpdateRequest(BaseModel):
     status: str
 
 
+class FollowUpContentUpdateRequest(BaseModel):
+    subject: str
+    body: str
+
+
 class FollowUpSendResponse(BaseModel):
     status: str
     message: str

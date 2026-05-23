@@ -102,6 +102,12 @@ function Emails() {
   const [statusError, setStatusError] = useState("");
   const [expandedDraftIds, setExpandedDraftIds] = useState({});
   const [expandedFollowUpIds, setExpandedFollowUpIds] = useState({});
+  const [editingDraftId, setEditingDraftId] = useState(null);
+  const [draftEditValues, setDraftEditValues] = useState({ subject: "", body: "" });
+  const [editingFollowUpId, setEditingFollowUpId] = useState(null);
+  const [followUpEditValues, setFollowUpEditValues] = useState({ subject: "", body: "" });
+  const [editingResponseDraftId, setEditingResponseDraftId] = useState(null);
+  const [responseDraftEditValues, setResponseDraftEditValues] = useState({ subject: "", body: "" });
 
   const selectedCampaign = useMemo(
     () => campaigns.find((campaign) => String(campaign.id) === String(selectedCampaignId)),
@@ -297,6 +303,9 @@ function Emails() {
     setStatusError("");
     setExpandedDraftIds({});
     setExpandedFollowUpIds({});
+    setEditingDraftId(null);
+    setEditingFollowUpId(null);
+    setEditingResponseDraftId(null);
     refreshCampaignData(nextCampaignId);
   };
 
@@ -312,6 +321,55 @@ function Emails() {
       ...current,
       [followUpId]: !current[followUpId],
     }));
+  };
+
+  const startDraftEdit = (draft) => {
+    setEditingDraftId(draft.id);
+    setDraftEditValues({
+      subject: draft.subject || "",
+      body: draft.body || "",
+    });
+    setStatusMessage("");
+    setStatusError("");
+  };
+
+  const cancelDraftEdit = () => {
+    setEditingDraftId(null);
+    setDraftEditValues({ subject: "", body: "" });
+  };
+
+  const startFollowUpEdit = (followUp) => {
+    setEditingFollowUpId(followUp.id);
+    setFollowUpEditValues({
+      subject: followUp.subject || "",
+      body: followUp.body || "",
+    });
+    setStatusMessage("");
+    setStatusError("");
+  };
+
+  const cancelFollowUpEdit = () => {
+    setEditingFollowUpId(null);
+    setFollowUpEditValues({ subject: "", body: "" });
+  };
+
+  const startResponseDraftEdit = (responseDraft) => {
+    setEditingResponseDraftId(responseDraft.id);
+    setResponseDraftEditValues({
+      subject: responseDraft.subject || "",
+      body: responseDraft.body || "",
+    });
+    setStatusMessage("");
+    setStatusError("");
+  };
+
+  const cancelResponseDraftEdit = () => {
+    setEditingResponseDraftId(null);
+    setResponseDraftEditValues({ subject: "", body: "" });
+  };
+
+  const validateDraftEditValues = ({ subject, body }) => {
+    return Boolean(String(subject || "").trim() && String(body || "").trim());
   };
 
   const handleGenerateCampaignEmails = async () => {
@@ -366,6 +424,39 @@ function Emails() {
       await fetchCampaignAnalytics(selectedCampaignId);
     } catch (err) {
       setStatusError(getFriendlyErrorMessage(err, "Something went wrong. Please try again."));
+      console.error(err);
+    } finally {
+      setUpdatingDraftId(null);
+    }
+  };
+
+  const handleSaveDraftEdit = async (emailId) => {
+    if (!validateDraftEditValues(draftEditValues)) {
+      setStatusError("Subject and body are required.");
+      return;
+    }
+
+    setUpdatingDraftId(emailId);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.patch(`/emails/${emailId}`, {
+        subject: draftEditValues.subject,
+        body: draftEditValues.body,
+      });
+      const updatedDraft = res.data.data;
+
+      setDrafts((currentDrafts) =>
+        currentDrafts.map((draft) => (
+          draft.id === emailId ? updatedDraft : draft
+        ))
+      );
+      cancelDraftEdit();
+      setStatusMessage("Email draft updated successfully. Editing an approved draft requires approval again before sending.");
+      await fetchCampaignAnalytics(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Failed to update draft. Please try again.", "draft-edit"));
       console.error(err);
     } finally {
       setUpdatingDraftId(null);
@@ -607,6 +698,39 @@ function Emails() {
     }
   };
 
+  const handleSaveFollowUpEdit = async (followUpId) => {
+    if (!validateDraftEditValues(followUpEditValues)) {
+      setStatusError("Subject and body are required.");
+      return;
+    }
+
+    setUpdatingFollowUpId(followUpId);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.patch(`/followups/${followUpId}`, {
+        subject: followUpEditValues.subject,
+        body: followUpEditValues.body,
+      });
+      const updatedFollowUp = res.data.data;
+
+      setFollowUps((currentFollowUps) =>
+        currentFollowUps.map((followUp) => (
+          followUp.id === followUpId ? updatedFollowUp : followUp
+        ))
+      );
+      cancelFollowUpEdit();
+      setStatusMessage("Follow-up draft updated successfully. Editing an approved draft requires approval again before sending.");
+      await fetchCampaignAnalytics(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Failed to update draft. Please try again.", "draft-edit"));
+      console.error(err);
+    } finally {
+      setUpdatingFollowUpId(null);
+    }
+  };
+
   const handleSendFollowUp = async (followUpId) => {
     setSendingFollowUpId(followUpId);
     setFollowUpSummary(null);
@@ -729,6 +853,39 @@ function Emails() {
       await fetchCampaignAnalytics(selectedCampaignId);
     } catch (err) {
       setStatusError(getFriendlyErrorMessage(err, "Response draft status could not be updated.", "response"));
+      console.error(err);
+    } finally {
+      setUpdatingResponseDraftId(null);
+    }
+  };
+
+  const handleSaveResponseDraftEdit = async (responseDraftId) => {
+    if (!validateDraftEditValues(responseDraftEditValues)) {
+      setStatusError("Subject and body are required.");
+      return;
+    }
+
+    setUpdatingResponseDraftId(responseDraftId);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.patch(`/reply-responses/${responseDraftId}`, {
+        subject: responseDraftEditValues.subject,
+        body: responseDraftEditValues.body,
+      });
+      const updatedResponseDraft = res.data.data;
+
+      setResponseDrafts((currentResponseDrafts) =>
+        currentResponseDrafts.map((responseDraft) => (
+          responseDraft.id === responseDraftId ? updatedResponseDraft : responseDraft
+        ))
+      );
+      cancelResponseDraftEdit();
+      setStatusMessage("Response draft updated successfully. Editing an approved draft requires approval again before sending.");
+      await fetchCampaignAnalytics(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Failed to update draft. Please try again.", "draft-edit"));
       console.error(err);
     } finally {
       setUpdatingResponseDraftId(null);
@@ -1291,6 +1448,7 @@ function Emails() {
                 const draftFollowUps = followUpsByDraftId[String(draft.id)] || [];
                 const draftResponseDrafts = responseDraftsByDraftId[String(draft.id)] || [];
                 const latestResponseDraft = getLatestResponseDraft(draftResponseDrafts);
+                const isEditingResponseDraft = latestResponseDraft && editingResponseDraftId === latestResponseDraft.id;
                 const latestFollowUp = getLatestFollowUp(draftFollowUps);
                 const canGenerateFollowUp = (
                   draft.status === "sent" &&
@@ -1304,6 +1462,8 @@ function Emails() {
                 );
                 const isDraftExpanded = Boolean(expandedDraftIds[draft.id]);
                 const shouldCollapseDraft = String(draft.body || "").length > 220;
+                const isEditingDraft = editingDraftId === draft.id;
+                const canEditDraft = ["generated", "approved", "failed"].includes(draft.status);
 
                 return (
                 <div key={draft.id} className="rounded-3xl border border-slate-200 bg-white/85 p-4 shadow-sm sm:p-5">
@@ -1312,9 +1472,22 @@ function Emails() {
                       <p className="text-sm text-slate-500">
                         {draft.lead_company_name || `Lead ID ${draft.lead_id}`}
                       </p>
-                      <h3 className="mt-1 break-words text-lg font-semibold text-slate-950">
-                        {draft.subject}
-                      </h3>
+                      {isEditingDraft ? (
+                        <input
+                          type="text"
+                          value={draftEditValues.subject}
+                          onChange={(e) => setDraftEditValues((current) => ({
+                            ...current,
+                            subject: e.target.value,
+                          }))}
+                          className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                          placeholder="Subject"
+                        />
+                      ) : (
+                        <h3 className="mt-1 break-words text-lg font-semibold text-slate-950">
+                          {draft.subject}
+                        </h3>
+                      )}
                       {(draft.lead_contact_name || draft.lead_contact_role) && (
                         <p className="mt-1 break-words text-sm text-slate-500">
                           {[draft.lead_contact_name, draft.lead_contact_role].filter(Boolean).join(" · ")}
@@ -1344,17 +1517,36 @@ function Emails() {
                   </div>
 
                   <div className="mt-4 rounded-2xl bg-slate-50 p-4">
-                    <p className="whitespace-pre-line break-words text-sm leading-6 text-slate-700">
-                      {isDraftExpanded ? draft.body : getPreviewText(draft.body)}
-                    </p>
-                    {shouldCollapseDraft && (
-                      <button
-                        type="button"
-                        className="mt-3 text-sm font-semibold text-blue-600 hover:text-blue-700"
-                        onClick={() => toggleDraftExpanded(draft.id)}
-                      >
-                        {isDraftExpanded ? "Hide full email" : "Show full email"}
-                      </button>
+                    {isEditingDraft ? (
+                      <div>
+                        <textarea
+                          value={draftEditValues.body}
+                          onChange={(e) => setDraftEditValues((current) => ({
+                            ...current,
+                            body: e.target.value,
+                          }))}
+                          className="min-h-44 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-slate-700 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                          placeholder="Email body"
+                        />
+                        <p className="mt-2 text-xs text-slate-500">
+                          Editing an approved draft will require approval again before sending. Replace placeholders like [Your Name] manually before sending.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="whitespace-pre-line break-words text-sm leading-6 text-slate-700">
+                          {isDraftExpanded ? draft.body : getPreviewText(draft.body)}
+                        </p>
+                        {shouldCollapseDraft && (
+                          <button
+                            type="button"
+                            className="mt-3 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                            onClick={() => toggleDraftExpanded(draft.id)}
+                          >
+                            {isDraftExpanded ? "Hide full email" : "Show full email"}
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -1434,18 +1626,48 @@ function Emails() {
                   {draft.status === "replied" && latestResponseDraft && (
                     <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-slate-800">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <p className="font-semibold text-slate-950">AI Response Draft</p>
-                          <h4 className="mt-1 break-words text-sm font-semibold text-slate-900">
-                            {latestResponseDraft.subject}
-                          </h4>
-                        </div>
-                        <Badge variant={latestResponseDraft.status}>{latestResponseDraft.status}</Badge>
-                      </div>
+	                        <div>
+	                          <p className="font-semibold text-slate-950">AI Response Draft</p>
+	                          {isEditingResponseDraft ? (
+	                            <input
+	                              type="text"
+	                              value={responseDraftEditValues.subject}
+	                              onChange={(e) => setResponseDraftEditValues((current) => ({
+	                                ...current,
+	                                subject: e.target.value,
+	                              }))}
+	                              className="mt-2 min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+	                              placeholder="Subject"
+	                            />
+	                          ) : (
+	                            <h4 className="mt-1 break-words text-sm font-semibold text-slate-900">
+	                              {latestResponseDraft.subject}
+	                            </h4>
+	                          )}
+	                        </div>
+	                        <Badge variant={latestResponseDraft.status}>{latestResponseDraft.status}</Badge>
+	                      </div>
 
-                      <p className="mt-4 whitespace-pre-line break-words leading-6 text-slate-700">
-                        {latestResponseDraft.body}
-                      </p>
+	                      {isEditingResponseDraft ? (
+	                        <div className="mt-4">
+	                          <textarea
+	                            value={responseDraftEditValues.body}
+	                            onChange={(e) => setResponseDraftEditValues((current) => ({
+	                              ...current,
+	                              body: e.target.value,
+	                            }))}
+	                            className="min-h-44 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-slate-700 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+	                            placeholder="Response body"
+	                          />
+	                          <p className="mt-2 text-xs text-slate-500">
+	                            Editing an approved draft will require approval again before sending. Replace placeholders like [Your Name] manually before sending.
+	                          </p>
+	                        </div>
+	                      ) : (
+	                        <p className="mt-4 whitespace-pre-line break-words leading-6 text-slate-700">
+	                          {latestResponseDraft.body}
+	                        </p>
+	                      )}
 
                       <div className="mt-4 space-y-1 text-xs text-slate-600">
                         <p>Generated: {formatDateTimeIST(latestResponseDraft.generated_at || latestResponseDraft.created_at)}</p>
@@ -1468,9 +1690,27 @@ function Emails() {
                         )}
                       </div>
 
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {latestResponseDraft.status === "generated" && (
-                          <>
+	                      <div className="mt-4 flex flex-wrap gap-2">
+	                        {isEditingResponseDraft ? (
+	                          <>
+	                            <button
+	                              className="rounded bg-slate-900 px-3 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+	                              disabled={updatingResponseDraftId === latestResponseDraft.id}
+	                              onClick={() => handleSaveResponseDraftEdit(latestResponseDraft.id)}
+	                            >
+	                              {updatingResponseDraftId === latestResponseDraft.id ? "Saving..." : "Save"}
+	                            </button>
+	                            <button
+	                              className="rounded border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+	                              onClick={cancelResponseDraftEdit}
+	                            >
+	                              Cancel
+	                            </button>
+	                          </>
+	                        ) : (
+	                          <>
+	                        {latestResponseDraft.status === "generated" && (
+	                          <>
                             <button
                               className="rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
                               disabled={updatingResponseDraftId === latestResponseDraft.id}
@@ -1504,9 +1744,19 @@ function Emails() {
                             >
                               {updatingResponseDraftId === latestResponseDraft.id ? "Updating..." : "Reject"}
                             </button>
-                          </>
-                        )}
-                      </div>
+	                          </>
+	                        )}
+	                            {["generated", "approved", "failed"].includes(latestResponseDraft.status) && (
+	                              <button
+	                                className="rounded border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+	                                onClick={() => startResponseDraftEdit(latestResponseDraft)}
+	                              >
+	                                Edit
+	                              </button>
+	                            )}
+	                          </>
+	                        )}
+	                      </div>
                     </div>
                   )}
 
@@ -1518,6 +1768,24 @@ function Emails() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
+                      {isEditingDraft ? (
+                        <>
+                          <button
+                            className="rounded bg-slate-900 px-3 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                            disabled={updatingDraftId === draft.id}
+                            onClick={() => handleSaveDraftEdit(draft.id)}
+                          >
+                            {updatingDraftId === draft.id ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            className="rounded border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                            onClick={cancelDraftEdit}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
                       {draft.status === "generated" && (
                         <>
                           <button
@@ -1603,6 +1871,16 @@ function Emails() {
                           )}
                         </>
                       )}
+                          {canEditDraft && (
+                            <button
+                              className="rounded border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                              onClick={() => startDraftEdit(draft)}
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -1613,6 +1891,8 @@ function Emails() {
                         {draftFollowUps.map((followUp) => {
                           const isFollowUpExpanded = Boolean(expandedFollowUpIds[followUp.id]);
                           const shouldCollapseFollowUp = String(followUp.body || "").length > 180;
+                          const isEditingFollowUp = editingFollowUpId === followUp.id;
+                          const canEditFollowUp = ["generated", "approved", "failed"].includes(followUp.status);
 
                           return (
                           <div key={followUp.id} className="py-4 first:pt-0 last:pb-0">
@@ -1621,25 +1901,57 @@ function Emails() {
                                 <p className="text-xs font-medium text-gray-500">
                                   Follow-up #{followUp.follow_up_number}
                                 </p>
-                                <h5 className="mt-1 text-sm font-semibold text-gray-900">
-                                  {followUp.subject}
-                                </h5>
+                                {isEditingFollowUp ? (
+                                  <input
+                                    type="text"
+                                    value={followUpEditValues.subject}
+                                    onChange={(e) => setFollowUpEditValues((current) => ({
+                                      ...current,
+                                      subject: e.target.value,
+                                    }))}
+                                    className="mt-2 min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                                    placeholder="Subject"
+                                  />
+                                ) : (
+                                  <h5 className="mt-1 text-sm font-semibold text-gray-900">
+                                    {followUp.subject}
+                                  </h5>
+                                )}
                               </div>
 
                               <Badge variant={followUp.status}>{followUp.status}</Badge>
                             </div>
 
-                            <p className="mt-3 whitespace-pre-line text-sm leading-6 text-gray-700">
-                              {isFollowUpExpanded ? followUp.body : getPreviewText(followUp.body, 180)}
-                            </p>
-                            {shouldCollapseFollowUp && (
-                              <button
-                                type="button"
-                                className="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-700"
-                                onClick={() => toggleFollowUpExpanded(followUp.id)}
-                              >
-                                {isFollowUpExpanded ? "Hide follow-up" : "Show full follow-up"}
-                              </button>
+                            {isEditingFollowUp ? (
+                              <div className="mt-3">
+                                <textarea
+                                  value={followUpEditValues.body}
+                                  onChange={(e) => setFollowUpEditValues((current) => ({
+                                    ...current,
+                                    body: e.target.value,
+                                  }))}
+                                  className="min-h-44 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-slate-700 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                                  placeholder="Follow-up body"
+                                />
+                                <p className="mt-2 text-xs text-slate-500">
+                                  Editing an approved draft will require approval again before sending. Replace placeholders like [Your Name] manually before sending.
+                                </p>
+                              </div>
+                            ) : (
+                              <>
+                                <p className="mt-3 whitespace-pre-line text-sm leading-6 text-gray-700">
+                                  {isFollowUpExpanded ? followUp.body : getPreviewText(followUp.body, 180)}
+                                </p>
+                                {shouldCollapseFollowUp && (
+                                  <button
+                                    type="button"
+                                    className="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                    onClick={() => toggleFollowUpExpanded(followUp.id)}
+                                  >
+                                    {isFollowUpExpanded ? "Hide follow-up" : "Show full follow-up"}
+                                  </button>
+                                )}
+                              </>
                             )}
 
                             <div className="mt-3 text-xs text-gray-500">
@@ -1656,41 +1968,69 @@ function Emails() {
                             </div>
 
                             <div className="mt-3 flex flex-wrap gap-2">
-                              {followUp.status === "generated" && (
+                              {isEditingFollowUp ? (
                                 <>
                                   <button
-                                    className="rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
+                                    className="rounded bg-slate-900 px-3 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                                     disabled={updatingFollowUpId === followUp.id}
-                                    onClick={() => handleUpdateFollowUpStatus(followUp.id, "approved")}
+                                    onClick={() => handleSaveFollowUpEdit(followUp.id)}
                                   >
-                                    {updatingFollowUpId === followUp.id ? "Updating..." : "Approve"}
+                                    {updatingFollowUpId === followUp.id ? "Saving..." : "Save"}
                                   </button>
                                   <button
-                                    className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
-                                    disabled={updatingFollowUpId === followUp.id}
-                                    onClick={() => handleUpdateFollowUpStatus(followUp.id, "rejected")}
+                                    className="rounded border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                    onClick={cancelFollowUpEdit}
                                   >
-                                    {updatingFollowUpId === followUp.id ? "Updating..." : "Reject"}
+                                    Cancel
                                   </button>
                                 </>
-                              )}
-
-                              {followUp.status === "approved" && (
+                              ) : (
                                 <>
-                                  <button
-                                    className="rounded bg-slate-700 px-3 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                                    disabled={sendingFollowUpId === followUp.id || isSendingFollowUps}
-                                    onClick={() => handleSendFollowUp(followUp.id)}
-                                  >
-                                    {sendingFollowUpId === followUp.id ? "Sending..." : "Send"}
-                                  </button>
-                                  <button
-                                    className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
-                                    disabled={updatingFollowUpId === followUp.id || sendingFollowUpId === followUp.id}
-                                    onClick={() => handleUpdateFollowUpStatus(followUp.id, "rejected")}
-                                  >
-                                    {updatingFollowUpId === followUp.id ? "Updating..." : "Reject"}
-                                  </button>
+                                  {followUp.status === "generated" && (
+                                    <>
+                                      <button
+                                        className="rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
+                                        disabled={updatingFollowUpId === followUp.id}
+                                        onClick={() => handleUpdateFollowUpStatus(followUp.id, "approved")}
+                                      >
+                                        {updatingFollowUpId === followUp.id ? "Updating..." : "Approve"}
+                                      </button>
+                                      <button
+                                        className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                                        disabled={updatingFollowUpId === followUp.id}
+                                        onClick={() => handleUpdateFollowUpStatus(followUp.id, "rejected")}
+                                      >
+                                        {updatingFollowUpId === followUp.id ? "Updating..." : "Reject"}
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {followUp.status === "approved" && (
+                                    <>
+                                      <button
+                                        className="rounded bg-slate-700 px-3 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                                        disabled={sendingFollowUpId === followUp.id || isSendingFollowUps}
+                                        onClick={() => handleSendFollowUp(followUp.id)}
+                                      >
+                                        {sendingFollowUpId === followUp.id ? "Sending..." : "Send"}
+                                      </button>
+                                      <button
+                                        className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                                        disabled={updatingFollowUpId === followUp.id || sendingFollowUpId === followUp.id}
+                                        onClick={() => handleUpdateFollowUpStatus(followUp.id, "rejected")}
+                                      >
+                                        {updatingFollowUpId === followUp.id ? "Updating..." : "Reject"}
+                                      </button>
+                                    </>
+                                  )}
+                                  {canEditFollowUp && (
+                                    <button
+                                      className="rounded border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                      onClick={() => startFollowUpEdit(followUp)}
+                                    >
+                                      Edit
+                                    </button>
+                                  )}
                                 </>
                               )}
                             </div>

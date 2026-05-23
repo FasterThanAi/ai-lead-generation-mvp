@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.config import settings
 from app.db.database import get_db
 from app.db.models import Campaign, EmailDraft, FollowUpDraft, ReplyResponseDraft
-from app.schemas.followup_schema import FollowUpStatusUpdateRequest
+from app.schemas.followup_schema import FollowUpContentUpdateRequest, FollowUpStatusUpdateRequest
 from app.services.ai_service import AIConfigurationError, AIServiceError
 from app.services.followup_service import (
     FollowUpRuleError,
@@ -23,6 +23,7 @@ from app.services.gmail_service import (
     send_email_via_gmail,
 )
 from app.utils.time_utils import utc_now
+from app.utils.draft_safety import PLACEHOLDER_SEND_ERROR, contains_blocked_placeholder
 
 router = APIRouter(
     prefix="/followups",
@@ -36,6 +37,8 @@ ALLOWED_STATUS_TRANSITIONS = {
     "generated": {"approved", "rejected"},
     "approved": {"rejected"},
 }
+EDITABLE_FOLLOW_UP_STATUSES = {"generated", "approved", "failed"}
+MAX_FOLLOW_UP_BODY_LENGTH = 10000
 
 
 def clean_email(value):
@@ -467,6 +470,47 @@ def generate_campaign_follow_ups(
     }
 
 
+@router.patch("/{followup_id}")
+def update_follow_up_content(
+    followup_id: int,
+    followup_update: FollowUpContentUpdateRequest,
+    db: Session = Depends(get_db),
+):
+    subject = (followup_update.subject or "").strip()
+    body = (followup_update.body or "").strip()
+
+    if not subject or not body:
+        raise HTTPException(status_code=400, detail="Subject and body are required.")
+
+    if len(body) > MAX_FOLLOW_UP_BODY_LENGTH:
+        raise HTTPException(status_code=400, detail="Follow-up body is too long.")
+
+    follow_up = get_follow_up_or_404(followup_id, db)
+
+    if follow_up.status not in EDITABLE_FOLLOW_UP_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot edit a sent draft."
+        )
+
+    follow_up.subject = subject[:255]
+    follow_up.body = body
+    follow_up.updated_at = utc_now()
+
+    if follow_up.status in {"approved", "failed"}:
+        follow_up.status = "generated"
+        follow_up.approved_at = None
+        follow_up.send_error = None
+
+    commit_follow_up_update(db, follow_up, "Failed to update draft. Please try again.")
+
+    return {
+        "status": "success",
+        "message": "Follow-up draft updated successfully",
+        "data": serialize_follow_up(follow_up),
+    }
+
+
 @router.patch("/{followup_id}/status")
 def update_follow_up_status(
     followup_id: int,
@@ -518,6 +562,12 @@ def send_one_follow_up(
         raise HTTPException(
             status_code=400,
             detail="Cannot send follow-up because this lead has already replied."
+        )
+
+    if contains_blocked_placeholder(follow_up.subject, follow_up.body):
+        raise HTTPException(
+            status_code=400,
+            detail=PLACEHOLDER_SEND_ERROR
         )
 
     _, _, remaining_daily_capacity = get_remaining_daily_capacity(db)
@@ -607,6 +657,14 @@ def send_approved_campaign_follow_ups(
             results.append({
                 **serialize_follow_up(follow_up),
                 "error": "Cannot send follow-up because this lead has already replied.",
+            })
+            continue
+
+        if contains_blocked_placeholder(follow_up.subject, follow_up.body):
+            skipped_count += 1
+            results.append({
+                **serialize_follow_up(follow_up),
+                "error": PLACEHOLDER_SEND_ERROR,
             })
             continue
 

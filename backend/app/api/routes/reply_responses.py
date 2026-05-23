@@ -8,7 +8,10 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.config import settings
 from app.db.database import get_db
 from app.db.models import Campaign, EmailDraft, FollowUpDraft, ReplyResponseDraft
-from app.schemas.reply_response_schema import ReplyResponseStatusUpdateRequest
+from app.schemas.reply_response_schema import (
+    ReplyResponseContentUpdateRequest,
+    ReplyResponseStatusUpdateRequest,
+)
 from app.services.gmail_service import (
     GmailConfigurationError,
     GmailConnectionError,
@@ -24,6 +27,7 @@ from app.services.reply_response_service import (
     get_active_response_draft,
 )
 from app.utils.time_utils import utc_now
+from app.utils.draft_safety import PLACEHOLDER_SEND_ERROR, contains_blocked_placeholder
 
 router = APIRouter(
     prefix="/reply-responses",
@@ -37,6 +41,8 @@ ALLOWED_STATUS_TRANSITIONS = {
     "generated": {"approved", "rejected"},
     "approved": {"rejected"},
 }
+EDITABLE_RESPONSE_STATUSES = {"generated", "approved", "failed"}
+MAX_RESPONSE_BODY_LENGTH = 10000
 
 
 def clean_email(value):
@@ -475,6 +481,47 @@ def generate_campaign_reply_response_drafts(
     }
 
 
+@router.patch("/{response_draft_id}")
+def update_reply_response_draft_content(
+    response_draft_id: int,
+    response_update: ReplyResponseContentUpdateRequest,
+    db: Session = Depends(get_db),
+):
+    subject = (response_update.subject or "").strip()
+    body = (response_update.body or "").strip()
+
+    if not subject or not body:
+        raise HTTPException(status_code=400, detail="Subject and body are required.")
+
+    if len(body) > MAX_RESPONSE_BODY_LENGTH:
+        raise HTTPException(status_code=400, detail="Response draft body is too long.")
+
+    response_draft = get_response_draft_or_404(response_draft_id, db)
+
+    if response_draft.status not in EDITABLE_RESPONSE_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot edit a sent draft."
+        )
+
+    response_draft.subject = subject[:255]
+    response_draft.body = body
+    response_draft.updated_at = utc_now()
+
+    if response_draft.status in {"approved", "failed"}:
+        response_draft.status = "generated"
+        response_draft.approved_at = None
+        response_draft.send_error = None
+
+    commit_response_draft_update(db, response_draft, "Failed to update draft. Please try again.")
+
+    return {
+        "status": "success",
+        "message": "Response draft updated successfully",
+        "data": serialize_response_draft(response_draft),
+    }
+
+
 @router.patch("/{response_draft_id}/status")
 def update_reply_response_status(
     response_draft_id: int,
@@ -520,6 +567,12 @@ def send_one_reply_response_draft(
         raise HTTPException(
             status_code=400,
             detail="Approve the response draft before sending."
+        )
+
+    if contains_blocked_placeholder(response_draft.subject, response_draft.body):
+        raise HTTPException(
+            status_code=400,
+            detail=PLACEHOLDER_SEND_ERROR
         )
 
     _, _, remaining_daily_capacity = get_remaining_daily_capacity(db)
@@ -604,6 +657,14 @@ def send_approved_campaign_reply_response_drafts(
         ensure_gmail_ready(db)
 
     for index, response_draft in enumerate(response_drafts_to_send):
+        if contains_blocked_placeholder(response_draft.subject, response_draft.body):
+            skipped_count += 1
+            results.append({
+                **serialize_response_draft(response_draft),
+                "error": PLACEHOLDER_SEND_ERROR,
+            })
+            continue
+
         result = send_approved_response_draft(db, response_draft)
         results.append(result)
 

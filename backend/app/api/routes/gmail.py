@@ -21,6 +21,7 @@ from app.services.gmail_service import (
     send_email_via_gmail,
 )
 from app.utils.time_utils import utc_now
+from app.utils.draft_safety import PLACEHOLDER_SEND_ERROR, contains_blocked_placeholder
 
 router = APIRouter(
     prefix="/gmail",
@@ -285,6 +286,12 @@ def send_one_approved_email_draft(
             "data": serialize_send_result(email_draft),
         }
 
+    if contains_blocked_placeholder(email_draft.subject, email_draft.body):
+        raise HTTPException(
+            status_code=400,
+            detail=PLACEHOLDER_SEND_ERROR
+        )
+
     _, _, remaining_daily_capacity = get_remaining_daily_capacity(db)
 
     if remaining_daily_capacity <= 0:
@@ -355,6 +362,14 @@ def send_approved_campaign_email_drafts(
 
     for email_draft in email_drafts:
         has_lead_email = bool(clean_email(email_draft.lead.email if email_draft.lead else None))
+
+        if contains_blocked_placeholder(email_draft.subject, email_draft.body):
+            skipped_count += 1
+            results.append({
+                **serialize_send_result(email_draft),
+                "error": PLACEHOLDER_SEND_ERROR,
+            })
+            continue
 
         if has_lead_email:
             sendable_drafts.append(email_draft)

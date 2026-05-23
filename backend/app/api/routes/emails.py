@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.db.database import get_db
 from app.db.models import EmailDraft
-from app.schemas.email_schema import EmailDraftUpdate
+from app.schemas.email_schema import EmailDraftContentUpdate, EmailDraftUpdate
+from app.utils.time_utils import utc_now
 
 router = APIRouter(
     prefix="/emails",
@@ -12,6 +13,8 @@ router = APIRouter(
 )
 
 ALLOWED_EMAIL_STATUSES = {"generated", "approved", "rejected", "failed", "replied"}
+EDITABLE_EMAIL_STATUSES = {"generated", "approved", "failed"}
+MAX_EMAIL_BODY_LENGTH = 10000
 
 
 def serialize_email_draft(email_draft: EmailDraft):
@@ -99,6 +102,64 @@ def get_lead_email_drafts(lead_id: int, db: Session = Depends(get_db)):
     return {
         "status": "success",
         "data": [serialize_email_draft(email_draft) for email_draft in email_drafts]
+    }
+
+
+@router.patch("/{email_id}")
+def update_email_draft_content(
+    email_id: int,
+    email_update: EmailDraftContentUpdate,
+    db: Session = Depends(get_db),
+):
+    subject = (email_update.subject or "").strip()
+    body = (email_update.body or "").strip()
+
+    if not subject or not body:
+        raise HTTPException(status_code=400, detail="Subject and body are required.")
+
+    if len(body) > MAX_EMAIL_BODY_LENGTH:
+        raise HTTPException(status_code=400, detail="Email body is too long.")
+
+    email_draft = (
+        email_draft_query(db)
+        .filter(EmailDraft.id == email_id)
+        .first()
+    )
+
+    if not email_draft:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Email draft with id {email_id} was not found"
+        )
+
+    if email_draft.status not in EDITABLE_EMAIL_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot edit a sent draft."
+        )
+
+    email_draft.subject = subject[:255]
+    email_draft.body = body
+    email_draft.updated_at = utc_now()
+
+    if email_draft.status in {"approved", "failed"}:
+        email_draft.status = "generated"
+        email_draft.send_error = None
+
+    try:
+        db.commit()
+        db.refresh(email_draft)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to update draft. Please try again."
+        ) from exc
+
+    return {
+        "status": "success",
+        "message": "Email draft updated successfully",
+        "data": serialize_email_draft(email_draft)
     }
 
 
