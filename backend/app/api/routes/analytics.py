@@ -3,7 +3,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.database import get_db
-from app.db.models import Campaign, EmailDraft, FollowUpDraft, Lead
+from app.db.models import Campaign, EmailDraft, FollowUpDraft, Lead, ReplyResponseDraft
 
 router = APIRouter(
     prefix="/analytics",
@@ -236,6 +236,30 @@ def get_campaign_analytics(campaign_id: int, db: Session = Depends(get_db)):
         FollowUpDraft.campaign_id == campaign_id,
         FollowUpDraft.status.in_(("generated", "approved", "sending")),
     )
+    response_drafts_generated = count_rows(
+        db,
+        ReplyResponseDraft,
+        ReplyResponseDraft.campaign_id == campaign_id,
+        ReplyResponseDraft.status == "generated",
+    )
+    response_drafts_approved = count_rows(
+        db,
+        ReplyResponseDraft,
+        ReplyResponseDraft.campaign_id == campaign_id,
+        ReplyResponseDraft.status == "approved",
+    )
+    response_drafts_sent = count_rows(
+        db,
+        ReplyResponseDraft,
+        ReplyResponseDraft.campaign_id == campaign_id,
+        ReplyResponseDraft.status == "sent",
+    )
+    response_drafts_failed = count_rows(
+        db,
+        ReplyResponseDraft,
+        ReplyResponseDraft.campaign_id == campaign_id,
+        ReplyResponseDraft.status == "failed",
+    )
     recent_followups = (
         db.query(FollowUpDraft)
         .options(joinedload(FollowUpDraft.lead))
@@ -294,6 +318,10 @@ def get_campaign_analytics(campaign_id: int, db: Session = Depends(get_db)):
             "followups_sent_count": followups_sent_count,
             "followups_failed_count": followups_failed_count,
             "followups_pending_count": followups_pending_count,
+            "response_drafts_generated": response_drafts_generated,
+            "response_drafts_approved": response_drafts_approved,
+            "response_drafts_sent": response_drafts_sent,
+            "response_drafts_failed": response_drafts_failed,
             "scored_leads": scored_leads,
             "unscored_leads": max(lead_count - scored_leads, 0),
             "average_ai_score": round(float(average_ai_score), 1) if average_ai_score is not None else 0.0,

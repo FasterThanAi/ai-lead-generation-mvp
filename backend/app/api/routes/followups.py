@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.db.database import get_db
-from app.db.models import Campaign, EmailDraft, FollowUpDraft
+from app.db.models import Campaign, EmailDraft, FollowUpDraft, ReplyResponseDraft
 from app.schemas.followup_schema import FollowUpStatusUpdateRequest
 from app.services.ai_service import AIConfigurationError, AIServiceError
 from app.services.followup_service import (
@@ -194,8 +194,17 @@ def count_daily_sent_emails(db: Session):
         .scalar()
         or 0
     )
+    response_sent_count = (
+        db.query(func.count(ReplyResponseDraft.id))
+        .filter(
+            ReplyResponseDraft.status == "sent",
+            ReplyResponseDraft.sent_at >= start_of_day,
+        )
+        .scalar()
+        or 0
+    )
 
-    return original_sent_count + follow_up_sent_count
+    return original_sent_count + follow_up_sent_count + response_sent_count
 
 
 def get_remaining_daily_capacity(db: Session):

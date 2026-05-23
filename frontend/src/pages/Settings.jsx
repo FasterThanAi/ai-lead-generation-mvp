@@ -130,6 +130,9 @@ function Settings() {
               <p className="mt-1 text-sm text-slate-500">
                 AI reply classification only suggests next actions. It does not send replies automatically.
               </p>
+              <p className="mt-1 text-sm text-slate-500">
+                AI response drafts require approval before sending.
+              </p>
             </div>
 
             <Button

@@ -12,6 +12,7 @@ from app.api.routes import (
     leads,
     replies,
     reply_classification,
+    reply_responses,
 )
 
 api_router = APIRouter()
@@ -27,4 +28,5 @@ api_router.include_router(followups.router)
 api_router.include_router(gmail.router)
 api_router.include_router(replies.router)
 api_router.include_router(reply_classification.router)
+api_router.include_router(reply_responses.router)
 api_router.include_router(analytics.router)

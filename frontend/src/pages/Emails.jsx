@@ -32,6 +32,16 @@ function getLatestFollowUp(followUps) {
   })[0];
 }
 
+function getLatestResponseDraft(responseDrafts) {
+  if (!responseDrafts.length) {
+    return null;
+  }
+
+  return [...responseDrafts].sort((a, b) => (
+    getDateTimestampISTSafe(b.created_at) - getDateTimestampISTSafe(a.created_at)
+  ))[0];
+}
+
 function getPreviewText(value, maxLength = 220) {
   const text = String(value || "").trim();
 
@@ -57,18 +67,27 @@ function Emails() {
   const [followUps, setFollowUps] = useState([]);
   const [isLoadingFollowUps, setIsLoadingFollowUps] = useState(false);
   const [followUpsError, setFollowUpsError] = useState("");
+  const [responseDrafts, setResponseDrafts] = useState([]);
+  const [isLoadingResponseDrafts, setIsLoadingResponseDrafts] = useState(false);
+  const [responseDraftsError, setResponseDraftsError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingFollowUps, setIsGeneratingFollowUps] = useState(false);
   const [generatingFollowUpDraftId, setGeneratingFollowUpDraftId] = useState(null);
+  const [isGeneratingResponses, setIsGeneratingResponses] = useState(false);
+  const [generatingResponseDraftId, setGeneratingResponseDraftId] = useState(null);
   const [generationError, setGenerationError] = useState("");
   const [generationSummary, setGenerationSummary] = useState(null);
   const [followUpSummary, setFollowUpSummary] = useState(null);
+  const [responseDraftSummary, setResponseDraftSummary] = useState(null);
   const [updatingDraftId, setUpdatingDraftId] = useState(null);
   const [updatingFollowUpId, setUpdatingFollowUpId] = useState(null);
+  const [updatingResponseDraftId, setUpdatingResponseDraftId] = useState(null);
   const [sendingDraftId, setSendingDraftId] = useState(null);
   const [sendingFollowUpId, setSendingFollowUpId] = useState(null);
+  const [sendingResponseDraftId, setSendingResponseDraftId] = useState(null);
   const [isSendingCampaign, setIsSendingCampaign] = useState(false);
   const [isSendingFollowUps, setIsSendingFollowUps] = useState(false);
+  const [isSendingResponses, setIsSendingResponses] = useState(false);
   const [sendSummary, setSendSummary] = useState(null);
   const [campaignAnalytics, setCampaignAnalytics] = useState(null);
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
@@ -99,6 +118,11 @@ function Emails() {
     [followUps]
   );
 
+  const approvedResponseCount = useMemo(
+    () => responseDrafts.filter((responseDraft) => responseDraft.status === "approved").length,
+    [responseDrafts]
+  );
+
   const followUpsByDraftId = useMemo(() => (
     followUps.reduce((groupedFollowUps, followUp) => {
       const key = String(followUp.original_email_draft_id);
@@ -115,6 +139,23 @@ function Emails() {
       return groupedFollowUps;
     }, {})
   ), [followUps]);
+
+  const responseDraftsByDraftId = useMemo(() => (
+    responseDrafts.reduce((groupedResponseDrafts, responseDraft) => {
+      const key = String(responseDraft.original_email_draft_id);
+
+      if (!groupedResponseDrafts[key]) {
+        groupedResponseDrafts[key] = [];
+      }
+
+      groupedResponseDrafts[key].push(responseDraft);
+      groupedResponseDrafts[key].sort((a, b) => (
+        getDateTimestampISTSafe(b.created_at) - getDateTimestampISTSafe(a.created_at)
+      ));
+
+      return groupedResponseDrafts;
+    }, {})
+  ), [responseDrafts]);
 
   const draftSummary = useMemo(() => ({
     total: drafts.length,
@@ -184,6 +225,26 @@ function Emails() {
     }
   };
 
+  const fetchResponseDrafts = async (campaignId) => {
+    if (!campaignId) {
+      setResponseDrafts([]);
+      return;
+    }
+
+    setIsLoadingResponseDrafts(true);
+    setResponseDraftsError("");
+
+    try {
+      const res = await api.get(`/reply-responses/campaign/${campaignId}`);
+      setResponseDrafts(Array.isArray(res.data.data) ? res.data.data : []);
+    } catch (err) {
+      setResponseDraftsError(getFriendlyErrorMessage(err, "Could not load response drafts. Please try again.", "response"));
+      console.error(err);
+    } finally {
+      setIsLoadingResponseDrafts(false);
+    }
+  };
+
   const fetchCampaignAnalytics = async (campaignId) => {
     if (!campaignId) {
       setCampaignAnalytics(null);
@@ -208,6 +269,7 @@ function Emails() {
     await Promise.all([
       fetchDrafts(campaignId),
       fetchFollowUps(campaignId),
+      fetchResponseDrafts(campaignId),
       fetchCampaignAnalytics(campaignId),
     ]);
   };
@@ -218,14 +280,17 @@ function Emails() {
     setSelectedCampaignId(nextCampaignId);
     setDrafts([]);
     setFollowUps([]);
+    setResponseDrafts([]);
     setCampaignAnalytics(null);
     setDraftsError("");
     setFollowUpsError("");
+    setResponseDraftsError("");
     setAnalyticsError("");
     setGenerationSummary(null);
     setGenerationError("");
     setSendSummary(null);
     setFollowUpSummary(null);
+    setResponseDraftSummary(null);
     setReplyCheckSummary(null);
     setReplyClassificationSummary(null);
     setStatusMessage("");
@@ -258,6 +323,7 @@ function Emails() {
     setGenerationError("");
     setGenerationSummary(null);
     setFollowUpSummary(null);
+    setResponseDraftSummary(null);
     setSendSummary(null);
     setReplyClassificationSummary(null);
     setStatusMessage("");
@@ -343,6 +409,7 @@ function Emails() {
     setIsSendingCampaign(true);
     setSendSummary(null);
     setFollowUpSummary(null);
+    setResponseDraftSummary(null);
     setStatusMessage("");
     setStatusError("");
 
@@ -370,6 +437,7 @@ function Emails() {
     setIsCheckingReplies(true);
     setReplyCheckSummary(null);
     setReplyClassificationSummary(null);
+    setResponseDraftSummary(null);
     setStatusMessage("");
     setStatusError("");
 
@@ -422,6 +490,7 @@ function Emails() {
 
     setIsClassifyingReplies(true);
     setReplyClassificationSummary(null);
+    setResponseDraftSummary(null);
     setStatusMessage("");
     setStatusError("");
 
@@ -447,6 +516,7 @@ function Emails() {
   const handleClassifyDraftReply = async (emailId, force = false) => {
     setClassifyingReplyDraftId(emailId);
     setReplyClassificationSummary(null);
+    setResponseDraftSummary(null);
     setStatusMessage("");
     setStatusError("");
 
@@ -465,6 +535,7 @@ function Emails() {
   const handleGenerateFollowUp = async (emailId) => {
     setGeneratingFollowUpDraftId(emailId);
     setFollowUpSummary(null);
+    setResponseDraftSummary(null);
     setStatusMessage("");
     setStatusError("");
 
@@ -487,6 +558,7 @@ function Emails() {
 
     setIsGeneratingFollowUps(true);
     setFollowUpSummary(null);
+    setResponseDraftSummary(null);
     setStatusMessage("");
     setStatusError("");
 
@@ -538,6 +610,7 @@ function Emails() {
   const handleSendFollowUp = async (followUpId) => {
     setSendingFollowUpId(followUpId);
     setFollowUpSummary(null);
+    setResponseDraftSummary(null);
     setStatusMessage("");
     setStatusError("");
 
@@ -567,6 +640,7 @@ function Emails() {
 
     setIsSendingFollowUps(true);
     setFollowUpSummary(null);
+    setResponseDraftSummary(null);
     setStatusMessage("");
     setStatusError("");
 
@@ -585,6 +659,132 @@ function Emails() {
       console.error(err);
     } finally {
       setIsSendingFollowUps(false);
+    }
+  };
+
+  const handleGenerateResponseDraft = async (emailId, force = false) => {
+    setGeneratingResponseDraftId(emailId);
+    setResponseDraftSummary(null);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.post(`/reply-responses/generate/${emailId}?force=${force ? "true" : "false"}`);
+      setStatusMessage(res.data.message || "Response draft generated.");
+      await refreshCampaignData(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Response draft generation failed. Please try again.", "response"));
+      console.error(err);
+    } finally {
+      setGeneratingResponseDraftId(null);
+    }
+  };
+
+  const handleGenerateCampaignResponses = async () => {
+    if (!selectedCampaignId) {
+      return;
+    }
+
+    setIsGeneratingResponses(true);
+    setResponseDraftSummary(null);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.post(`/reply-responses/generate-campaign/${selectedCampaignId}?limit=5`);
+      setResponseDraftSummary({
+        mode: "generated",
+        processed: res.data.processed ?? 0,
+        generated: res.data.generated ?? 0,
+        skipped: res.data.skipped ?? 0,
+        failed: res.data.failed ?? 0,
+        remaining: res.data.remaining ?? 0,
+      });
+      await refreshCampaignData(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Response draft generation failed. Please try again.", "response"));
+      console.error(err);
+    } finally {
+      setIsGeneratingResponses(false);
+    }
+  };
+
+  const handleUpdateResponseStatus = async (responseDraftId, nextStatus) => {
+    setUpdatingResponseDraftId(responseDraftId);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.patch(`/reply-responses/${responseDraftId}/status`, {
+        status: nextStatus,
+      });
+      const updatedResponseDraft = res.data.data;
+
+      setResponseDrafts((currentResponseDrafts) =>
+        currentResponseDrafts.map((responseDraft) => (
+          responseDraft.id === responseDraftId ? updatedResponseDraft : responseDraft
+        ))
+      );
+      setStatusMessage("Response draft status updated successfully.");
+      await fetchCampaignAnalytics(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Response draft status could not be updated.", "response"));
+      console.error(err);
+    } finally {
+      setUpdatingResponseDraftId(null);
+    }
+  };
+
+  const handleSendResponseDraft = async (responseDraftId) => {
+    setSendingResponseDraftId(responseDraftId);
+    setResponseDraftSummary(null);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.post(`/reply-responses/send/${responseDraftId}`);
+      const result = res.data.data;
+
+      if (result?.status === "sent") {
+        setStatusMessage("Response draft sent successfully.");
+      } else {
+        setStatusError(result?.send_error || "Response sending failed. Please try again.");
+      }
+
+      await refreshCampaignData(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Response sending failed. Please try again.", "response"));
+      console.error(err);
+    } finally {
+      setSendingResponseDraftId(null);
+    }
+  };
+
+  const handleSendApprovedCampaignResponses = async () => {
+    if (!selectedCampaignId) {
+      return;
+    }
+
+    setIsSendingResponses(true);
+    setResponseDraftSummary(null);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.post(`/reply-responses/send-approved/campaign/${selectedCampaignId}?limit=5`);
+      setResponseDraftSummary({
+        mode: "sent",
+        sent: res.data.sent ?? 0,
+        failed: res.data.failed ?? 0,
+        skipped: res.data.skipped ?? 0,
+        remainingApproved: res.data.remaining_approved ?? 0,
+      });
+      await refreshCampaignData(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Response sending failed. Please try again.", "response"));
+      console.error(err);
+    } finally {
+      setIsSendingResponses(false);
     }
   };
 
@@ -766,6 +966,22 @@ function Emails() {
                     <p className="text-xs text-red-700">Follow-ups Failed</p>
                     <p className="mt-1 text-2xl font-semibold text-red-900">{campaignAnalytics.followups_failed_count ?? 0}</p>
                   </div>
+                  <div className="rounded-lg border bg-sky-50 p-4">
+                    <p className="text-xs text-sky-700">Responses Generated</p>
+                    <p className="mt-1 text-2xl font-semibold text-sky-900">{campaignAnalytics.response_drafts_generated ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border bg-green-50 p-4">
+                    <p className="text-xs text-green-700">Responses Approved</p>
+                    <p className="mt-1 text-2xl font-semibold text-green-900">{campaignAnalytics.response_drafts_approved ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border bg-purple-50 p-4">
+                    <p className="text-xs text-purple-700">Responses Sent</p>
+                    <p className="mt-1 text-2xl font-semibold text-purple-900">{campaignAnalytics.response_drafts_sent ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border bg-red-50 p-4">
+                    <p className="text-xs text-red-700">Responses Failed</p>
+                    <p className="mt-1 text-2xl font-semibold text-red-900">{campaignAnalytics.response_drafts_failed ?? 0}</p>
+                  </div>
                   <div className="rounded-lg border bg-indigo-50 p-4">
                     <p className="text-xs text-indigo-700">AI Scored Leads</p>
                     <p className="mt-1 text-2xl font-semibold text-indigo-900">{campaignAnalytics.scored_leads ?? 0}</p>
@@ -839,7 +1055,7 @@ function Emails() {
                 type="button"
                 variant="primary"
                 className="w-full sm:w-auto"
-                disabled={!selectedCampaignId || isGenerating || isSendingCampaign || isGeneratingFollowUps}
+                disabled={!selectedCampaignId || isGenerating || isSendingCampaign || isGeneratingFollowUps || isGeneratingResponses}
                 onClick={handleGenerateCampaignEmails}
               >
                 {isGenerating ? "Generating emails..." : "Generate Next 5 Emails"}
@@ -859,7 +1075,7 @@ function Emails() {
                 type="button"
                 variant="success"
                 className="w-full sm:w-auto"
-                disabled={!selectedCampaignId || isCheckingReplies || isClassifyingReplies || isSendingCampaign || isGenerating || isGeneratingFollowUps}
+                disabled={!selectedCampaignId || isCheckingReplies || isClassifyingReplies || isSendingCampaign || isGenerating || isGeneratingFollowUps || isGeneratingResponses}
                 onClick={handleCheckCampaignReplies}
               >
                 {isCheckingReplies ? "Checking replies..." : "Check Replies"}
@@ -869,10 +1085,30 @@ function Emails() {
                 type="button"
                 variant="warning"
                 className="w-full sm:w-auto"
-                disabled={!selectedCampaignId || isClassifyingReplies || isCheckingReplies || isSendingCampaign || isGenerating || isGeneratingFollowUps}
+                disabled={!selectedCampaignId || isClassifyingReplies || isCheckingReplies || isSendingCampaign || isGenerating || isGeneratingFollowUps || isGeneratingResponses}
                 onClick={handleClassifyCampaignReplies}
               >
                 {isClassifyingReplies ? "Classifying replies..." : "Classify Replies"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="indigo"
+                className="w-full sm:w-auto"
+                disabled={!selectedCampaignId || isGeneratingResponses || isSendingResponses || isClassifyingReplies || isCheckingReplies}
+                onClick={handleGenerateCampaignResponses}
+              >
+                {isGeneratingResponses ? "Generating responses..." : "Generate Response Drafts"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full sm:w-auto"
+                disabled={!selectedCampaignId || isSendingResponses || approvedResponseCount === 0}
+                onClick={handleSendApprovedCampaignResponses}
+              >
+                {isSendingResponses ? "Sending responses..." : "Send Approved Responses"}
               </Button>
 
               <Button
@@ -908,6 +1144,9 @@ function Emails() {
           </p>
           <p className="mt-1 text-sm text-gray-500">
             AI reply classification only suggests next actions. It does not send replies automatically.
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
+            AI response drafts are not sent automatically. Approve before sending. Do not include pricing unless verified.
           </p>
           <p className="mt-1 text-sm text-gray-500">
             Follow-ups are generated only for sent emails without replies.
@@ -957,6 +1196,18 @@ function Emails() {
               Follow-ups sent: {followUpSummary.sent}, Failed: {followUpSummary.failed}, Skipped: {followUpSummary.skipped}, Remaining approved: {followUpSummary.remainingApproved}
             </p>
           )}
+
+          {responseDraftSummary?.mode === "generated" && (
+            <p className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-700">
+              Responses processed: {responseDraftSummary.processed}, Generated: {responseDraftSummary.generated}, Skipped: {responseDraftSummary.skipped}, Failed: {responseDraftSummary.failed}, Remaining: {responseDraftSummary.remaining}
+            </p>
+          )}
+
+          {responseDraftSummary?.mode === "sent" && (
+            <p className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              Responses sent: {responseDraftSummary.sent}, Failed: {responseDraftSummary.failed}, Skipped: {responseDraftSummary.skipped}, Remaining approved: {responseDraftSummary.remainingApproved}
+            </p>
+          )}
         </div>
 
         {(statusMessage || statusError) && (
@@ -1001,6 +1252,12 @@ function Emails() {
             </div>
           )}
 
+          {selectedCampaignId && !isLoadingDrafts && isLoadingResponseDrafts && (
+            <div className="mb-4 border rounded-lg p-4 text-sm text-gray-600">
+              Loading response drafts...
+            </div>
+          )}
+
           {selectedCampaignId && !isLoadingDrafts && draftsError && (
             <div className="border border-red-200 bg-red-50 text-red-700 rounded-lg p-4 text-sm">
               {draftsError}
@@ -1010,6 +1267,12 @@ function Emails() {
           {selectedCampaignId && !isLoadingDrafts && !draftsError && followUpsError && (
             <div className="mb-4 border border-red-200 bg-red-50 text-red-700 rounded-lg p-4 text-sm">
               {followUpsError}
+            </div>
+          )}
+
+          {selectedCampaignId && !isLoadingDrafts && !draftsError && responseDraftsError && (
+            <div className="mb-4 border border-red-200 bg-red-50 text-red-700 rounded-lg p-4 text-sm">
+              {responseDraftsError}
             </div>
           )}
 
@@ -1026,15 +1289,21 @@ function Emails() {
             <div className="space-y-4">
               {drafts.map((draft) => {
                 const draftFollowUps = followUpsByDraftId[String(draft.id)] || [];
+                const draftResponseDrafts = responseDraftsByDraftId[String(draft.id)] || [];
+                const latestResponseDraft = getLatestResponseDraft(draftResponseDrafts);
                 const latestFollowUp = getLatestFollowUp(draftFollowUps);
                 const canGenerateFollowUp = (
                   draft.status === "sent" &&
                   draftFollowUps.length < 2 &&
                   (!latestFollowUp || latestFollowUp.status === "sent")
                 );
+                const replyClassified = isReplyClassified(draft);
+                const canGenerateResponseDraft = (
+                  draft.status === "replied" &&
+                  replyClassified
+                );
                 const isDraftExpanded = Boolean(expandedDraftIds[draft.id]);
                 const shouldCollapseDraft = String(draft.body || "").length > 220;
-                const replyClassified = isReplyClassified(draft);
 
                 return (
                 <div key={draft.id} className="rounded-3xl border border-slate-200 bg-white/85 p-4 shadow-sm sm:p-5">
@@ -1162,6 +1431,85 @@ function Emails() {
                     </div>
                   )}
 
+                  {draft.status === "replied" && latestResponseDraft && (
+                    <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-slate-800">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="font-semibold text-slate-950">AI Response Draft</p>
+                          <h4 className="mt-1 break-words text-sm font-semibold text-slate-900">
+                            {latestResponseDraft.subject}
+                          </h4>
+                        </div>
+                        <Badge variant={latestResponseDraft.status}>{latestResponseDraft.status}</Badge>
+                      </div>
+
+                      <p className="mt-4 whitespace-pre-line break-words leading-6 text-slate-700">
+                        {latestResponseDraft.body}
+                      </p>
+
+                      <div className="mt-4 space-y-1 text-xs text-slate-600">
+                        <p>Generated: {formatDateTimeIST(latestResponseDraft.generated_at || latestResponseDraft.created_at)}</p>
+                        {latestResponseDraft.approved_at && (
+                          <p>Approved: {formatDateTimeIST(latestResponseDraft.approved_at)}</p>
+                        )}
+                        {latestResponseDraft.sent_at && (
+                          <p>Sent: {formatDateTimeIST(latestResponseDraft.sent_at)}</p>
+                        )}
+                        {latestResponseDraft.gmail_message_id && (
+                          <p>Gmail message ID: {latestResponseDraft.gmail_message_id}</p>
+                        )}
+                        {latestResponseDraft.gmail_thread_id && (
+                          <p>Gmail thread ID: {latestResponseDraft.gmail_thread_id}</p>
+                        )}
+                        {latestResponseDraft.send_error && (
+                          <p className={latestResponseDraft.status === "failed" ? "text-red-700" : "text-amber-700"}>
+                            {latestResponseDraft.status === "failed" ? "Send error" : "Generation note"}: {latestResponseDraft.send_error}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {latestResponseDraft.status === "generated" && (
+                          <>
+                            <button
+                              className="rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
+                              disabled={updatingResponseDraftId === latestResponseDraft.id}
+                              onClick={() => handleUpdateResponseStatus(latestResponseDraft.id, "approved")}
+                            >
+                              {updatingResponseDraftId === latestResponseDraft.id ? "Updating..." : "Approve"}
+                            </button>
+                            <button
+                              className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                              disabled={updatingResponseDraftId === latestResponseDraft.id}
+                              onClick={() => handleUpdateResponseStatus(latestResponseDraft.id, "rejected")}
+                            >
+                              {updatingResponseDraftId === latestResponseDraft.id ? "Updating..." : "Reject"}
+                            </button>
+                          </>
+                        )}
+
+                        {latestResponseDraft.status === "approved" && (
+                          <>
+                            <button
+                              className="rounded bg-slate-700 px-3 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                              disabled={sendingResponseDraftId === latestResponseDraft.id || isSendingResponses}
+                              onClick={() => handleSendResponseDraft(latestResponseDraft.id)}
+                            >
+                              {sendingResponseDraftId === latestResponseDraft.id ? "Sending..." : "Send Response"}
+                            </button>
+                            <button
+                              className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                              disabled={updatingResponseDraftId === latestResponseDraft.id || sendingResponseDraftId === latestResponseDraft.id}
+                              onClick={() => handleUpdateResponseStatus(latestResponseDraft.id, "rejected")}
+                            >
+                              {updatingResponseDraftId === latestResponseDraft.id ? "Updating..." : "Reject"}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="mt-5 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-xs text-slate-500">
                       <span>{draft.ai_model || "AI model unavailable"}</span>
@@ -1227,17 +1575,33 @@ function Emails() {
                         </>
                       )}
                       {draft.status === "replied" && (
-                        <button
-                          className="rounded bg-amber-600 px-3 py-2 text-xs font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-amber-300"
-                          disabled={classifyingReplyDraftId === draft.id || isClassifyingReplies}
-                          onClick={() => handleClassifyDraftReply(draft.id, replyClassified)}
-                        >
-                          {classifyingReplyDraftId === draft.id
-                            ? "Classifying..."
-                            : replyClassified
-                              ? "Reclassify"
-                              : "Classify Reply"}
-                        </button>
+                        <>
+                          <button
+                            className="rounded bg-amber-600 px-3 py-2 text-xs font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-amber-300"
+                            disabled={classifyingReplyDraftId === draft.id || isClassifyingReplies}
+                            onClick={() => handleClassifyDraftReply(draft.id, replyClassified)}
+                          >
+                            {classifyingReplyDraftId === draft.id
+                              ? "Classifying..."
+                              : replyClassified
+                                ? "Reclassify"
+                                : "Classify Reply"}
+                          </button>
+
+                          {canGenerateResponseDraft && latestResponseDraft?.status !== "sent" && (
+                            <button
+                              className="rounded bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
+                              disabled={generatingResponseDraftId === draft.id || isGeneratingResponses}
+                              onClick={() => handleGenerateResponseDraft(draft.id, Boolean(latestResponseDraft))}
+                            >
+                              {generatingResponseDraftId === draft.id
+                                ? "Generating..."
+                                : latestResponseDraft
+                                  ? "Regenerate Response"
+                                  : "Generate Response Draft"}
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

@@ -3,7 +3,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.database import get_db
-from app.db.models import Campaign, EmailDraft, FollowUpDraft, GmailToken, Lead
+from app.db.models import Campaign, EmailDraft, FollowUpDraft, GmailToken, Lead, ReplyResponseDraft
 
 router = APIRouter(
     prefix="/dashboard",
@@ -161,6 +161,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             "meeting_request_replies": meeting_request_replies,
             "total_followups_generated": count_rows(db, FollowUpDraft, FollowUpDraft.status == "generated"),
             "total_followups_sent": count_rows(db, FollowUpDraft, FollowUpDraft.status == "sent"),
+            "total_response_drafts": count_rows(db, ReplyResponseDraft),
+            "response_drafts_sent": count_rows(db, ReplyResponseDraft, ReplyResponseDraft.status == "sent"),
             "total_scored_leads": count_rows(db, Lead, Lead.ai_score.isnot(None)),
             "average_ai_score": round(float(average_ai_score), 1) if average_ai_score is not None else 0.0,
             "high_priority_leads": count_rows(db, Lead, Lead.ai_priority == "High"),

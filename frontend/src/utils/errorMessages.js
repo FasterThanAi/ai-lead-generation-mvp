@@ -95,6 +95,37 @@ export function getFriendlyErrorMessage(err, fallbackMessage = DEFAULT_ERROR_MES
     return "Reply classification failed. Please try again.";
   }
 
+  if (context === "response") {
+    if (normalizedMessage.includes("only replied emails")) {
+      return "Only replied emails can have response drafts.";
+    }
+
+    if (normalizedMessage.includes("classify the reply")) {
+      return "Please classify the reply before generating a response.";
+    }
+
+    if (normalizedMessage.includes("approve the response")) {
+      return "Approve the response draft before sending.";
+    }
+
+    if (
+      normalizedMessage.includes("gmail") &&
+      (
+        normalizedMessage.includes("not connected") ||
+        normalizedMessage.includes("connect gmail") ||
+        normalizedMessage.includes("no gmail")
+      )
+    ) {
+      return "Gmail is not connected. Please connect Gmail in Settings.";
+    }
+
+    if (normalizedMessage.includes("send")) {
+      return "Response sending failed. Please try again.";
+    }
+
+    return "Response draft generation failed. Please try again.";
+  }
+
   if (
     normalizedMessage.includes("approve the follow-up") ||
     normalizedMessage.includes("before sending")

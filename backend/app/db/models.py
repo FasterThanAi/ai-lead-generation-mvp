@@ -19,6 +19,7 @@ class Campaign(Base):
     leads = relationship("Lead", back_populates="campaign", cascade="all, delete-orphan")
     email_drafts = relationship("EmailDraft", back_populates="campaign", cascade="all, delete-orphan")
     follow_up_drafts = relationship("FollowUpDraft", back_populates="campaign", cascade="all, delete-orphan")
+    reply_response_drafts = relationship("ReplyResponseDraft", back_populates="campaign", cascade="all, delete-orphan")
 
 
 class Lead(Base):
@@ -54,6 +55,7 @@ class Lead(Base):
     campaign = relationship("Campaign", back_populates="leads")
     email_drafts = relationship("EmailDraft", back_populates="lead", cascade="all, delete-orphan")
     follow_up_drafts = relationship("FollowUpDraft", back_populates="lead", cascade="all, delete-orphan")
+    reply_response_drafts = relationship("ReplyResponseDraft", back_populates="lead", cascade="all, delete-orphan")
 
 
 class EmailDraft(Base):
@@ -88,6 +90,7 @@ class EmailDraft(Base):
     campaign = relationship("Campaign", back_populates="email_drafts")
     lead = relationship("Lead", back_populates="email_drafts")
     follow_up_drafts = relationship("FollowUpDraft", back_populates="original_email_draft", cascade="all, delete-orphan")
+    reply_response_drafts = relationship("ReplyResponseDraft", back_populates="original_email_draft", cascade="all, delete-orphan")
 
 
 class FollowUpDraft(Base):
@@ -115,6 +118,34 @@ class FollowUpDraft(Base):
     original_email_draft = relationship("EmailDraft", back_populates="follow_up_drafts")
     campaign = relationship("Campaign", back_populates="follow_up_drafts")
     lead = relationship("Lead", back_populates="follow_up_drafts")
+
+
+class ReplyResponseDraft(Base):
+    __tablename__ = "reply_response_drafts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    original_email_draft_id = Column(Integer, ForeignKey("email_drafts.id"), nullable=False, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
+    lead_id = Column(Integer, ForeignKey("leads.id"), nullable=False, index=True)
+    subject = Column(String(255), nullable=False)
+    body = Column(Text, nullable=False)
+    status = Column(String(100), default="generated", nullable=False)
+    intent_used = Column(String(100), nullable=True)
+    next_action_used = Column(Text, nullable=True)
+    model_used = Column(String(255), nullable=True)
+    generated_at = Column(DateTime, nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    rejected_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+    gmail_message_id = Column(String(255), nullable=True)
+    gmail_thread_id = Column(String(255), nullable=True)
+    send_error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    original_email_draft = relationship("EmailDraft", back_populates="reply_response_drafts")
+    campaign = relationship("Campaign", back_populates="reply_response_drafts")
+    lead = relationship("Lead", back_populates="reply_response_drafts")
 
 
 class GmailToken(Base):

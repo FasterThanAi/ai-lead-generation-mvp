@@ -95,3 +95,54 @@ def ensure_lead_ai_scoring_columns(engine):
             connection.execute(
                 text(f"ALTER TABLE leads ADD COLUMN {column_name} {column_type}")
             )
+
+
+def ensure_reply_response_draft_columns(engine):
+    inspector = inspect(engine)
+
+    if "reply_response_drafts" not in inspector.get_table_names():
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("reply_response_drafts")
+    }
+
+    dialect_name = engine.dialect.name
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+
+    required_columns = {
+        "original_email_draft_id": "INTEGER",
+        "campaign_id": "INTEGER",
+        "lead_id": "INTEGER",
+        "subject": "VARCHAR(255)",
+        "body": "TEXT",
+        "status": "VARCHAR(100)",
+        "intent_used": "VARCHAR(100)",
+        "next_action_used": "TEXT",
+        "model_used": "VARCHAR(255)",
+        "generated_at": datetime_type,
+        "approved_at": datetime_type,
+        "rejected_at": datetime_type,
+        "sent_at": datetime_type,
+        "gmail_message_id": "VARCHAR(255)",
+        "gmail_thread_id": "VARCHAR(255)",
+        "send_error": "TEXT",
+        "created_at": datetime_type,
+        "updated_at": datetime_type,
+    }
+
+    missing_columns = [
+        (column_name, column_type)
+        for column_name, column_type in required_columns.items()
+        if column_name not in existing_columns
+    ]
+
+    if not missing_columns:
+        return
+
+    with engine.begin() as connection:
+        for column_name, column_type in missing_columns:
+            connection.execute(
+                text(f"ALTER TABLE reply_response_drafts ADD COLUMN {column_name} {column_type}")
+            )
