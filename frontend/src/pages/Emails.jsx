@@ -42,6 +42,10 @@ function getPreviewText(value, maxLength = 220) {
   return `${text.slice(0, maxLength).trim()}...`;
 }
 
+function isReplyClassified(draft) {
+  return Boolean(draft.reply_intent || draft.reply_classified_at);
+}
+
 function Emails() {
   const [campaigns, setCampaigns] = useState([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState("");
@@ -72,6 +76,9 @@ function Emails() {
   const [isCheckingReplies, setIsCheckingReplies] = useState(false);
   const [checkingReplyDraftId, setCheckingReplyDraftId] = useState(null);
   const [replyCheckSummary, setReplyCheckSummary] = useState(null);
+  const [isClassifyingReplies, setIsClassifyingReplies] = useState(false);
+  const [classifyingReplyDraftId, setClassifyingReplyDraftId] = useState(null);
+  const [replyClassificationSummary, setReplyClassificationSummary] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusError, setStatusError] = useState("");
   const [expandedDraftIds, setExpandedDraftIds] = useState({});
@@ -220,6 +227,7 @@ function Emails() {
     setSendSummary(null);
     setFollowUpSummary(null);
     setReplyCheckSummary(null);
+    setReplyClassificationSummary(null);
     setStatusMessage("");
     setStatusError("");
     setExpandedDraftIds({});
@@ -251,6 +259,7 @@ function Emails() {
     setGenerationSummary(null);
     setFollowUpSummary(null);
     setSendSummary(null);
+    setReplyClassificationSummary(null);
     setStatusMessage("");
     setStatusError("");
 
@@ -360,6 +369,7 @@ function Emails() {
 
     setIsCheckingReplies(true);
     setReplyCheckSummary(null);
+    setReplyClassificationSummary(null);
     setStatusMessage("");
     setStatusError("");
 
@@ -402,6 +412,53 @@ function Emails() {
       console.error(err);
     } finally {
       setCheckingReplyDraftId(null);
+    }
+  };
+
+  const handleClassifyCampaignReplies = async () => {
+    if (!selectedCampaignId) {
+      return;
+    }
+
+    setIsClassifyingReplies(true);
+    setReplyClassificationSummary(null);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      const res = await api.post(`/reply-classification/classify-campaign/${selectedCampaignId}?limit=5`);
+      setReplyClassificationSummary({
+        processed: res.data.processed ?? 0,
+        classified: res.data.classified ?? 0,
+        skipped: res.data.skipped ?? 0,
+        failed: res.data.failed ?? 0,
+        remaining: res.data.remaining_unclassified ?? 0,
+      });
+      setStatusMessage("Reply classification completed.");
+      await refreshCampaignData(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Reply classification failed. Please try again.", "classification"));
+      console.error(err);
+    } finally {
+      setIsClassifyingReplies(false);
+    }
+  };
+
+  const handleClassifyDraftReply = async (emailId, force = false) => {
+    setClassifyingReplyDraftId(emailId);
+    setReplyClassificationSummary(null);
+    setStatusMessage("");
+    setStatusError("");
+
+    try {
+      await api.post(`/reply-classification/classify/${emailId}?force=${force ? "true" : "false"}`);
+      setStatusMessage(force ? "Reply reclassified successfully." : "Reply classified successfully.");
+      await refreshCampaignData(selectedCampaignId);
+    } catch (err) {
+      setStatusError(getFriendlyErrorMessage(err, "Reply classification failed. Please try again.", "classification"));
+      console.error(err);
+    } finally {
+      setClassifyingReplyDraftId(null);
     }
   };
 
@@ -653,6 +710,34 @@ function Emails() {
                     <p className="text-xs text-emerald-700">Replied</p>
                     <p className="mt-1 text-2xl font-semibold text-emerald-900">{campaignAnalytics.replied_count}</p>
                   </div>
+                  <div className="rounded-lg border bg-sky-50 p-4">
+                    <p className="text-xs text-sky-700">Classified Replies</p>
+                    <p className="mt-1 text-2xl font-semibold text-sky-900">{campaignAnalytics.classified_replies ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border bg-red-50 p-4">
+                    <p className="text-xs text-red-700">High Priority Replies</p>
+                    <p className="mt-1 text-2xl font-semibold text-red-900">{campaignAnalytics.high_priority_replies ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border bg-emerald-50 p-4">
+                    <p className="text-xs text-emerald-700">Interested</p>
+                    <p className="mt-1 text-2xl font-semibold text-emerald-900">{campaignAnalytics.interested_replies ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border bg-blue-50 p-4">
+                    <p className="text-xs text-blue-700">Pricing</p>
+                    <p className="mt-1 text-2xl font-semibold text-blue-900">{campaignAnalytics.pricing_replies ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border bg-green-50 p-4">
+                    <p className="text-xs text-green-700">Meeting Requests</p>
+                    <p className="mt-1 text-2xl font-semibold text-green-900">{campaignAnalytics.meeting_request_replies ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border bg-slate-50 p-4">
+                    <p className="text-xs text-slate-600">Not Interested</p>
+                    <p className="mt-1 text-2xl font-semibold text-slate-900">{campaignAnalytics.not_interested_replies ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border bg-red-50 p-4">
+                    <p className="text-xs text-red-700">Unsubscribe</p>
+                    <p className="mt-1 text-2xl font-semibold text-red-900">{campaignAnalytics.unsubscribe_replies ?? 0}</p>
+                  </div>
                   <div className="rounded-lg border bg-blue-50 p-4">
                     <p className="text-xs text-blue-700">Reply Rate</p>
                     <p className="mt-1 text-2xl font-semibold text-blue-900">{formatPercent(campaignAnalytics.reply_rate)}</p>
@@ -715,8 +800,18 @@ function Emails() {
                           <p className="mt-1 text-xs text-gray-500">
                             {[reply.lead_email, formatDateTimeIST(reply.replied_at)].filter(Boolean).join(" | ")}
                           </p>
+                          {(reply.reply_intent || reply.reply_priority || reply.reply_sentiment) && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {reply.reply_intent && <Badge variant={reply.reply_intent}>{reply.reply_intent}</Badge>}
+                              {reply.reply_sentiment && <Badge variant={reply.reply_sentiment}>{reply.reply_sentiment}</Badge>}
+                              {reply.reply_priority && <Badge variant={reply.reply_priority}>{reply.reply_priority}</Badge>}
+                            </div>
+                          )}
                           {reply.reply_snippet && (
                             <p className="mt-2 text-sm text-gray-700">{reply.reply_snippet}</p>
+                          )}
+                          {reply.reply_next_action && (
+                            <p className="mt-2 text-sm font-medium text-slate-700">Next: {reply.reply_next_action}</p>
                           )}
                         </div>
                       ))}
@@ -764,10 +859,20 @@ function Emails() {
                 type="button"
                 variant="success"
                 className="w-full sm:w-auto"
-                disabled={!selectedCampaignId || isCheckingReplies || isSendingCampaign || isGenerating || isGeneratingFollowUps}
+                disabled={!selectedCampaignId || isCheckingReplies || isClassifyingReplies || isSendingCampaign || isGenerating || isGeneratingFollowUps}
                 onClick={handleCheckCampaignReplies}
               >
                 {isCheckingReplies ? "Checking replies..." : "Check Replies"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="warning"
+                className="w-full sm:w-auto"
+                disabled={!selectedCampaignId || isClassifyingReplies || isCheckingReplies || isSendingCampaign || isGenerating || isGeneratingFollowUps}
+                onClick={handleClassifyCampaignReplies}
+              >
+                {isClassifyingReplies ? "Classifying replies..." : "Classify Replies"}
               </Button>
 
               <Button
@@ -802,6 +907,9 @@ function Emails() {
             Reply checking uses Gmail readonly access and does not send emails.
           </p>
           <p className="mt-1 text-sm text-gray-500">
+            AI reply classification only suggests next actions. It does not send replies automatically.
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
             Follow-ups are generated only for sent emails without replies.
           </p>
           <p className="mt-1 text-sm text-gray-500">
@@ -829,6 +937,12 @@ function Emails() {
           {replyCheckSummary && (
             <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
               Checked: {replyCheckSummary.processed}, Replies found: {replyCheckSummary.replied}, No reply: {replyCheckSummary.noReply}, Failed: {replyCheckSummary.failed}
+            </p>
+          )}
+
+          {replyClassificationSummary && (
+            <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              Classified {replyClassificationSummary.classified} replies, skipped {replyClassificationSummary.skipped}, failed {replyClassificationSummary.failed}. Remaining: {replyClassificationSummary.remaining}.
             </p>
           )}
 
@@ -920,6 +1034,7 @@ function Emails() {
                 );
                 const isDraftExpanded = Boolean(expandedDraftIds[draft.id]);
                 const shouldCollapseDraft = String(draft.body || "").length > 220;
+                const replyClassified = isReplyClassified(draft);
 
                 return (
                 <div key={draft.id} className="rounded-3xl border border-slate-200 bg-white/85 p-4 shadow-sm sm:p-5">
@@ -1000,6 +1115,53 @@ function Emails() {
                     </div>
                   )}
 
+                  {draft.status === "replied" && replyClassified && (
+                    <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-800">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="font-semibold text-slate-950">AI Reply Classification</p>
+                          {draft.reply_classified_at && (
+                            <p className="mt-1 text-xs text-slate-500">
+                              Classified at: {formatDateTimeIST(draft.reply_classified_at)}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {draft.reply_intent && <Badge variant={draft.reply_intent}>{draft.reply_intent}</Badge>}
+                          {draft.reply_sentiment && <Badge variant={draft.reply_sentiment}>{draft.reply_sentiment}</Badge>}
+                          {draft.reply_priority && <Badge variant={draft.reply_priority}>{draft.reply_priority}</Badge>}
+                        </div>
+                      </div>
+
+                      {draft.reply_summary && (
+                        <div className="mt-4">
+                          <p className="text-xs font-semibold uppercase text-slate-500">Summary</p>
+                          <p className="mt-1 leading-6 text-slate-700">{draft.reply_summary}</p>
+                        </div>
+                      )}
+
+                      {draft.reply_next_action && (
+                        <div className="mt-3">
+                          <p className="text-xs font-semibold uppercase text-slate-500">Next action</p>
+                          <p className="mt-1 leading-6 text-slate-700">{draft.reply_next_action}</p>
+                        </div>
+                      )}
+
+                      {draft.reply_suggested_response_direction && (
+                        <div className="mt-3">
+                          <p className="text-xs font-semibold uppercase text-slate-500">Suggested response direction</p>
+                          <p className="mt-1 leading-6 text-slate-700">{draft.reply_suggested_response_direction}</p>
+                        </div>
+                      )}
+
+                      {draft.reply_classification_error && (
+                        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                          {draft.reply_classification_error}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="mt-5 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-xs text-slate-500">
                       <span>{draft.ai_model || "AI model unavailable"}</span>
@@ -1063,6 +1225,19 @@ function Emails() {
                             </button>
                           )}
                         </>
+                      )}
+                      {draft.status === "replied" && (
+                        <button
+                          className="rounded bg-amber-600 px-3 py-2 text-xs font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-amber-300"
+                          disabled={classifyingReplyDraftId === draft.id || isClassifyingReplies}
+                          onClick={() => handleClassifyDraftReply(draft.id, replyClassified)}
+                        >
+                          {classifyingReplyDraftId === draft.id
+                            ? "Classifying..."
+                            : replyClassified
+                              ? "Reclassify"
+                              : "Classify Reply"}
+                        </button>
                       )}
                     </div>
                   </div>

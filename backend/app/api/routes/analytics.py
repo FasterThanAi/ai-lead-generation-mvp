@@ -37,6 +37,13 @@ def serialize_recent_reply(email_draft: EmailDraft):
         "lead_email": lead.email if lead else None,
         "reply_snippet": email_draft.reply_snippet,
         "replied_at": email_draft.replied_at,
+        "reply_intent": email_draft.reply_intent,
+        "reply_sentiment": email_draft.reply_sentiment,
+        "reply_priority": email_draft.reply_priority,
+        "reply_summary": email_draft.reply_summary,
+        "reply_next_action": email_draft.reply_next_action,
+        "reply_suggested_response_direction": email_draft.reply_suggested_response_direction,
+        "reply_classified_at": email_draft.reply_classified_at,
     }
 
 
@@ -118,6 +125,69 @@ def get_campaign_analytics(campaign_id: int, db: Session = Depends(get_db)):
         EmailDraft,
         EmailDraft.campaign_id == campaign_id,
         EmailDraft.status == "replied",
+    )
+    classified_replies = count_rows(
+        db,
+        EmailDraft,
+        EmailDraft.campaign_id == campaign_id,
+        EmailDraft.status == "replied",
+        EmailDraft.reply_intent.isnot(None),
+    )
+    high_priority_replies = count_rows(
+        db,
+        EmailDraft,
+        EmailDraft.campaign_id == campaign_id,
+        EmailDraft.status == "replied",
+        EmailDraft.reply_priority == "High",
+    )
+    interested_replies = count_rows(
+        db,
+        EmailDraft,
+        EmailDraft.campaign_id == campaign_id,
+        EmailDraft.status == "replied",
+        EmailDraft.reply_intent == "Interested",
+    )
+    pricing_replies = count_rows(
+        db,
+        EmailDraft,
+        EmailDraft.campaign_id == campaign_id,
+        EmailDraft.status == "replied",
+        EmailDraft.reply_intent == "Asked for Pricing",
+    )
+    meeting_request_replies = count_rows(
+        db,
+        EmailDraft,
+        EmailDraft.campaign_id == campaign_id,
+        EmailDraft.status == "replied",
+        EmailDraft.reply_intent == "Meeting Request",
+    )
+    not_interested_replies = count_rows(
+        db,
+        EmailDraft,
+        EmailDraft.campaign_id == campaign_id,
+        EmailDraft.status == "replied",
+        EmailDraft.reply_intent == "Not Interested",
+    )
+    unsubscribe_replies = count_rows(
+        db,
+        EmailDraft,
+        EmailDraft.campaign_id == campaign_id,
+        EmailDraft.status == "replied",
+        EmailDraft.reply_intent == "Unsubscribe",
+    )
+    wrong_person_replies = count_rows(
+        db,
+        EmailDraft,
+        EmailDraft.campaign_id == campaign_id,
+        EmailDraft.status == "replied",
+        EmailDraft.reply_intent == "Wrong Person",
+    )
+    out_of_office_replies = count_rows(
+        db,
+        EmailDraft,
+        EmailDraft.campaign_id == campaign_id,
+        EmailDraft.status == "replied",
+        EmailDraft.reply_intent == "Out of Office",
     )
     needs_follow_up_count = count_rows(
         db,
@@ -207,6 +277,15 @@ def get_campaign_analytics(campaign_id: int, db: Session = Depends(get_db)):
             "sent_count": sent_count,
             "failed_count": failed_count,
             "replied_count": replied_count,
+            "classified_replies": classified_replies,
+            "high_priority_replies": high_priority_replies,
+            "interested_replies": interested_replies,
+            "pricing_replies": pricing_replies,
+            "meeting_request_replies": meeting_request_replies,
+            "not_interested_replies": not_interested_replies,
+            "unsubscribe_replies": unsubscribe_replies,
+            "wrong_person_replies": wrong_person_replies,
+            "out_of_office_replies": out_of_office_replies,
             "reply_rate": rate_percentage(replied_count, sent_count),
             "send_success_rate": rate_percentage(sent_count, sent_count + failed_count),
             "needs_follow_up_count": needs_follow_up_count,

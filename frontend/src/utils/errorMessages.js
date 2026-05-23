@@ -75,6 +75,26 @@ export function getFriendlyErrorMessage(err, fallbackMessage = DEFAULT_ERROR_MES
     return "AI lead scoring failed. Please try again.";
   }
 
+  if (context === "classification") {
+    if (normalizedMessage.includes("only replied drafts")) {
+      return "Only replied drafts can be classified.";
+    }
+
+    if (normalizedMessage.includes("no reply text")) {
+      return "No reply text is available for classification.";
+    }
+
+    if (
+      normalizedMessage.includes("gemini") ||
+      normalizedMessage.includes("api key") ||
+      normalizedMessage.includes("quota")
+    ) {
+      return "Reply classification used a fallback or could not complete. Please try again.";
+    }
+
+    return "Reply classification failed. Please try again.";
+  }
+
   if (
     normalizedMessage.includes("approve the follow-up") ||
     normalizedMessage.includes("before sending")

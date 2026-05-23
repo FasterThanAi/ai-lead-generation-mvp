@@ -127,6 +127,9 @@ function Settings() {
               <p className="mt-1 text-sm text-slate-500">
                 Reply tracking requires Gmail readonly permission. If reply check fails, reconnect Gmail.
               </p>
+              <p className="mt-1 text-sm text-slate-500">
+                AI reply classification only suggests next actions. It does not send replies automatically.
+              </p>
             </div>
 
             <Button

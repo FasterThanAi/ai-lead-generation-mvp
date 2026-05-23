@@ -23,6 +23,15 @@ def ensure_email_draft_columns(engine):
         "reply_message_id": "VARCHAR(255)",
         "reply_snippet": "TEXT",
         "replied_at": datetime_type,
+        "reply_intent": "VARCHAR(100)",
+        "reply_sentiment": "VARCHAR(50)",
+        "reply_priority": "VARCHAR(50)",
+        "reply_next_action": "TEXT",
+        "reply_summary": "TEXT",
+        "reply_suggested_response_direction": "TEXT",
+        "reply_classified_at": datetime_type,
+        "reply_classification_model": "VARCHAR(255)",
+        "reply_classification_error": "TEXT",
     }
 
     missing_columns = [

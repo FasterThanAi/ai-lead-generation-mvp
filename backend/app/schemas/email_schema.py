@@ -18,6 +18,15 @@ class EmailDraftResponse(BaseModel):
     reply_message_id: str | None = None
     reply_snippet: str | None = None
     replied_at: datetime | None = None
+    reply_intent: str | None = None
+    reply_sentiment: str | None = None
+    reply_priority: str | None = None
+    reply_next_action: str | None = None
+    reply_summary: str | None = None
+    reply_suggested_response_direction: str | None = None
+    reply_classified_at: datetime | None = None
+    reply_classification_model: str | None = None
+    reply_classification_error: str | None = None
     created_at: datetime
     lead_company_name: str | None = None
     lead_contact_name: str | None = None

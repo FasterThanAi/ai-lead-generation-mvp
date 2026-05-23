@@ -2,7 +2,7 @@
 
 ## 1. Project Overview
 
-This is an AI-powered lead generation and cold email outreach MVP. It supports campaign creation, lead upload, public email extraction, AI lead scoring, AI-generated email drafts, Gmail OAuth connection, sending approved drafts, manual reply checks, campaign analytics, and safe follow-up drafts.
+This is an AI-powered lead generation and cold email outreach MVP. It supports campaign creation, lead upload, public email extraction, AI lead scoring, AI-generated email drafts, Gmail OAuth connection, sending approved drafts, manual reply checks, AI reply classification, campaign analytics, and safe follow-up drafts.
 
 ## 2. Features
 
@@ -16,6 +16,7 @@ This is an AI-powered lead generation and cold email outreach MVP. It supports c
 - Gmail OAuth connection
 - Send approved emails
 - Manual Gmail reply checks
+- AI reply classification with intent, sentiment, priority, and next action suggestions
 - Follow-up draft generation and sending
 - Campaign analytics and reply rate
 - Dashboard stats
@@ -54,7 +55,8 @@ Main data flow:
 6. Users approve or reject drafts.
 7. Gmail OAuth enables sending approved drafts only.
 8. Users manually check sent emails for replies and review campaign analytics.
-9. If there is no reply, users generate, approve, and send follow-up drafts manually.
+9. Gemini classifies replies by intent, sentiment, priority, summary, and suggested next action.
+10. If there is no reply, users generate, approve, and send follow-up drafts manually.
 
 ## 5. Week-wise Progress
 
@@ -119,6 +121,14 @@ Week 9:
 - Likely pain point
 - Recommended CTA
 - Dashboard and campaign analytics for scored leads
+
+Week 10:
+- AI reply classification
+- Reply intent detection
+- Reply sentiment and priority
+- Reply summary and next action suggestion
+- Suggested response direction without automatic sending
+- Manual control and safety-first workflow
 
 ## 6. Local Setup
 
@@ -188,11 +198,15 @@ Backend:
 4. Review top priority leads
 5. Generate first email
 6. Approve and send first email
-7. Check replies
-8. If no reply, generate follow-up draft
-9. Approve follow-up
-10. Send follow-up
-11. Track follow-up status
+7. Recipient replies
+8. Check replies
+9. Classify reply with AI
+10. Review intent, priority, next action, and suggested response direction
+11. User decides what to do next
+12. If no reply, generate follow-up draft
+13. Approve follow-up
+14. Send follow-up
+15. Track follow-up status
 
 ## 10. Safety Notes
 
@@ -204,6 +218,7 @@ Backend:
 - Follow-ups are limited to 2 per original email.
 - Gmail sending is limited.
 - Reply checks use Gmail readonly access and do not send emails.
+- AI reply classification only suggests next actions. It does not send replies automatically.
 - Credentials stay backend-only.
 - Sample CSV files use placeholder data only.
 
