@@ -5,12 +5,14 @@ from app.core.config import settings
 from app.api.api_router import api_router
 from app.db.database import Base, engine
 from app.db.database_utils import (
+    ensure_company_knowledge_columns,
     ensure_email_draft_columns,
     ensure_lead_ai_scoring_columns,
     ensure_reply_response_draft_columns,
 )
 from app.db.models import (  # noqa: F401
     Campaign,
+    CompanyKnowledge,
     EmailDraft,
     FollowUpDraft,
     GmailOAuthState,
@@ -24,6 +26,7 @@ Base.metadata.create_all(bind=engine)
 ensure_email_draft_columns(engine)
 ensure_lead_ai_scoring_columns(engine)
 ensure_reply_response_draft_columns(engine)
+ensure_company_knowledge_columns(engine)
 
 app = FastAPI(
     title=settings.APP_NAME,

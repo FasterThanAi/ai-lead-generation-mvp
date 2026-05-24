@@ -13,6 +13,7 @@ class ReplyResponseDraftResponse(BaseModel):
     status: str
     intent_used: str | None = None
     next_action_used: str | None = None
+    knowledge_used: str | None = None
     model_used: str | None = None
     generated_at: datetime | None = None
     approved_at: datetime | None = None

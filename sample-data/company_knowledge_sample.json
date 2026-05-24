@@ -1,0 +1,37 @@
+[
+  {
+    "title": "Company Profile",
+    "category": "Company Profile",
+    "tags": "about, positioning",
+    "is_active": true,
+    "content": "We help organizations turn company knowledge into practical AI-assisted training and outreach workflows. Our focus is on useful automation with human approval and clear reporting."
+  },
+  {
+    "title": "Product Overview",
+    "category": "Product Details",
+    "tags": "training, onboarding, SOP, analytics",
+    "is_active": true,
+    "content": "The AI training video system converts company onboarding documents and SOPs into short training videos, quizzes, doubt-support, and HR analytics."
+  },
+  {
+    "title": "Pricing Overview",
+    "category": "Pricing",
+    "tags": "pricing, pilot, requirements",
+    "is_active": true,
+    "content": "Pricing depends on the number of employees, number of training modules, and analytics requirements. For MVP pilots, we usually recommend starting with one department and a limited number of training modules."
+  },
+  {
+    "title": "Common FAQ",
+    "category": "FAQ",
+    "tags": "faq, implementation, setup",
+    "is_active": true,
+    "content": "A pilot can start with one department, a focused set of onboarding or SOP materials, and a simple review process before broader rollout."
+  },
+  {
+    "title": "Demo Script",
+    "category": "Demo Script",
+    "tags": "demo, walkthrough",
+    "is_active": true,
+    "content": "A short demo should show how source material becomes a training video, how quizzes check understanding, and how HR or operations teams can review progress analytics."
+  }
+]

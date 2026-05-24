@@ -120,6 +120,7 @@ def ensure_reply_response_draft_columns(engine):
         "status": "VARCHAR(100)",
         "intent_used": "VARCHAR(100)",
         "next_action_used": "TEXT",
+        "knowledge_used": "TEXT",
         "model_used": "VARCHAR(255)",
         "generated_at": datetime_type,
         "approved_at": datetime_type,
@@ -145,4 +146,46 @@ def ensure_reply_response_draft_columns(engine):
         for column_name, column_type in missing_columns:
             connection.execute(
                 text(f"ALTER TABLE reply_response_drafts ADD COLUMN {column_name} {column_type}")
+            )
+
+
+def ensure_company_knowledge_columns(engine):
+    inspector = inspect(engine)
+
+    if "company_knowledge" not in inspector.get_table_names():
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("company_knowledge")
+    }
+
+    dialect_name = engine.dialect.name
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+    boolean_type = "BOOLEAN"
+
+    required_columns = {
+        "title": "VARCHAR(255)",
+        "category": "VARCHAR(100)",
+        "content": "TEXT",
+        "tags": "VARCHAR(500)",
+        "is_active": boolean_type,
+        "created_at": datetime_type,
+        "updated_at": datetime_type,
+    }
+
+    missing_columns = [
+        (column_name, column_type)
+        for column_name, column_type in required_columns.items()
+        if column_name not in existing_columns
+    ]
+
+    if not missing_columns:
+        return
+
+    with engine.begin() as connection:
+        for column_name, column_type in missing_columns:
+            default_clause = " DEFAULT TRUE" if column_name == "is_active" else ""
+            connection.execute(
+                text(f"ALTER TABLE company_knowledge ADD COLUMN {column_name} {column_type}{default_clause}")
             )

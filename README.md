@@ -2,7 +2,7 @@
 
 ## 1. Project Overview
 
-This is an AI-powered lead generation and cold email outreach MVP. It supports campaign creation, lead upload, public email extraction, AI lead scoring, AI-generated email drafts, Gmail OAuth connection, sending approved drafts, manual reply checks, AI reply classification, AI response drafts, campaign analytics, and safe follow-up drafts.
+This is an AI-powered lead generation and cold email outreach MVP. It supports campaign creation, lead upload, public email extraction, AI lead scoring, AI-generated email drafts, Gmail OAuth connection, sending approved drafts, manual reply checks, AI reply classification, AI response drafts, company knowledge retrieval, campaign analytics, and safe follow-up drafts.
 
 ## 2. Features
 
@@ -12,12 +12,15 @@ This is an AI-powered lead generation and cold email outreach MVP. It supports c
 - AI lead scoring and qualification
 - Lead priority, outreach angle, pain point, and CTA recommendations
 - AI email generation using Gemini
+- Company knowledge base for product, pricing, FAQ, demo, and objection handling notes
+- Simple database-backed RAG for company-specific AI context
 - Draft approve/reject workflow
 - Gmail OAuth connection
 - Send approved emails
 - Manual Gmail reply checks
 - AI reply classification with intent, sentiment, priority, and next action suggestions
 - AI response draft generation for classified replies
+- Knowledge used in AI response drafts
 - Response draft approve/reject/send workflow
 - Follow-up draft generation and sending
 - Campaign analytics and reply rate
@@ -53,14 +56,15 @@ Main data flow:
 2. Leads are uploaded from CSV and linked to campaigns.
 3. Website extraction searches public pages for lead emails.
 4. Gemini scores leads and explains priority, fit, outreach angle, pain point, and CTA.
-5. Gemini generates cold email drafts.
+5. Gemini generates cold email drafts with relevant company knowledge when available.
 6. Users approve or reject drafts.
 7. Gmail OAuth enables sending approved drafts only.
 8. Users manually check sent emails for replies and review campaign analytics.
 9. Gemini classifies replies by intent, sentiment, priority, summary, and suggested next action.
-10. Gemini drafts a safe response for classified replies.
+10. Gemini drafts a safe response for classified replies using relevant company knowledge when available.
 11. Users approve, reject, or send approved response drafts manually.
 12. If there is no reply, users generate, approve, and send follow-up drafts manually.
+13. The Knowledge page stores company-specific facts for the first simple RAG layer. This does not train an LLM.
 
 ## 5. Week-wise Progress
 
@@ -141,6 +145,14 @@ Week 11:
 - Reply classification to response flow
 - Manual safety control before every response is sent
 
+Week 12:
+- Company knowledge base
+- Simple database-backed RAG
+- Knowledge retrieval for AI response drafts
+- Relevant company context for cold emails and follow-ups
+- Knowledge used visibility on response drafts
+- First step toward company-specific AI without training an LLM
+
 ## 6. Local Setup
 
 Backend:
@@ -204,22 +216,23 @@ Backend:
 ## 9. Demo Flow
 
 1. Create campaign
-2. Upload leads CSV
-3. Score leads with AI
-4. Review top priority leads
-5. Generate first email
-6. Approve and send first email
-7. Recipient replies
-8. Check replies
-9. Classify reply with AI
-10. Generate response draft
-11. Review intent, priority, next action, suggested response direction, and draft response
-12. Approve response
-13. Send approved response
-14. If no reply, generate follow-up draft
-15. Approve follow-up
-16. Send follow-up
-17. Track follow-up status
+2. Add company knowledge such as product details, pricing notes, FAQs, and demo scripts
+3. Upload leads CSV
+4. Score leads with AI
+5. Review top priority leads
+6. Generate first email
+7. Approve and send first email
+8. Recipient replies
+9. Check replies
+10. Classify reply with AI
+11. Generate response draft using relevant company knowledge
+12. Review intent, priority, next action, suggested response direction, knowledge used, and draft response
+13. Approve response
+14. Send approved response
+15. If no reply, generate follow-up draft
+16. Approve follow-up
+17. Send follow-up
+18. Track follow-up status
 
 ## 10. Safety Notes
 
@@ -234,6 +247,7 @@ Backend:
 - AI reply classification only suggests next actions. It does not send replies automatically.
 - AI response drafts are not sent automatically.
 - Response drafts must be approved before sending.
+- AI can use saved company knowledge when relevant, but users must review before sending.
 - Do not include pricing unless it has been verified.
 - Credentials stay backend-only.
 - Sample CSV files use placeholder data only.
@@ -243,3 +257,4 @@ Backend:
 - Google Search lead discovery
 - Authentication
 - CRM integration
+- Vector database or semantic RAG for larger knowledge bases

@@ -94,7 +94,7 @@ def get_existing_active_draft_for_lead(lead_id: int, db: Session):
 
 
 def create_email_draft(campaign: Campaign, lead: Lead, db: Session):
-    generated_email = generate_cold_email(campaign, lead)
+    generated_email = generate_cold_email(campaign, lead, db=db)
 
     email_draft = EmailDraft(
         campaign_id=campaign.id,

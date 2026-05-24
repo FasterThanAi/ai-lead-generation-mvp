@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.models import EmailDraft, ReplyResponseDraft
 from app.services.ai_service import clean_value
+from app.services.knowledge_service import build_knowledge_context, search_relevant_knowledge
 from app.utils.time_utils import utc_now
 
 ACTIVE_RESPONSE_DRAFT_STATUSES = ("generated", "approved")
@@ -151,14 +152,47 @@ def fallback_response_draft(email_draft: EmailDraft):
     }
 
 
-def build_response_prompt(email_draft: EmailDraft):
+def build_response_knowledge_query(email_draft: EmailDraft):
+    campaign = email_draft.campaign
+
+    return " ".join(
+        part
+        for part in [
+            clean_value(email_draft.reply_intent),
+            clean_value(email_draft.reply_summary),
+            clean_value(email_draft.reply_next_action),
+            clean_value(email_draft.reply_suggested_response_direction),
+            clean_value(email_draft.reply_snippet),
+            clean_value(campaign.offer if campaign else ""),
+        ]
+        if part
+    )
+
+
+def format_knowledge_used(entries):
+    return ", ".join(
+        f"{clean_value(entry.title)} ({clean_value(entry.category)})"
+        for entry in entries
+        if clean_value(entry.title)
+    ) or None
+
+
+def build_response_prompt(email_draft: EmailDraft, knowledge_context: str = ""):
     campaign = email_draft.campaign
     lead = email_draft.lead
+    knowledge_section = (
+        knowledge_context
+        if clean_value(knowledge_context)
+        else "No matching company knowledge was found."
+    )
 
     return f"""
 You are an AI sales assistant.
 Write a professional reply email draft based on the lead's reply.
 Keep it concise, helpful, and non-pushy.
+Use the company knowledge below if relevant.
+Do not invent details not present in the company knowledge or outreach context.
+If pricing is not found in company knowledge, say pricing depends on requirements instead of making up prices.
 Do not invent exact pricing if pricing data is not available.
 If the lead asks for pricing, explain that pricing depends on requirements and suggest a short call or ask for details.
 If the lead asks for more info, briefly explain product value and offer a demo.
@@ -201,6 +235,9 @@ Classification:
 - reply_summary: {clean_value(email_draft.reply_summary)}
 - reply_next_action: {clean_value(email_draft.reply_next_action)}
 - reply_suggested_response_direction: {clean_value(email_draft.reply_suggested_response_direction)}
+
+Company knowledge:
+{knowledge_section}
 
 Expected JSON:
 {{
@@ -288,13 +325,20 @@ def generate_response_draft_for_reply(db: Session, email_draft: EmailDraft, forc
 
     model_used = settings.GEMINI_MODEL
     send_error = None
+    knowledge_entries = search_relevant_knowledge(
+        db,
+        build_response_knowledge_query(email_draft),
+        limit=5,
+    )
+    knowledge_context = build_knowledge_context(knowledge_entries)
+    knowledge_used = format_knowledge_used(knowledge_entries)
 
     if settings.GEMINI_API_KEY:
         try:
             client = genai.Client(api_key=settings.GEMINI_API_KEY)
             response = client.models.generate_content(
                 model=settings.GEMINI_MODEL,
-                contents=build_response_prompt(email_draft),
+                contents=build_response_prompt(email_draft, knowledge_context),
             )
             response_text = clean_value(getattr(response, "text", ""))
             if not response_text:
@@ -319,6 +363,7 @@ def generate_response_draft_for_reply(db: Session, email_draft: EmailDraft, forc
         status="generated",
         intent_used=email_draft.reply_intent,
         next_action_used=email_draft.reply_next_action,
+        knowledge_used=knowledge_used,
         model_used=model_used,
         generated_at=now,
         send_error=send_error,

@@ -8,6 +8,7 @@ from app.api.routes import (
     followups,
     gmail,
     health,
+    knowledge,
     lead_scoring,
     leads,
     replies,
@@ -22,6 +23,7 @@ api_router.include_router(dashboard.router)
 api_router.include_router(campaigns.router)
 api_router.include_router(leads.router)
 api_router.include_router(lead_scoring.router)
+api_router.include_router(knowledge.router)
 api_router.include_router(ai.router)
 api_router.include_router(emails.router)
 api_router.include_router(followups.router)

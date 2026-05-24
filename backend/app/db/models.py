@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.db.database import Base
@@ -132,6 +132,7 @@ class ReplyResponseDraft(Base):
     status = Column(String(100), default="generated", nullable=False)
     intent_used = Column(String(100), nullable=True)
     next_action_used = Column(Text, nullable=True)
+    knowledge_used = Column(Text, nullable=True)
     model_used = Column(String(255), nullable=True)
     generated_at = Column(DateTime, nullable=True)
     approved_at = Column(DateTime, nullable=True)
@@ -146,6 +147,19 @@ class ReplyResponseDraft(Base):
     original_email_draft = relationship("EmailDraft", back_populates="reply_response_drafts")
     campaign = relationship("Campaign", back_populates="reply_response_drafts")
     lead = relationship("Lead", back_populates="reply_response_drafts")
+
+
+class CompanyKnowledge(Base):
+    __tablename__ = "company_knowledge"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    category = Column(String(100), nullable=False)
+    content = Column(Text, nullable=False)
+    tags = Column(String(500), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, nullable=True, onupdate=utc_now)
 
 
 class GmailToken(Base):

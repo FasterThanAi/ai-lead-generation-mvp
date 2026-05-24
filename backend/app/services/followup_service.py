@@ -12,6 +12,7 @@ from app.services.ai_service import (
     clean_value,
     extract_json_from_text,
 )
+from app.services.knowledge_service import build_knowledge_context, search_relevant_knowledge
 from app.utils.time_utils import utc_now
 
 MAX_FOLLOW_UPS_PER_EMAIL = 2
@@ -127,7 +128,29 @@ def build_fallback_follow_up(campaign, lead, original_email_draft, follow_up_num
     }
 
 
-def build_follow_up_prompt(campaign, lead, original_email_draft, follow_up_number: int):
+def build_follow_up_knowledge_query(campaign, lead, original_email_draft):
+    return " ".join(
+        part
+        for part in [
+            clean_value(campaign.offer),
+            clean_value(campaign.industry),
+            clean_value(campaign.target_role),
+            clean_value(lead.industry),
+            clean_value(lead.contact_role),
+            clean_value(original_email_draft.subject),
+            clean_value(original_email_draft.body),
+        ]
+        if part
+    )
+
+
+def build_follow_up_prompt(campaign, lead, original_email_draft, follow_up_number: int, knowledge_context: str = ""):
+    knowledge_section = (
+        knowledge_context
+        if clean_value(knowledge_context)
+        else "No matching company knowledge was found."
+    )
+
     return f"""
 Generate one polite B2B follow-up email draft using only the data below.
 
@@ -147,14 +170,19 @@ Original email:
 
 Follow-up number: {follow_up_number}
 
+Company knowledge:
+{knowledge_section}
+
 Rules:
 - Write a polite follow-up because there has been no reply yet.
 - Reference the original email naturally.
 - Keep the email under 120 words.
 - Keep it short, calm, and not spammy.
+- Use saved company knowledge if it is relevant.
 - Include one simple CTA.
 - Do not claim false facts.
 - Do not invent achievements, clients, revenue, awards, partnerships, or facts about the lead company.
+- Do not invent product, pricing, case study, or demo details not present in the campaign data, original email, or company knowledge.
 - Do not use emojis.
 - Return valid JSON only with this exact format:
 {{
@@ -202,14 +230,24 @@ def _parse_follow_up_response(response_text: str, fallback: dict):
     }
 
 
-def generate_follow_up_content(campaign, lead, original_email_draft, follow_up_number: int):
+def generate_follow_up_content(campaign, lead, original_email_draft, follow_up_number: int, db: Session | None = None):
     fallback = build_fallback_follow_up(campaign, lead, original_email_draft, follow_up_number)
 
     if not settings.GEMINI_API_KEY:
         raise AIConfigurationError("Gemini API key is not configured.")
 
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
-    prompt = build_follow_up_prompt(campaign, lead, original_email_draft, follow_up_number)
+    knowledge_context = ""
+
+    if db is not None:
+        knowledge_entries = search_relevant_knowledge(
+            db,
+            build_follow_up_knowledge_query(campaign, lead, original_email_draft),
+            limit=4,
+        )
+        knowledge_context = build_knowledge_context(knowledge_entries)
+
+    prompt = build_follow_up_prompt(campaign, lead, original_email_draft, follow_up_number, knowledge_context)
 
     try:
         response = client.models.generate_content(
@@ -260,6 +298,7 @@ def generate_follow_up_for_draft(
         lead,
         original_email_draft,
         target_follow_up_number,
+        db=db,
     )
     now = utc_now()
 

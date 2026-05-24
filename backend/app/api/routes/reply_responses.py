@@ -126,6 +126,7 @@ def serialize_response_draft(response_draft: ReplyResponseDraft):
         "status": response_draft.status,
         "intent_used": response_draft.intent_used,
         "next_action_used": response_draft.next_action_used,
+        "knowledge_used": response_draft.knowledge_used,
         "model_used": response_draft.model_used,
         "generated_at": response_draft.generated_at,
         "approved_at": response_draft.approved_at,

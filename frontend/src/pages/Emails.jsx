@@ -52,6 +52,13 @@ function getPreviewText(value, maxLength = 220) {
   return `${text.slice(0, maxLength).trim()}...`;
 }
 
+function getKnowledgeUsedItems(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function isReplyClassified(draft) {
   return Boolean(draft.reply_intent || draft.reply_classified_at);
 }
@@ -1306,6 +1313,9 @@ function Emails() {
             AI response drafts are not sent automatically. Approve before sending. Do not include pricing unless verified.
           </p>
           <p className="mt-1 text-sm text-gray-500">
+            AI uses saved company knowledge when relevant. Review before sending.
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
             Follow-ups are generated only for sent emails without replies.
           </p>
           <p className="mt-1 text-sm text-gray-500">
@@ -1448,6 +1458,7 @@ function Emails() {
                 const draftFollowUps = followUpsByDraftId[String(draft.id)] || [];
                 const draftResponseDrafts = responseDraftsByDraftId[String(draft.id)] || [];
                 const latestResponseDraft = getLatestResponseDraft(draftResponseDrafts);
+                const knowledgeUsedItems = getKnowledgeUsedItems(latestResponseDraft?.knowledge_used);
                 const isEditingResponseDraft = latestResponseDraft && editingResponseDraftId === latestResponseDraft.id;
                 const latestFollowUp = getLatestFollowUp(draftFollowUps);
                 const canGenerateFollowUp = (
@@ -1668,6 +1679,19 @@ function Emails() {
 	                          {latestResponseDraft.body}
 	                        </p>
 	                      )}
+
+                      {knowledgeUsedItems.length > 0 && (
+                        <div className="mt-4 rounded-xl border border-indigo-200 bg-white/70 p-3">
+                          <p className="text-xs font-semibold uppercase text-slate-500">Knowledge used</p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {knowledgeUsedItems.map((item) => (
+                              <Badge key={item} variant="neutral">
+                                {item}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="mt-4 space-y-1 text-xs text-slate-600">
                         <p>Generated: {formatDateTimeIST(latestResponseDraft.generated_at || latestResponseDraft.created_at)}</p>
