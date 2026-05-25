@@ -82,6 +82,7 @@ function Knowledge() {
   const [fileInputKey, setFileInputKey] = useState(0);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [activeSearch, setActiveSearch] = useState("");
   const [activeOnly, setActiveOnly] = useState(true);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -90,19 +91,37 @@ function Knowledge() {
     () => entries.filter((entry) => entry.is_active).length,
     [entries]
   );
+  const entriesSectionTitle = activeSearch
+    ? `Search Results for ${activeSearch}`
+    : "Knowledge Entries";
+  const entriesSectionSummary = activeSearch
+    ? `${entries.length} ${entries.length === 1 ? "result" : "results"} found`
+    : `${entries.length} shown, ${activeCount} active.`;
 
-  const loadKnowledge = async () => {
+  const loadKnowledge = async ({
+    queryText = activeSearch,
+    nextCategoryFilter = categoryFilter,
+    nextActiveOnly = activeOnly,
+  } = {}) => {
     setIsLoading(true);
     setErrorMessage("");
 
     try {
-      const res = await api.get("/knowledge/", {
-        params: {
-          category: categoryFilter || undefined,
-          active_only: activeOnly,
-          search: search || undefined,
-        },
-      });
+      const trimmedQuery = String(queryText || "").trim();
+      const res = trimmedQuery
+        ? await api.get("/knowledge/search/relevant", {
+          params: {
+            q: trimmedQuery,
+            limit: 10,
+          },
+        })
+        : await api.get("/knowledge/", {
+          params: {
+            category: nextCategoryFilter || undefined,
+            active_only: nextActiveOnly,
+          },
+        });
+
       setEntries(Array.isArray(res.data.data) ? res.data.data : []);
     } catch (err) {
       setErrorMessage(getFriendlyErrorMessage(err, "Could not load company knowledge. Please try again."));
@@ -142,9 +161,36 @@ function Knowledge() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryFilter, activeOnly]);
 
-  const handleSearchSubmit = (e) => {
+  const handleSearchSubmit = async (e) => {
     e.preventDefault();
-    loadKnowledge();
+    const trimmedSearch = search.trim();
+
+    if (!trimmedSearch) {
+      setActiveSearch("");
+      setCategoryFilter("");
+      setActiveOnly(true);
+      await loadKnowledge({
+        queryText: "",
+        nextCategoryFilter: "",
+        nextActiveOnly: true,
+      });
+      return;
+    }
+
+    setActiveSearch(trimmedSearch);
+    await loadKnowledge({ queryText: trimmedSearch });
+  };
+
+  const handleClearSearch = async () => {
+    setSearch("");
+    setActiveSearch("");
+    setCategoryFilter("");
+    setActiveOnly(true);
+    await loadKnowledge({
+      queryText: "",
+      nextCategoryFilter: "",
+      nextActiveOnly: true,
+    });
   };
 
   const updateFormValue = (field, value) => {
@@ -518,17 +564,17 @@ function Knowledge() {
           </Card>
         </div>
 
-        <div className="space-y-6">
-          <Card>
+        <div className="flex flex-col gap-6">
+          <Card className="order-1">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <h3 className="text-xl font-semibold tracking-tight text-slate-950">Company Knowledge Base</h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  {entries.length} shown, {activeCount} active.
+                  Search manual entries and uploaded document chunks.
                 </p>
               </div>
 
-              <form className="grid gap-3 sm:grid-cols-[1fr_180px_auto] lg:min-w-[640px]" onSubmit={handleSearchSubmit}>
+              <form className="grid gap-3 sm:grid-cols-[1fr_180px_auto_auto] lg:min-w-[720px]" onSubmit={handleSearchSubmit}>
                 <input
                   type="search"
                   value={search}
@@ -551,6 +597,11 @@ function Knowledge() {
                 <Button type="submit" variant="secondary">
                   Search
                 </Button>
+                {(search || activeSearch) && (
+                  <Button type="button" variant="ghost" onClick={handleClearSearch}>
+                    Clear Search
+                  </Button>
+                )}
               </form>
             </div>
 
@@ -580,7 +631,7 @@ function Knowledge() {
             )}
           </Card>
 
-          <Card>
+          <Card className="order-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h3 className="text-xl font-semibold tracking-tight text-slate-950">Uploaded Documents</h3>
@@ -706,6 +757,20 @@ function Knowledge() {
             )}
           </Card>
 
+          <div className="order-2 space-y-4">
+            <Card>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                    {entriesSectionTitle}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {entriesSectionSummary}
+                  </p>
+                </div>
+              </div>
+            </Card>
+
           {isLoading ? (
             <Card>
               <p className="text-sm text-slate-600">Loading knowledge entries...</p>
@@ -713,9 +778,13 @@ function Knowledge() {
           ) : entries.length === 0 ? (
             <Card>
               <div className="border border-dashed border-slate-200 p-6 text-center">
-                <h3 className="font-medium text-slate-800">No knowledge entries found.</h3>
+                <h3 className="font-medium text-slate-800">
+                  {activeSearch ? "No knowledge found for this search." : "No knowledge entries found."}
+                </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  Add product details, pricing notes, FAQs, demo scripts, or uploaded documents to make AI drafts more specific.
+                  {activeSearch
+                    ? "Try another term or clear the search to browse all active knowledge."
+                    : "Add product details, pricing notes, FAQs, demo scripts, or uploaded documents to make AI drafts more specific."}
                 </p>
               </div>
             </Card>
@@ -784,6 +853,7 @@ function Knowledge() {
               })}
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>
