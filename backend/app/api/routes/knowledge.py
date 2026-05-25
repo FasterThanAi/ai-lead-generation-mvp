@@ -8,6 +8,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.config import settings
 from app.db.database import get_db
 from app.db.models import CompanyKnowledge, KnowledgeDocument
 from app.schemas.knowledge_schema import (
@@ -23,6 +24,8 @@ from app.services.document_service import (
 from app.services.embedding_service import (
     embed_knowledge_entry,
     embed_missing_knowledge,
+    format_embedding_error,
+    get_embedding,
     get_embedding_status,
 )
 from app.services.knowledge_service import search_knowledge
@@ -361,6 +364,25 @@ def backfill_knowledge_embeddings(
     return {
         "status": "success",
         **result,
+    }
+
+
+@router.post("/embeddings/test")
+def test_knowledge_embedding():
+    try:
+        embedding = get_embedding("pricing depends on employees and modules")
+    except Exception as exc:
+        return {
+            "status": "error",
+            "model": settings.EMBEDDING_MODEL,
+            **format_embedding_error("api_call", exc),
+        }
+
+    return {
+        "status": "success",
+        "model": settings.EMBEDDING_MODEL,
+        "dimension": len(embedding),
+        "sample_values": [float(value) for value in embedding[:3]],
     }
 
 

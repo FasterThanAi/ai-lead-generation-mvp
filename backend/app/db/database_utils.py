@@ -232,6 +232,8 @@ def ensure_company_knowledge_embedding_columns(engine):
         logger.warning("Could not enable pgvector extension. Keyword fallback will remain available. %s", exc)
         return
 
+    desired_vector_type = f"vector({settings.EMBEDDING_DIMENSION})"
+
     if "embedding" not in existing_columns:
         try:
             with engine.begin() as connection:
@@ -240,6 +242,45 @@ def ensure_company_knowledge_embedding_columns(engine):
                 )
         except Exception as exc:
             logger.warning("Could not add company_knowledge.embedding vector column. Keyword fallback will remain available. %s", exc)
+            return
+    else:
+        try:
+            with engine.begin() as connection:
+                current_vector_type = connection.execute(
+                    text(
+                        "SELECT format_type(a.atttypid, a.atttypmod) "
+                        "FROM pg_attribute a "
+                        "JOIN pg_class c ON a.attrelid = c.oid "
+                        "WHERE c.relname = 'company_knowledge' "
+                        "AND a.attname = 'embedding' "
+                        "AND a.attnum > 0 "
+                        "AND NOT a.attisdropped"
+                    )
+                ).scalar()
+
+                if current_vector_type and current_vector_type != desired_vector_type:
+                    logger.warning(
+                        "company_knowledge.embedding is %s but configured dimension is %s. "
+                        "Clearing stored embeddings and updating column dimension.",
+                        current_vector_type,
+                        desired_vector_type,
+                    )
+                    connection.execute(
+                        text(
+                            f"ALTER TABLE company_knowledge "
+                            f"ALTER COLUMN embedding TYPE vector({settings.EMBEDDING_DIMENSION}) "
+                            "USING NULL"
+                        )
+                    )
+                    connection.execute(
+                        text(
+                            "UPDATE company_knowledge "
+                            "SET embedding_model = NULL, embedding_updated_at = NULL "
+                            "WHERE embedding IS NULL"
+                        )
+                    )
+        except Exception as exc:
+            logger.warning("Could not verify or update embedding column dimension. Keyword fallback will remain available. %s", exc)
             return
 
     try:

@@ -43,6 +43,31 @@ def get_bool_env(name, default):
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def get_embedding_model_env():
+    configured_model = os.getenv("EMBEDDING_MODEL", "gemini-embedding-001").strip() or "gemini-embedding-001"
+
+    if configured_model in {"text-embedding-004", "models/text-embedding-004"}:
+        return "gemini-embedding-001"
+
+    return configured_model
+
+
+def get_embedding_dimension_env(model):
+    configured_dimension = get_int_env("EMBEDDING_DIMENSION", 3072)
+
+    if model in {
+        "gemini-embedding-001",
+        "models/gemini-embedding-001",
+        "gemini-embedding-2",
+        "models/gemini-embedding-2",
+        "gemini-embedding-2-preview",
+        "models/gemini-embedding-2-preview",
+    }:
+        return 3072
+
+    return configured_dimension
+
+
 class Settings:
     APP_NAME: str = os.getenv("APP_NAME", "AI Lead Generation MVP")
     APP_ENV: str = os.getenv("APP_ENV", "development")
@@ -51,8 +76,8 @@ class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./leadgen.db")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "text-embedding-004")
-    EMBEDDING_DIMENSION: int = get_int_env("EMBEDDING_DIMENSION", 768)
+    EMBEDDING_MODEL: str = get_embedding_model_env()
+    EMBEDDING_DIMENSION: int = get_embedding_dimension_env(EMBEDDING_MODEL)
     ENABLE_SEMANTIC_RAG: bool = get_bool_env("ENABLE_SEMANTIC_RAG", True)
     SEMANTIC_RAG_TOP_K: int = get_int_env("SEMANTIC_RAG_TOP_K", 5)
     SEMANTIC_RAG_MIN_SCORE: float = get_float_env("SEMANTIC_RAG_MIN_SCORE", 0.60)

@@ -1,4 +1,5 @@
 import logging
+import re
 
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -15,7 +16,11 @@ MAX_EMBEDDING_TEXT_CHARS = 8000
 
 
 class EmbeddingServiceError(RuntimeError):
-    pass
+    def __init__(self, message: str, stage: str = "api_call", error_type: str = "EmbeddingServiceError"):
+        super().__init__(message)
+        self.stage = stage
+        self.error_type = error_type
+        self.safe_message = sanitize_error_message(message)
 
 
 def clean_value(value):
@@ -23,6 +28,47 @@ def clean_value(value):
         return ""
 
     return str(value).strip()
+
+
+def sanitize_error_message(message: str):
+    text_value = " ".join(clean_value(message).split())
+
+    if settings.GEMINI_API_KEY:
+        text_value = text_value.replace(settings.GEMINI_API_KEY, "[redacted]")
+
+    text_value = re.sub(r"AIza[0-9A-Za-z_-]{20,}", "[redacted]", text_value)
+    text_value = re.sub(r"Bearer\s+[0-9A-Za-z._-]+", "Bearer [redacted]", text_value, flags=re.IGNORECASE)
+
+    return text_value[:500] or "Embedding generation failed. Keyword search fallback is still available."
+
+
+def _embedding_error(stage: str, exc: Exception | str):
+    if isinstance(exc, EmbeddingServiceError):
+        return {
+            "stage": exc.stage,
+            "error_type": exc.error_type,
+            "error_message": exc.safe_message,
+        }
+
+    return {
+        "stage": stage,
+        "error_type": exc.__class__.__name__ if isinstance(exc, Exception) else "EmbeddingServiceError",
+        "error_message": sanitize_error_message(str(exc)),
+    }
+
+
+def format_embedding_error(stage: str, exc: Exception | str):
+    return _embedding_error(stage, exc)
+
+
+def _entry_error_payload(entry: CompanyKnowledge, stage: str, exc: Exception | str):
+    error = _embedding_error(stage, exc)
+
+    return {
+        "knowledge_id": entry.id,
+        "title": clean_value(entry.title),
+        **error,
+    }
 
 
 def _clean_embedding_text(text: str):
@@ -72,7 +118,11 @@ def _extract_embedding_values(response):
             if values:
                 return [float(value) for value in values]
 
-    raise EmbeddingServiceError("Embedding generation failed. Keyword search fallback is still available.")
+    raise EmbeddingServiceError(
+        "Embedding response did not include embedding values.",
+        stage="api_call",
+        error_type="InvalidEmbeddingResponse",
+    )
 
 
 def _format_pgvector(values: list[float]):
@@ -102,10 +152,14 @@ def get_embedding(text: str) -> list[float]:
     embedding_text = _clean_embedding_text(text)
 
     if not embedding_text:
-        raise EmbeddingServiceError("Embedding text is empty.")
+        raise EmbeddingServiceError("Embedding text is empty.", stage="api_call", error_type="EmptyEmbeddingText")
 
     if not settings.GEMINI_API_KEY:
-        raise EmbeddingServiceError("Embedding generation failed. Keyword search fallback is still available.")
+        raise EmbeddingServiceError(
+            "GEMINI_API_KEY is not configured.",
+            stage="api_call",
+            error_type="MissingAPIKey",
+        )
 
     try:
         from google import genai
@@ -119,11 +173,17 @@ def get_embedding(text: str) -> list[float]:
     except EmbeddingServiceError:
         raise
     except Exception as exc:
-        raise EmbeddingServiceError("Embedding generation failed. Keyword search fallback is still available.") from exc
+        raise EmbeddingServiceError(
+            str(exc) or "Embedding generation failed. Keyword search fallback is still available.",
+            stage="api_call",
+            error_type=exc.__class__.__name__,
+        ) from exc
 
     if len(values) != settings.EMBEDDING_DIMENSION:
         raise EmbeddingServiceError(
-            f"Embedding dimension {len(values)} did not match configured dimension {settings.EMBEDDING_DIMENSION}."
+            f"Embedding dimension {len(values)} did not match configured dimension {settings.EMBEDDING_DIMENSION}.",
+            stage="api_call",
+            error_type="EmbeddingDimensionMismatch",
         )
 
     return values
@@ -145,20 +205,38 @@ def _save_embedding_error(db: Session, entry: CompanyKnowledge, error_message: s
         db.rollback()
 
 
-def embed_knowledge_entry(db: Session, knowledge_entry: CompanyKnowledge) -> bool:
+def embed_knowledge_entry_with_details(db: Session, knowledge_entry: CompanyKnowledge) -> dict:
     if not settings.ENABLE_SEMANTIC_RAG:
-        return False
+        return {
+            "embedded": False,
+            "error": _entry_error_payload(knowledge_entry, "precheck", "Semantic RAG is disabled."),
+        }
 
     if not embedding_storage_available(db):
-        return False
+        return {
+            "embedded": False,
+            "error": _entry_error_payload(knowledge_entry, "db_save", "pgvector embedding storage is unavailable."),
+        }
 
     entry_text = _build_entry_embedding_text(knowledge_entry)
 
     if not entry_text:
-        return False
+        return {
+            "embedded": False,
+            "error": _entry_error_payload(knowledge_entry, "api_call", "Embedding text is empty."),
+        }
 
     try:
         embedding = get_embedding(entry_text)
+    except Exception as exc:
+        _save_embedding_error(db, knowledge_entry, sanitize_error_message(str(exc)))
+        logger.warning("Embedding API call failed for knowledge entry %s. %s", knowledge_entry.id, exc)
+        return {
+            "embedded": False,
+            "error": _entry_error_payload(knowledge_entry, "api_call", exc),
+        }
+
+    try:
         vector_value = _format_pgvector(embedding)
         now = utc_now()
         db.execute(
@@ -179,12 +257,22 @@ def embed_knowledge_entry(db: Session, knowledge_entry: CompanyKnowledge) -> boo
         )
         db.commit()
         db.refresh(knowledge_entry)
-        return True
+        return {
+            "embedded": True,
+            "dimension": len(embedding),
+        }
     except Exception as exc:
         db.rollback()
-        _save_embedding_error(db, knowledge_entry, str(exc))
-        logger.warning("Embedding generation failed for knowledge entry %s. %s", knowledge_entry.id, exc)
-        return False
+        _save_embedding_error(db, knowledge_entry, sanitize_error_message(str(exc)))
+        logger.warning("Embedding DB save failed for knowledge entry %s. %s", knowledge_entry.id, exc)
+        return {
+            "embedded": False,
+            "error": _entry_error_payload(knowledge_entry, "db_save", exc),
+        }
+
+
+def embed_knowledge_entry(db: Session, knowledge_entry: CompanyKnowledge) -> bool:
+    return bool(embed_knowledge_entry_with_details(db, knowledge_entry).get("embedded"))
 
 
 def _count_remaining_missing_embeddings(db: Session):
@@ -214,6 +302,7 @@ def embed_missing_knowledge(db: Session, limit=20) -> dict:
             "remaining": _count_remaining_missing_embeddings(db),
             "semantic_available": False,
             "message": "Semantic search unavailable. Keyword fallback used.",
+            "errors": [],
         }
 
     rows = db.execute(
@@ -229,6 +318,7 @@ def embed_missing_knowledge(db: Session, limit=20) -> dict:
     processed = 0
     embedded = 0
     failed = 0
+    errors = []
 
     for row in rows:
         entry = db.get(CompanyKnowledge, row.id)
@@ -236,10 +326,14 @@ def embed_missing_knowledge(db: Session, limit=20) -> dict:
             continue
 
         processed += 1
-        if embed_knowledge_entry(db, entry):
+        result = embed_knowledge_entry_with_details(db, entry)
+        if result.get("embedded"):
             embedded += 1
         else:
             failed += 1
+            error = result.get("error")
+            if error:
+                errors.append(error)
 
     return {
         "processed": processed,
@@ -247,6 +341,7 @@ def embed_missing_knowledge(db: Session, limit=20) -> dict:
         "failed": failed,
         "remaining": _count_remaining_missing_embeddings(db),
         "semantic_available": True,
+        "errors": errors,
     }
 
 
