@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, timezone
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.db.models import CompanyKnowledge
 
@@ -62,6 +62,15 @@ def _entry_score(entry: CompanyKnowledge, query: str, query_tokens: set[str]):
     return score
 
 
+def _entry_timestamp(entry: CompanyKnowledge):
+    value = entry.updated_at or entry.created_at or OLDEST_DATETIME
+
+    if value.tzinfo:
+        return value.astimezone(timezone.utc).timestamp()
+
+    return value.replace(tzinfo=timezone.utc).timestamp()
+
+
 def search_relevant_knowledge(db: Session, query, limit: int = 5):
     query_text = _clean(query)
     query_tokens = _tokens(query_text)
@@ -69,6 +78,7 @@ def search_relevant_knowledge(db: Session, query, limit: int = 5):
 
     entries = (
         db.query(CompanyKnowledge)
+        .options(joinedload(CompanyKnowledge.document))
         .filter(CompanyKnowledge.is_active.is_(True))
         .order_by(CompanyKnowledge.updated_at.desc(), CompanyKnowledge.created_at.desc())
         .all()
@@ -83,11 +93,35 @@ def search_relevant_knowledge(db: Session, query, limit: int = 5):
         entry
         for score, entry in sorted(
             scored_entries,
-            key=lambda item: (item[0], item[1].updated_at or item[1].created_at or OLDEST_DATETIME),
+            key=lambda item: (item[0], _entry_timestamp(item[1])),
             reverse=True,
         )
         if score > 0
     ][:effective_limit]
+
+
+def _document_source_label(entry: CompanyKnowledge):
+    document = getattr(entry, "document", None)
+    document_name = _clean(getattr(document, "original_filename", ""))
+    chunk_index = entry.chunk_index
+
+    if document_name and chunk_index:
+        return f"Document: {document_name} | Chunk {chunk_index}"
+
+    if document_name:
+        return f"Document: {document_name}"
+
+    if chunk_index:
+        return f"Document | Chunk {chunk_index}"
+
+    return "Document"
+
+
+def _source_label(entry: CompanyKnowledge):
+    if _normalize(entry.source_type) == "document":
+        return _document_source_label(entry)
+
+    return "Manual"
 
 
 def build_knowledge_context(entries):
@@ -105,7 +139,7 @@ def build_knowledge_context(entries):
         if len(content) > MAX_KNOWLEDGE_ENTRY_CHARS:
             content = f"{content[:MAX_KNOWLEDGE_ENTRY_CHARS].rstrip()}..."
 
-        block = f"[{category}] {title}:\n{content}"
+        block = f"[{category} | {_source_label(entry)}] {title}:\n{content}"
         remaining_chars = MAX_KNOWLEDGE_CONTEXT_CHARS - total_chars
 
         if remaining_chars <= 0:

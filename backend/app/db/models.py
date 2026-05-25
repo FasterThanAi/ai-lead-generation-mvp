@@ -149,17 +149,40 @@ class ReplyResponseDraft(Base):
     lead = relationship("Lead", back_populates="reply_response_drafts")
 
 
+class KnowledgeDocument(Base):
+    __tablename__ = "knowledge_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String(255), nullable=False)
+    original_filename = Column(String(255), nullable=False)
+    file_type = Column(String(50), nullable=False)
+    category = Column(String(100), nullable=True)
+    tags = Column(String(500), nullable=True)
+    status = Column(String(50), default="processed", nullable=False)
+    error_message = Column(Text, nullable=True)
+    total_chunks = Column(Integer, default=0, nullable=False)
+    uploaded_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, nullable=True, onupdate=utc_now)
+
+    knowledge_entries = relationship("CompanyKnowledge", back_populates="document")
+
+
 class CompanyKnowledge(Base):
     __tablename__ = "company_knowledge"
 
     id = Column(Integer, primary_key=True, index=True)
+    document_id = Column(Integer, ForeignKey("knowledge_documents.id"), nullable=True, index=True)
     title = Column(String(255), nullable=False)
     category = Column(String(100), nullable=False)
     content = Column(Text, nullable=False)
     tags = Column(String(500), nullable=True)
+    chunk_index = Column(Integer, nullable=True)
+    source_type = Column(String(50), default="manual", nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=utc_now)
     updated_at = Column(DateTime, nullable=True, onupdate=utc_now)
+
+    document = relationship("KnowledgeDocument", back_populates="knowledge_entries")
 
 
 class GmailToken(Base):

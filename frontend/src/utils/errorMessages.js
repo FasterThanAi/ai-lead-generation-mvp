@@ -143,6 +143,35 @@ export function getFriendlyErrorMessage(err, fallbackMessage = DEFAULT_ERROR_MES
   }
 
   if (
+    normalizedMessage.includes("unsupported file type") ||
+    normalizedMessage.includes("pdf, docx, txt, or md")
+  ) {
+    return "Unsupported file type. Please upload PDF, DOCX, TXT, or MD.";
+  }
+
+  if (
+    normalizedMessage.includes("too large") ||
+    normalizedMessage.includes("max size is 5 mb")
+  ) {
+    return "File is too large. Max size is 5 MB.";
+  }
+
+  if (normalizedMessage.includes("no readable text")) {
+    return "Document uploaded but no readable text was found.";
+  }
+
+  if (
+    normalizedMessage.includes("could not extract text") ||
+    normalizedMessage.includes("extraction failed")
+  ) {
+    return "Could not extract text from this document.";
+  }
+
+  if (context === "knowledge-upload") {
+    return "Upload failed. Please try again.";
+  }
+
+  if (
     normalizedMessage.includes("approve the follow-up") ||
     normalizedMessage.includes("before sending")
   ) {

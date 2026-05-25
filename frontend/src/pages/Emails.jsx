@@ -56,7 +56,24 @@ function getKnowledgeUsedItems(value) {
   return String(value || "")
     .split(",")
     .map((item) => item.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .map((item) => {
+      const match = item.match(/^(.*)\s+\((Manual|Document)\)$/i);
+
+      if (!match) {
+        return {
+          title: item,
+          sourceType: "",
+          label: item,
+        };
+      }
+
+      return {
+        title: match[1].trim(),
+        sourceType: match[2],
+        label: item,
+      };
+    });
 }
 
 function isReplyClassified(draft) {
@@ -1684,10 +1701,18 @@ function Emails() {
                         <div className="mt-4 rounded-xl border border-indigo-200 bg-white/70 p-3">
                           <p className="text-xs font-semibold uppercase text-slate-500">Knowledge used</p>
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {knowledgeUsedItems.map((item) => (
-                              <Badge key={item} variant="neutral">
-                                {item}
-                              </Badge>
+                            {knowledgeUsedItems.map((item, index) => (
+                              <span
+                                key={`${item.label}-${index}`}
+                                className="inline-flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
+                              >
+                                <span className="font-medium">{item.title}</span>
+                                {item.sourceType && (
+                                  <Badge variant={String(item.sourceType).toLowerCase() === "document" ? "sent" : "neutral"}>
+                                    {item.sourceType}
+                                  </Badge>
+                                )}
+                              </span>
                             ))}
                           </div>
                         </div>

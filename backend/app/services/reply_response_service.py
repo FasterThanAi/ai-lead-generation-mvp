@@ -170,11 +170,19 @@ def build_response_knowledge_query(email_draft: EmailDraft):
 
 
 def format_knowledge_used(entries):
-    return ", ".join(
-        f"{clean_value(entry.title)} ({clean_value(entry.category)})"
-        for entry in entries
-        if clean_value(entry.title)
-    ) or None
+    labels = []
+
+    for entry in entries:
+        title = clean_value(entry.title)
+
+        if not title:
+            continue
+
+        source_type = clean_value(entry.source_type).lower()
+        source_label = "Document" if source_type == "document" else "Manual"
+        labels.append(f"{title} ({source_label})")
+
+    return ", ".join(labels) or None
 
 
 def build_response_prompt(email_draft: EmailDraft, knowledge_context: str = ""):

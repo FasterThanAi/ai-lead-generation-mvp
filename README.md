@@ -13,6 +13,7 @@ This is an AI-powered lead generation and cold email outreach MVP. It supports c
 - Lead priority, outreach angle, pain point, and CTA recommendations
 - AI email generation using Gemini
 - Company knowledge base for product, pricing, FAQ, demo, and objection handling notes
+- Document upload for the Knowledge Base with PDF, DOCX, TXT, and Markdown extraction
 - Simple database-backed RAG for company-specific AI context
 - Draft approve/reject workflow
 - Gmail OAuth connection
@@ -65,6 +66,7 @@ Main data flow:
 11. Users approve, reject, or send approved response drafts manually.
 12. If there is no reply, users generate, approve, and send follow-up drafts manually.
 13. The Knowledge page stores company-specific facts for the first simple RAG layer. This does not train an LLM.
+14. Users can upload PDF, DOCX, TXT, or Markdown knowledge documents. The backend extracts text, splits it into chunks, and stores each chunk as searchable company knowledge.
 
 ## 5. Week-wise Progress
 
@@ -153,6 +155,14 @@ Week 12:
 - Knowledge used visibility on response drafts
 - First step toward company-specific AI without training an LLM
 
+Week 12.1:
+- Document upload for the Knowledge Base
+- Supported document types: PDF, DOCX, TXT, and Markdown
+- Uploaded documents are converted into text chunks and stored in `company_knowledge`
+- Document chunks remain searchable through the existing keyword RAG flow
+- AI cold emails, follow-ups, and response drafts can use uploaded document knowledge when relevant
+- Knowledge and response draft UI now show whether knowledge came from a manual entry or an uploaded document
+
 ## 6. Local Setup
 
 Backend:
@@ -217,24 +227,35 @@ Backend:
 
 1. Create campaign
 2. Add company knowledge such as product details, pricing notes, FAQs, and demo scripts
-3. Upload leads CSV
-4. Score leads with AI
-5. Review top priority leads
-6. Generate first email
-7. Approve and send first email
-8. Recipient replies
-9. Check replies
-10. Classify reply with AI
-11. Generate response draft using relevant company knowledge
-12. Review intent, priority, next action, suggested response direction, knowledge used, and draft response
-13. Approve response
-14. Send approved response
-15. If no reply, generate follow-up draft
-16. Approve follow-up
-17. Send follow-up
-18. Track follow-up status
+3. Upload sample knowledge documents from `sample-data/knowledge-documents/`
+4. Upload leads CSV
+5. Score leads with AI
+6. Review top priority leads
+7. Generate first email
+8. Approve and send first email
+9. Recipient replies
+10. Check replies
+11. Classify reply with AI
+12. Generate response draft using relevant company knowledge
+13. Review intent, priority, next action, suggested response direction, knowledge used, and draft response
+14. Approve response
+15. Send approved response
+16. If no reply, generate follow-up draft
+17. Approve follow-up
+18. Send follow-up
+19. Track follow-up status
 
-## 10. Safety Notes
+## 10. Knowledge Document Upload
+
+The Knowledge page supports uploading PDF, DOCX, TXT, and Markdown files up to 5 MB. The backend extracts readable text with `pypdf` for PDF files and `python-docx` for DOCX files. Plain text and Markdown files are read directly with UTF-8 fallback handling.
+
+Uploaded text is sanitized, split into manageable chunks of roughly 2,000 to 2,500 characters with small overlap, and stored as active `company_knowledge` rows with `source_type="document"`. Each chunk keeps its `document_id` and `chunk_index`, while manual knowledge entries continue to use `source_type="manual"`.
+
+AI email generation, follow-up generation, and response draft generation all use the same simple keyword-based RAG search. When uploaded document chunks match the outreach or reply context, they are included in the AI prompt with source information such as document filename and chunk number.
+
+Current limitation: search is still keyword-based. There are no embeddings, vector database, or semantic retrieval yet. A future version can add semantic search with embeddings and Supabase `pgvector`.
+
+## 11. Safety Notes
 
 - Emails are not sent automatically.
 - AI scoring is a recommendation and should be reviewed before outreach.
@@ -251,10 +272,12 @@ Backend:
 - Do not include pricing unless it has been verified.
 - Credentials stay backend-only.
 - Sample CSV files use placeholder data only.
+- Sample knowledge documents use placeholder data only.
 
-## 11. Future Improvements
+## 12. Future Improvements
 
 - Google Search lead discovery
 - Authentication
 - CRM integration
 - Vector database or semantic RAG for larger knowledge bases
+- Supabase `pgvector` support for embedded document chunks

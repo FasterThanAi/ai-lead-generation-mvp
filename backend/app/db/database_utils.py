@@ -165,12 +165,63 @@ def ensure_company_knowledge_columns(engine):
     boolean_type = "BOOLEAN"
 
     required_columns = {
+        "document_id": "INTEGER",
         "title": "VARCHAR(255)",
         "category": "VARCHAR(100)",
         "content": "TEXT",
         "tags": "VARCHAR(500)",
+        "chunk_index": "INTEGER",
+        "source_type": "VARCHAR(50)",
         "is_active": boolean_type,
         "created_at": datetime_type,
+        "updated_at": datetime_type,
+    }
+
+    missing_columns = [
+        (column_name, column_type)
+        for column_name, column_type in required_columns.items()
+        if column_name not in existing_columns
+    ]
+
+    with engine.begin() as connection:
+        for column_name, column_type in missing_columns:
+            default_clause = " DEFAULT TRUE" if column_name == "is_active" else ""
+            if column_name == "source_type":
+                default_clause = " DEFAULT 'manual'"
+            connection.execute(
+                text(f"ALTER TABLE company_knowledge ADD COLUMN {column_name} {column_type}{default_clause}")
+            )
+
+        if "source_type" in existing_columns or any(column_name == "source_type" for column_name, _ in missing_columns):
+            connection.execute(
+                text("UPDATE company_knowledge SET source_type = 'manual' WHERE source_type IS NULL")
+            )
+
+
+def ensure_knowledge_document_columns(engine):
+    inspector = inspect(engine)
+
+    if "knowledge_documents" not in inspector.get_table_names():
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("knowledge_documents")
+    }
+
+    dialect_name = engine.dialect.name
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+
+    required_columns = {
+        "filename": "VARCHAR(255)",
+        "original_filename": "VARCHAR(255)",
+        "file_type": "VARCHAR(50)",
+        "category": "VARCHAR(100)",
+        "tags": "VARCHAR(500)",
+        "status": "VARCHAR(50)",
+        "error_message": "TEXT",
+        "total_chunks": "INTEGER",
+        "uploaded_at": datetime_type,
         "updated_at": datetime_type,
     }
 
@@ -185,7 +236,11 @@ def ensure_company_knowledge_columns(engine):
 
     with engine.begin() as connection:
         for column_name, column_type in missing_columns:
-            default_clause = " DEFAULT TRUE" if column_name == "is_active" else ""
+            default_clause = ""
+            if column_name == "status":
+                default_clause = " DEFAULT 'processed'"
+            if column_name == "total_chunks":
+                default_clause = " DEFAULT 0"
             connection.execute(
-                text(f"ALTER TABLE company_knowledge ADD COLUMN {column_name} {column_type}{default_clause}")
+                text(f"ALTER TABLE knowledge_documents ADD COLUMN {column_name} {column_type}{default_clause}")
             )

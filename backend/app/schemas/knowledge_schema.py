@@ -34,12 +34,32 @@ class CompanyKnowledgeUpdate(BaseModel):
 
 class CompanyKnowledgeResponse(BaseModel):
     id: int
+    document_id: int | None = None
     title: str
     category: str
     content: str
     tags: str | None = None
+    chunk_index: int | None = None
+    source_type: str = "manual"
     is_active: bool
     created_at: datetime
+    updated_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class KnowledgeDocumentResponse(BaseModel):
+    id: int
+    filename: str
+    original_filename: str
+    file_type: str
+    category: str | None = None
+    tags: str | None = None
+    status: str
+    error_message: str | None = None
+    total_chunks: int = 0
+    uploaded_at: datetime
     updated_at: datetime | None = None
 
     class Config:
