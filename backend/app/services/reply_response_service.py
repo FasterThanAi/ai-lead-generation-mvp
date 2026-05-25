@@ -16,6 +16,7 @@ FALLBACK_RESPONSE_MODEL = "fallback-template"
 FALLBACK_RESPONSE_ERROR = "Gemini response draft generation failed. Fallback draft was used."
 MAX_STRUCTURED_KNOWLEDGE_CHARS = 3400
 MAX_STRUCTURED_KNOWLEDGE_ENTRY_CHARS = 760
+MAX_RESPONSE_WORDS = 160
 PRICING_FACT_GROUPS = {
     "number of employees/team size": ("employees", "employee", "team size", "team-size"),
     "number of training modules": ("modules", "module", "training modules", "training module"),
@@ -28,6 +29,7 @@ DEMO_FACT_GROUPS = {
     "analytics/dashboard": ("analytics", "dashboard"),
 }
 PILOT_TERMS = ("pilot", "pilots", "one department", "department", "3 to 5", "3-5", "limited modules")
+PILOT_MODULE_RANGE_TERMS = ("3 to 5", "3-5", "3 5")
 DEMO_REQUEST_TERMS = ("demo", "video", "walkthrough", "show", "overview")
 
 
@@ -156,6 +158,30 @@ def _truncate_sentence(value, max_length: int):
     return f"{text[:max_length].rstrip()}..."
 
 
+def _word_count(value):
+    return len(re.findall(r"\S+", clean_value(value)))
+
+
+def _trim_to_word_limit(value, max_words=MAX_RESPONSE_WORDS):
+    text = clean_value(value)
+    words = re.findall(r"\S+", text)
+
+    if len(words) <= max_words:
+        return text
+
+    closing = "\n\nRegards,\nTeam"
+
+    if closing in text:
+        main_text, _ = text.split(closing, 1)
+        closing_words = re.findall(r"\S+", closing)
+        main_words = re.findall(r"\S+", main_text)
+        allowed_main_words = max(max_words - len(closing_words), 1)
+
+        return f"{' '.join(main_words[:allowed_main_words]).rstrip()}{closing}"
+
+    return " ".join(words[:max_words]).rstrip()
+
+
 def _entry_source_label(entry):
     title = clean_value(entry.title)
     document = getattr(entry, "document", None)
@@ -209,15 +235,122 @@ def _pricing_fallback_sentences(knowledge_context: str):
     if factors:
         sentences.append(f"Pricing depends on {_human_join(factors)}.")
 
-    if _contains_any(knowledge_context, ("one department", "start with one department", "starting with one department")):
-        sentences.append("For pilots, we usually recommend starting with one department.")
-    elif _contains_any(knowledge_context, ("department", "pilot", "pilots")):
-        sentences.append("For pilots, we usually recommend starting with a focused department first.")
+    pilot_sentence = _build_pilot_guidance_sentence(knowledge_context)
 
-    if _contains_any(knowledge_context, ("3 to 5", "3-5")):
-        sentences.append("A suggested pilot can use 3 to 5 training modules.")
+    if pilot_sentence:
+        sentences.append(pilot_sentence)
 
     return sentences
+
+
+def _build_pilot_guidance_sentence(knowledge_context: str):
+    if not _contains_any(knowledge_context, PILOT_TERMS):
+        return ""
+
+    has_mvp = _contains_any(knowledge_context, ("mvp pilot", "mvp pilots", "mvp"))
+    has_one_department = _contains_any(
+        knowledge_context,
+        ("one department", "start with one department", "starting with one department")
+    )
+    has_department = has_one_department or _contains_any(knowledge_context, ("department", "departments"))
+    has_module_range = _contains_any(knowledge_context, PILOT_MODULE_RANGE_TERMS)
+    has_limited_modules = _contains_any(knowledge_context, ("limited modules", "limited training modules"))
+    has_modules = has_module_range or has_limited_modules or _contains_any(
+        knowledge_context,
+        ("training modules", "modules")
+    )
+    pilot_intro = "For an MVP pilot" if has_mvp else "For a pilot"
+
+    if has_one_department and has_module_range:
+        return (
+            f"{pilot_intro}, we usually recommend starting with one department "
+            "and 3 to 5 training modules before scaling."
+        )
+
+    if has_one_department and has_limited_modules:
+        return (
+            f"{pilot_intro}, we usually recommend starting with one department "
+            "and limited training modules before scaling."
+        )
+
+    if has_one_department:
+        return f"{pilot_intro}, we usually recommend starting with one department before scaling."
+
+    if has_module_range:
+        return f"{pilot_intro}, we usually recommend starting with 3 to 5 training modules before scaling."
+
+    if has_department and has_modules:
+        return (
+            f"{pilot_intro}, we usually recommend starting with one focused department "
+            "and a limited set of training modules before scaling."
+        )
+
+    if has_department:
+        return f"{pilot_intro}, we usually recommend starting with a focused department before scaling."
+
+    if has_limited_modules:
+        return f"{pilot_intro}, we usually recommend starting with limited training modules before scaling."
+
+    return ""
+
+
+def _pilot_guidance_covered(response_body: str, knowledge_context: str):
+    pilot_sentence = _build_pilot_guidance_sentence(knowledge_context)
+
+    if not pilot_sentence:
+        return True
+
+    checks = []
+
+    if _contains_any(pilot_sentence, ("one department", "focused department")):
+        checks.append(_contains_any(response_body, ("one department", "focused department", "department")))
+
+    if _contains_any(pilot_sentence, PILOT_MODULE_RANGE_TERMS):
+        checks.append(_contains_any(response_body, PILOT_MODULE_RANGE_TERMS))
+
+    if _contains_any(pilot_sentence, ("limited training modules", "limited set of training modules")):
+        checks.append(_contains_any(response_body, ("limited modules", "limited training modules", "limited set")))
+
+    if not checks:
+        checks.append(_contains_any(response_body, ("pilot", "pilots")))
+
+    return all(checks)
+
+
+def _append_sentence_before_signoff(body: str, sentence: str):
+    clean_body = clean_value(body)
+    clean_sentence = clean_value(sentence)
+
+    if not clean_body or not clean_sentence:
+        return clean_body
+
+    if clean_sentence.lower() in clean_body.lower():
+        return clean_body
+
+    closing = "\n\nRegards,\nTeam"
+
+    if closing in clean_body:
+        main_text, rest = clean_body.split(closing, 1)
+        return f"{main_text.rstrip()}\n\n{clean_sentence}{closing}{rest}"
+
+    return f"{clean_body.rstrip()}\n\n{clean_sentence}"
+
+
+def _ensure_pricing_pilot_guidance(generated_response: dict, email_draft: EmailDraft, knowledge_context: str):
+    if clean_value(email_draft.reply_intent) != "Asked for Pricing":
+        return generated_response
+
+    pilot_sentence = _build_pilot_guidance_sentence(knowledge_context)
+
+    if not pilot_sentence or _pilot_guidance_covered(generated_response.get("body"), knowledge_context):
+        return generated_response
+
+    return {
+        **generated_response,
+        "body": _trim_to_word_limit(
+            _append_sentence_before_signoff(generated_response.get("body"), pilot_sentence)
+        ),
+    }
 
 
 def _demo_fallback_sentence(knowledge_context: str):
@@ -343,6 +476,7 @@ def build_response_prompt(email_draft: EmailDraft, knowledge_context: str = "", 
     campaign = email_draft.campaign
     lead = email_draft.lead
     has_knowledge_context = bool(clean_value(knowledge_context))
+    pilot_guidance_sentence = _build_pilot_guidance_sentence(knowledge_context)
     knowledge_section = (
         knowledge_context
         if has_knowledge_context
@@ -361,6 +495,11 @@ Do not invent exact prices.
         if has_knowledge_context
         else "No matching company knowledge was found, so avoid specific product, pricing, pilot, or demo claims that are not in the outreach context."
     ).strip()
+    pilot_instruction = (
+        f'For pricing replies, include this pilot guidance if it fits naturally: "{pilot_guidance_sentence}"'
+        if pilot_guidance_sentence
+        else "Only mention pilot guidance if the retrieved knowledge includes pilot, department, or module guidance."
+    )
     retry_instruction = clean_value(extra_instruction)
 
     return f"""
@@ -384,6 +523,7 @@ Return only JSON.
 
 Knowledge grounding rules:
 {grounding_instruction}
+{pilot_instruction}
 
 Additional instruction:
 {retry_instruction or "None"}
@@ -451,8 +591,9 @@ def _response_grounding_issue(email_draft: EmailDraft, generated_response: dict,
     expected_pricing_facts = _matching_fact_groups(knowledge_context, PRICING_FACT_GROUPS)
     mentioned_pricing_facts = _matching_fact_groups(body, PRICING_FACT_GROUPS)
 
-    expected_pilot_guidance = _contains_any(knowledge_context, PILOT_TERMS)
-    mentioned_pilot_guidance = _contains_any(body, PILOT_TERMS)
+    pilot_guidance_sentence = _build_pilot_guidance_sentence(knowledge_context)
+    expected_pilot_guidance = bool(pilot_guidance_sentence)
+    mentioned_pilot_guidance = _pilot_guidance_covered(body, knowledge_context)
 
     if clean_value(email_draft.reply_intent) == "Asked for Pricing" and (
         (
@@ -470,7 +611,8 @@ def _response_grounding_issue(email_draft: EmailDraft, generated_response: dict,
         return (
             "Regenerate the response because the lead asked for pricing and the previous draft was too generic. "
             f"{pricing_instruction}"
-            "Mention pilot guidance if present. Do not invent exact prices."
+            f"Include this pilot sentence if it fits naturally: \"{pilot_guidance_sentence}\" "
+            "Do not invent exact prices."
         )
 
     if _lead_asks_for_demo(email_draft):
@@ -590,6 +732,12 @@ def generate_response_draft_for_reply(db: Session, email_draft: EmailDraft, forc
                     )
                 except Exception:
                     pass
+
+            generated_response = _ensure_pricing_pilot_guidance(
+                generated_response,
+                email_draft,
+                knowledge_context,
+            )
         except Exception:
             generated_response = fallback_response_draft(email_draft, knowledge_context)
             model_used = FALLBACK_RESPONSE_MODEL
