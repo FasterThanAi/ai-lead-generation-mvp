@@ -65,6 +65,8 @@ function getDocumentStatusVariant(status) {
 function Knowledge() {
   const [entries, setEntries] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [embeddingStatus, setEmbeddingStatus] = useState(null);
+  const [searchMeta, setSearchMeta] = useState(null);
   const [documentDetail, setDocumentDetail] = useState(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,6 +74,7 @@ function Knowledge() {
   const [isLoadingDocumentDetail, setIsLoadingDocumentDetail] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isBackfillingEmbeddings, setIsBackfillingEmbeddings] = useState(false);
   const [deactivatingId, setDeactivatingId] = useState(null);
   const [deactivatingDocumentId, setDeactivatingDocumentId] = useState(null);
   const [reactivatingDocumentId, setReactivatingDocumentId] = useState(null);
@@ -83,6 +86,7 @@ function Knowledge() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [search, setSearch] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
+  const [searchMode, setSearchMode] = useState("hybrid");
   const [activeOnly, setActiveOnly] = useState(true);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -102,6 +106,7 @@ function Knowledge() {
     queryText = activeSearch,
     nextCategoryFilter = categoryFilter,
     nextActiveOnly = activeOnly,
+    mode = searchMode,
   } = {}) => {
     setIsLoading(true);
     setErrorMessage("");
@@ -113,6 +118,7 @@ function Knowledge() {
           params: {
             q: trimmedQuery,
             limit: 10,
+            mode,
           },
         })
         : await api.get("/knowledge/", {
@@ -123,11 +129,27 @@ function Knowledge() {
         });
 
       setEntries(Array.isArray(res.data.data) ? res.data.data : []);
+      setSearchMeta(trimmedQuery ? {
+        mode: res.data.mode,
+        retrievalMethod: res.data.retrieval_method,
+        semanticAvailable: Boolean(res.data.semantic_available),
+        message: res.data.message || "",
+      } : null);
     } catch (err) {
       setErrorMessage(getFriendlyErrorMessage(err, "Could not load company knowledge. Please try again."));
       console.error(err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadEmbeddingStatus = async () => {
+    try {
+      const res = await api.get("/knowledge/embeddings/status");
+      setEmbeddingStatus(res.data || null);
+    } catch (err) {
+      setEmbeddingStatus(null);
+      console.error(err);
     }
   };
 
@@ -149,6 +171,7 @@ function Knowledge() {
     await Promise.all([
       loadKnowledge(),
       loadDocuments(),
+      loadEmbeddingStatus(),
     ]);
   };
 
@@ -178,12 +201,13 @@ function Knowledge() {
     }
 
     setActiveSearch(trimmedSearch);
-    await loadKnowledge({ queryText: trimmedSearch });
+    await loadKnowledge({ queryText: trimmedSearch, mode: searchMode });
   };
 
   const handleClearSearch = async () => {
     setSearch("");
     setActiveSearch("");
+    setSearchMeta(null);
     setCategoryFilter("");
     setActiveOnly(true);
     await loadKnowledge({
@@ -191,6 +215,34 @@ function Knowledge() {
       nextCategoryFilter: "",
       nextActiveOnly: true,
     });
+  };
+
+  const handleBackfillEmbeddings = async () => {
+    setIsBackfillingEmbeddings(true);
+    setStatusMessage("");
+    setErrorMessage("");
+
+    try {
+      const res = await api.post("/knowledge/embeddings/backfill", null, {
+        params: {
+          limit: 20,
+        },
+      });
+      const result = res.data || {};
+      const message = result.message
+        || `Embedding backfill processed ${result.processed ?? 0} entries. Embedded ${result.embedded ?? 0}, failed ${result.failed ?? 0}.`;
+
+      setStatusMessage(message);
+      await Promise.all([
+        loadEmbeddingStatus(),
+        loadKnowledge({ queryText: activeSearch, mode: searchMode }),
+      ]);
+    } catch (err) {
+      setErrorMessage(getFriendlyErrorMessage(err, "Embedding generation failed. Keyword search fallback is still available."));
+      console.error(err);
+    } finally {
+      setIsBackfillingEmbeddings(false);
+    }
   };
 
   const updateFormValue = (field, value) => {
@@ -261,7 +313,10 @@ function Knowledge() {
       }
 
       resetForm();
-      await loadKnowledge();
+      await Promise.all([
+        loadKnowledge(),
+        loadEmbeddingStatus(),
+      ]);
     } catch (err) {
       setErrorMessage(getFriendlyErrorMessage(err, "Knowledge entry could not be saved. Please try again."));
       console.error(err);
@@ -562,6 +617,57 @@ function Knowledge() {
               </Button>
             </form>
           </Card>
+
+          <Card>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                    Semantic RAG
+                  </h3>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">
+                    Hybrid search uses embeddings when available and falls back to keyword search.
+                  </p>
+                </div>
+                <Badge variant={embeddingStatus?.semantic_available ? "success" : "warning"}>
+                  {embeddingStatus?.semantic_available ? "Enabled" : "Fallback"}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold uppercase text-slate-500">Active</p>
+                  <p className="mt-1 font-semibold text-slate-950">{embeddingStatus?.total_active ?? 0}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold uppercase text-slate-500">Embedded</p>
+                  <p className="mt-1 font-semibold text-slate-950">{embeddingStatus?.with_embeddings ?? 0}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold uppercase text-slate-500">Missing</p>
+                  <p className="mt-1 font-semibold text-slate-950">{embeddingStatus?.missing_embeddings ?? 0}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold uppercase text-slate-500">Errors</p>
+                  <p className="mt-1 font-semibold text-slate-950">{embeddingStatus?.embedding_errors ?? 0}</p>
+                </div>
+              </div>
+
+              <p className="break-words text-xs text-slate-500">
+                Model: {embeddingStatus?.embedding_model || "Not configured"}
+              </p>
+
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                disabled={isBackfillingEmbeddings}
+                onClick={handleBackfillEmbeddings}
+              >
+                {isBackfillingEmbeddings ? "Generating..." : "Generate Missing Embeddings"}
+              </Button>
+            </div>
+          </Card>
         </div>
 
         <div className="flex flex-col gap-6">
@@ -574,7 +680,7 @@ function Knowledge() {
                 </p>
               </div>
 
-              <form className="grid gap-3 sm:grid-cols-[1fr_180px_auto_auto] lg:min-w-[720px]" onSubmit={handleSearchSubmit}>
+              <form className="grid gap-3 sm:grid-cols-2 lg:min-w-[820px] lg:grid-cols-[1fr_150px_150px_auto_auto]" onSubmit={handleSearchSubmit}>
                 <input
                   type="search"
                   value={search}
@@ -593,6 +699,15 @@ function Knowledge() {
                       {category}
                     </option>
                   ))}
+                </select>
+                <select
+                  value={searchMode}
+                  onChange={(e) => setSearchMode(e.target.value)}
+                  className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                >
+                  <option value="hybrid">Hybrid</option>
+                  <option value="semantic">Semantic</option>
+                  <option value="keyword">Keyword</option>
                 </select>
                 <Button type="submit" variant="secondary">
                   Search
@@ -628,6 +743,12 @@ function Knowledge() {
                   </p>
                 )}
               </div>
+            )}
+
+            {activeSearch && searchMeta?.message && searchMode !== "keyword" && (
+              <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                {searchMeta.message}
+              </p>
             )}
           </Card>
 
@@ -805,6 +926,11 @@ function Knowledge() {
                           <Badge variant={sourceLabel === "Document" ? "sent" : "neutral"}>
                             {sourceLabel}
                           </Badge>
+                          {entry.retrieval_method && (
+                            <Badge variant={entry.retrieval_method === "semantic" || entry.retrieval_method === "hybrid" ? "success" : "neutral"}>
+                              {entry.retrieval_method}
+                            </Badge>
+                          )}
                         </div>
                         <h4 className="mt-3 break-words text-lg font-semibold text-slate-950">
                           {entry.title}
@@ -818,6 +944,11 @@ function Knowledge() {
                           <p className="mt-2 break-words text-xs text-slate-500">
                             Source: Document - {entry.document_filename || `Document ID ${entry.document_id || "unknown"}`}
                             {entry.chunk_index ? ` - Chunk ${entry.chunk_index}` : ""}
+                          </p>
+                        )}
+                        {entry.similarity_score !== null && entry.similarity_score !== undefined && (
+                          <p className="mt-2 text-xs font-medium text-emerald-700">
+                            Similarity: {Number(entry.similarity_score).toFixed(2)}
                           </p>
                         )}
                       </div>

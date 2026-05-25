@@ -1,4 +1,11 @@
+import logging
+
 from sqlalchemy import inspect, text
+
+from app.core.config import settings
+
+
+logger = logging.getLogger(__name__)
 
 
 def ensure_email_draft_columns(engine):
@@ -172,6 +179,9 @@ def ensure_company_knowledge_columns(engine):
         "tags": "VARCHAR(500)",
         "chunk_index": "INTEGER",
         "source_type": "VARCHAR(50)",
+        "embedding_model": "VARCHAR(255)",
+        "embedding_updated_at": datetime_type,
+        "embedding_error": "TEXT",
         "is_active": boolean_type,
         "created_at": datetime_type,
         "updated_at": datetime_type,
@@ -196,6 +206,54 @@ def ensure_company_knowledge_columns(engine):
             connection.execute(
                 text("UPDATE company_knowledge SET source_type = 'manual' WHERE source_type IS NULL")
             )
+
+
+def ensure_company_knowledge_embedding_columns(engine):
+    inspector = inspect(engine)
+
+    if "company_knowledge" not in inspector.get_table_names():
+        return
+
+    dialect_name = engine.dialect.name
+
+    if dialect_name != "postgresql":
+        logger.warning("Semantic RAG pgvector setup skipped because database dialect is %s.", dialect_name)
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("company_knowledge")
+    }
+
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+    except Exception as exc:
+        logger.warning("Could not enable pgvector extension. Keyword fallback will remain available. %s", exc)
+        return
+
+    if "embedding" not in existing_columns:
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    text(f"ALTER TABLE company_knowledge ADD COLUMN embedding vector({settings.EMBEDDING_DIMENSION})")
+                )
+        except Exception as exc:
+            logger.warning("Could not add company_knowledge.embedding vector column. Keyword fallback will remain available. %s", exc)
+            return
+
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS company_knowledge_embedding_idx "
+                    "ON company_knowledge "
+                    "USING ivfflat (embedding vector_cosine_ops) "
+                    "WITH (lists = 100)"
+                )
+            )
+    except Exception as exc:
+        logger.warning("Could not create company_knowledge embedding index. Semantic search can still run without it. %s", exc)
 
 
 def ensure_knowledge_document_columns(engine):

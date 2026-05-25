@@ -20,7 +20,12 @@ from app.services.document_service import (
     chunk_text,
     extract_text_from_file,
 )
-from app.services.knowledge_service import search_relevant_knowledge
+from app.services.embedding_service import (
+    embed_knowledge_entry,
+    embed_missing_knowledge,
+    get_embedding_status,
+)
+from app.services.knowledge_service import search_knowledge
 from app.utils.time_utils import utc_now
 
 router = APIRouter(
@@ -63,6 +68,8 @@ def get_content_preview(value, max_length=260):
 
 def serialize_knowledge(entry: CompanyKnowledge):
     document = getattr(entry, "document", None)
+    similarity_score = getattr(entry, "similarity_score", None)
+    keyword_score = getattr(entry, "keyword_score", None)
 
     return {
         "id": entry.id,
@@ -75,6 +82,9 @@ def serialize_knowledge(entry: CompanyKnowledge):
         "document_id": entry.document_id,
         "document_filename": document.original_filename if document else None,
         "chunk_index": entry.chunk_index,
+        "retrieval_method": getattr(entry, "retrieval_method", None),
+        "similarity_score": round(float(similarity_score), 4) if similarity_score is not None else None,
+        "keyword_score": int(keyword_score) if keyword_score is not None else None,
         "is_active": entry.is_active,
         "created_at": entry.created_at,
         "updated_at": entry.updated_at,
@@ -194,19 +204,21 @@ def create_document_chunks(
     category: str,
     tags: str | None,
 ):
+    created_entries = []
+
     for index, chunk in enumerate(chunks, start=1):
-        db.add(
-            CompanyKnowledge(
-                title=f"{document.original_filename} - Chunk {index}",
-                category=category,
-                content=chunk,
-                tags=tags,
-                is_active=True,
-                source_type="document",
-                document_id=document.id,
-                chunk_index=index,
-            )
+        entry = CompanyKnowledge(
+            title=f"{document.original_filename} - Chunk {index}",
+            category=category,
+            content=chunk,
+            tags=tags,
+            is_active=True,
+            source_type="document",
+            document_id=document.id,
+            chunk_index=index,
         )
+        created_entries.append(entry)
+        db.add(entry)
 
     document.status = "processed"
     document.error_message = None
@@ -216,10 +228,15 @@ def create_document_chunks(
     try:
         db.commit()
         db.refresh(document)
+        for entry in created_entries:
+            db.refresh(entry)
     except SQLAlchemyError as exc:
         db.rollback()
         mark_document_failed(db, document, "Knowledge chunks could not be saved.")
         raise HTTPException(status_code=500, detail="Knowledge chunks could not be saved.") from exc
+
+    for entry in created_entries:
+        embed_knowledge_entry(db, entry)
 
 
 @router.get("/")
@@ -286,6 +303,7 @@ def create_knowledge_entry(
     )
     db.add(entry)
     commit_knowledge_change(db, entry, "Knowledge entry could not be saved.")
+    embed_knowledge_entry(db, entry)
 
     return {
         "status": "success",
@@ -298,18 +316,51 @@ def create_knowledge_entry(
 def get_relevant_knowledge(
     q: str = Query(..., min_length=1),
     limit: int = Query(5, ge=1),
+    mode: str = Query("hybrid"),
     db: Session = Depends(get_db),
 ):
-    entries = search_relevant_knowledge(
+    normalized_mode = clean_text(mode).lower() or "hybrid"
+
+    if normalized_mode not in {"hybrid", "semantic", "keyword"}:
+        raise HTTPException(status_code=400, detail="Search mode must be hybrid, semantic, or keyword.")
+
+    search_result = search_knowledge(
         db,
         q,
         limit=min(limit, MAX_KNOWLEDGE_SEARCH_LIMIT),
+        mode=normalized_mode,
     )
+    entries = search_result["results"]
 
     return {
         "status": "success",
         "query": q,
+        "mode": normalized_mode,
+        "retrieval_method": search_result.get("retrieval_method"),
+        "semantic_available": search_result.get("semantic_available", False),
+        "message": search_result.get("message"),
         "data": [serialize_knowledge(entry) for entry in entries],
+    }
+
+
+@router.get("/embeddings/status")
+def get_knowledge_embedding_status(db: Session = Depends(get_db)):
+    return {
+        "status": "success",
+        **get_embedding_status(db),
+    }
+
+
+@router.post("/embeddings/backfill")
+def backfill_knowledge_embeddings(
+    limit: int = Query(20, ge=1),
+    db: Session = Depends(get_db),
+):
+    result = embed_missing_knowledge(db, limit=limit)
+
+    return {
+        "status": "success",
+        **result,
     }
 
 
@@ -485,6 +536,9 @@ def update_knowledge_entry(
 
     entry.updated_at = utc_now()
     commit_knowledge_change(db, entry, "Knowledge entry could not be updated.")
+
+    if any(field in update_data for field in {"title", "category", "content", "tags"}):
+        embed_knowledge_entry(db, entry)
 
     return {
         "status": "success",

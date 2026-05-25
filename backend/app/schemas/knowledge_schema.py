@@ -41,6 +41,9 @@ class CompanyKnowledgeResponse(BaseModel):
     tags: str | None = None
     chunk_index: int | None = None
     source_type: str = "manual"
+    embedding_model: str | None = None
+    embedding_updated_at: datetime | None = None
+    embedding_error: str | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime | None = None

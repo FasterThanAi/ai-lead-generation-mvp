@@ -14,7 +14,7 @@ This is an AI-powered lead generation and cold email outreach MVP. It supports c
 - AI email generation using Gemini
 - Company knowledge base for product, pricing, FAQ, demo, and objection handling notes
 - Document upload for the Knowledge Base with PDF, DOCX, TXT, and Markdown extraction
-- Simple database-backed RAG for company-specific AI context
+- Hybrid semantic and keyword RAG for company-specific AI context
 - Draft approve/reject workflow
 - Gmail OAuth connection
 - Send approved emails
@@ -67,6 +67,7 @@ Main data flow:
 12. If there is no reply, users generate, approve, and send follow-up drafts manually.
 13. The Knowledge page stores company-specific facts for the first simple RAG layer. This does not train an LLM.
 14. Users can upload PDF, DOCX, TXT, or Markdown knowledge documents. The backend extracts text, splits it into chunks, and stores each chunk as searchable company knowledge.
+15. When semantic RAG is enabled, knowledge entries are embedded on the backend and searched through Supabase/PostgreSQL `pgvector`, with keyword fallback if semantic search is unavailable.
 
 ## 5. Week-wise Progress
 
@@ -163,6 +164,20 @@ Week 12.1:
 - AI cold emails, follow-ups, and response drafts can use uploaded document knowledge when relevant
 - Knowledge and response draft UI now show whether knowledge came from a manual entry or an uploaded document
 
+Week 12.2:
+- Stronger RAG grounding for response drafts
+- Structured retrieved knowledge context for AI replies
+- Pricing and demo replies prefer exact retrieved company facts
+- Response drafts avoid invented prices and keep manual approval flow
+
+Week 13:
+- Semantic RAG with embeddings
+- Supabase/PostgreSQL `pgvector` support when available
+- Hybrid search that combines semantic retrieval and keyword fallback
+- Search modes: Hybrid, Semantic, and Keyword
+- Embedding backfill from the Knowledge page
+- Semantic status visibility for active, embedded, missing, and errored knowledge entries
+
 ## 6. Local Setup
 
 Backend:
@@ -199,6 +214,11 @@ BACKEND_HOST=
 BACKEND_PORT=
 GEMINI_API_KEY=
 GEMINI_MODEL=
+EMBEDDING_MODEL=
+EMBEDDING_DIMENSION=
+ENABLE_SEMANTIC_RAG=
+SEMANTIC_RAG_TOP_K=
+SEMANTIC_RAG_MIN_SCORE=
 GMAIL_CLIENT_ID=
 GMAIL_CLIENT_SECRET=
 GMAIL_REDIRECT_URI=
@@ -228,22 +248,23 @@ Backend:
 1. Create campaign
 2. Add company knowledge such as product details, pricing notes, FAQs, and demo scripts
 3. Upload sample knowledge documents from `sample-data/knowledge-documents/`
-4. Upload leads CSV
-5. Score leads with AI
-6. Review top priority leads
-7. Generate first email
-8. Approve and send first email
-9. Recipient replies
-10. Check replies
-11. Classify reply with AI
-12. Generate response draft using relevant company knowledge
-13. Review intent, priority, next action, suggested response direction, knowledge used, and draft response
-14. Approve response
-15. Send approved response
-16. If no reply, generate follow-up draft
-17. Approve follow-up
-18. Send follow-up
-19. Track follow-up status
+4. Generate missing embeddings from the Knowledge page when semantic RAG is enabled
+5. Upload leads CSV
+6. Score leads with AI
+7. Review top priority leads
+8. Generate first email
+9. Approve and send first email
+10. Recipient replies
+11. Check replies
+12. Classify reply with AI
+13. Generate response draft using relevant company knowledge
+14. Review intent, priority, next action, suggested response direction, knowledge used, and draft response
+15. Approve response
+16. Send approved response
+17. If no reply, generate follow-up draft
+18. Approve follow-up
+19. Send follow-up
+20. Track follow-up status
 
 ## 10. Knowledge Document Upload
 
@@ -251,11 +272,21 @@ The Knowledge page supports uploading PDF, DOCX, TXT, and Markdown files up to 5
 
 Uploaded text is sanitized, split into manageable chunks of roughly 2,000 to 2,500 characters with small overlap, and stored as active `company_knowledge` rows with `source_type="document"`. Each chunk keeps its `document_id` and `chunk_index`, while manual knowledge entries continue to use `source_type="manual"`.
 
-AI email generation, follow-up generation, and response draft generation all use the same simple keyword-based RAG search. When uploaded document chunks match the outreach or reply context, they are included in the AI prompt with source information such as document filename and chunk number.
+AI email generation, follow-up generation, and response draft generation all use the same RAG search path. When uploaded document chunks match the outreach or reply context, they are included in the AI prompt with source information such as document filename and chunk number.
 
-Current limitation: search is still keyword-based. There are no embeddings, vector database, or semantic retrieval yet. A future version can add semantic search with embeddings and Supabase `pgvector`.
+## 11. Semantic RAG
 
-## 11. Safety Notes
+Week 13 adds embeddings for company knowledge. The backend uses Gemini embeddings through `EMBEDDING_MODEL` and stores vectors in Supabase/PostgreSQL with `pgvector` when the extension and permissions are available.
+
+Startup migration tries to run `CREATE EXTENSION IF NOT EXISTS vector`, add an `embedding vector(768)` column, and create an ivfflat cosine index. If any pgvector setup step fails, the app logs a warning and continues with keyword search.
+
+Knowledge entries are embedded when manual entries are created or edited, and document chunks are embedded after upload. If embedding generation fails, the knowledge entry remains usable and stores an `embedding_error`; document upload and AI generation continue.
+
+The Knowledge page includes a Semantic RAG status card and a `Generate Missing Embeddings` button. Search supports Hybrid, Semantic, and Keyword modes. Hybrid search tries semantic retrieval first, merges keyword matches, deduplicates results, and falls back to keyword search when semantic retrieval is unavailable.
+
+Current limitation: semantic quality depends on the embedding model, chunk quality, and how specific the company knowledge is. Keyword fallback remains available for all environments.
+
+## 12. Safety Notes
 
 - Emails are not sent automatically.
 - AI scoring is a recommendation and should be reviewed before outreach.
@@ -274,10 +305,10 @@ Current limitation: search is still keyword-based. There are no embeddings, vect
 - Sample CSV files use placeholder data only.
 - Sample knowledge documents use placeholder data only.
 
-## 12. Future Improvements
+## 13. Future Improvements
 
 - Google Search lead discovery
 - Authentication
 - CRM integration
-- Vector database or semantic RAG for larger knowledge bases
-- Supabase `pgvector` support for embedded document chunks
+- Better semantic reranking for larger knowledge bases
+- Richer embedding health monitoring and retry controls

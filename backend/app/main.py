@@ -6,6 +6,7 @@ from app.api.api_router import api_router
 from app.db.database import Base, engine
 from app.db.database_utils import (
     ensure_company_knowledge_columns,
+    ensure_company_knowledge_embedding_columns,
     ensure_email_draft_columns,
     ensure_knowledge_document_columns,
     ensure_lead_ai_scoring_columns,
@@ -30,6 +31,7 @@ ensure_lead_ai_scoring_columns(engine)
 ensure_reply_response_draft_columns(engine)
 ensure_company_knowledge_columns(engine)
 ensure_knowledge_document_columns(engine)
+ensure_company_knowledge_embedding_columns(engine)
 
 app = FastAPI(
     title=settings.APP_NAME,

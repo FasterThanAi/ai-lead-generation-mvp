@@ -172,6 +172,13 @@ export function getFriendlyErrorMessage(err, fallbackMessage = DEFAULT_ERROR_MES
   }
 
   if (
+    normalizedMessage.includes("embedding generation failed") ||
+    normalizedMessage.includes("semantic search unavailable")
+  ) {
+    return "Embedding generation failed. Keyword search fallback is still available.";
+  }
+
+  if (
     normalizedMessage.includes("approve the follow-up") ||
     normalizedMessage.includes("before sending")
   ) {
