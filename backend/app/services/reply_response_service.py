@@ -8,12 +8,27 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.models import EmailDraft, ReplyResponseDraft
 from app.services.ai_service import clean_value
-from app.services.knowledge_service import build_knowledge_context, search_relevant_knowledge
+from app.services.knowledge_service import search_relevant_knowledge
 from app.utils.time_utils import utc_now
 
 ACTIVE_RESPONSE_DRAFT_STATUSES = ("generated", "approved")
 FALLBACK_RESPONSE_MODEL = "fallback-template"
 FALLBACK_RESPONSE_ERROR = "Gemini response draft generation failed. Fallback draft was used."
+MAX_STRUCTURED_KNOWLEDGE_CHARS = 3400
+MAX_STRUCTURED_KNOWLEDGE_ENTRY_CHARS = 760
+PRICING_FACT_GROUPS = {
+    "number of employees/team size": ("employees", "employee", "team size", "team-size"),
+    "number of training modules": ("modules", "module", "training modules", "training module"),
+    "analytics requirements": ("analytics", "dashboard", "reporting"),
+}
+DEMO_FACT_GROUPS = {
+    "document/SOP upload": ("document", "documents", "sop", "sops", "training material", "training materials"),
+    "video lessons": ("video", "videos", "lesson", "lessons"),
+    "quizzes": ("quiz", "quizzes"),
+    "analytics/dashboard": ("analytics", "dashboard"),
+}
+PILOT_TERMS = ("pilot", "pilots", "one department", "department", "3 to 5", "3-5", "limited modules")
+DEMO_REQUEST_TERMS = ("demo", "video", "walkthrough", "show", "overview")
 
 
 class ReplyResponseRuleError(ValueError):
@@ -86,10 +101,140 @@ def extract_first_json_object(text: str):
     raise ValueError("No valid JSON object found in Gemini response draft output.")
 
 
-def fallback_response_draft(email_draft: EmailDraft):
+def _normalize_text(value):
+    return clean_value(value).lower()
+
+
+def _contains_any(value, terms):
+    normalized_value = _normalize_text(value)
+
+    return any(term in normalized_value for term in terms)
+
+
+def _matching_fact_groups(value, fact_groups):
+    return [
+        label
+        for label, terms in fact_groups.items()
+        if _contains_any(value, terms)
+    ]
+
+
+def _human_join(items):
+    clean_items = [clean_value(item) for item in items if clean_value(item)]
+
+    if not clean_items:
+        return ""
+
+    if len(clean_items) == 1:
+        return clean_items[0]
+
+    return f"{', '.join(clean_items[:-1])}, and {clean_items[-1]}"
+
+
+def _lead_asks_for_demo(email_draft: EmailDraft):
+    search_text = " ".join(
+        clean_value(value)
+        for value in [
+            email_draft.reply_snippet,
+            email_draft.reply_summary,
+            email_draft.reply_next_action,
+            email_draft.reply_suggested_response_direction,
+            email_draft.reply_intent,
+        ]
+        if clean_value(value)
+    )
+
+    return _contains_any(search_text, DEMO_REQUEST_TERMS)
+
+
+def _truncate_sentence(value, max_length: int):
+    text = " ".join(clean_value(value).split())
+
+    if len(text) <= max_length:
+        return text
+
+    return f"{text[:max_length].rstrip()}..."
+
+
+def _entry_source_label(entry):
+    title = clean_value(entry.title)
+    document = getattr(entry, "document", None)
+    document_name = clean_value(getattr(document, "original_filename", ""))
+
+    if document_name and entry.chunk_index:
+        return f"{document_name} - Chunk {entry.chunk_index}"
+
+    if title:
+        return title
+
+    if document_name:
+        return document_name
+
+    return f"Knowledge entry {entry.id}"
+
+
+def build_structured_response_knowledge(entries):
+    blocks = []
+    total_chars = 0
+
+    for entry in entries:
+        source = _entry_source_label(entry)
+        facts = _truncate_sentence(entry.content, MAX_STRUCTURED_KNOWLEDGE_ENTRY_CHARS)
+
+        if not source or not facts:
+            continue
+
+        block = f"- Source: {source}\n  Facts:\n  {facts}"
+        remaining_chars = MAX_STRUCTURED_KNOWLEDGE_CHARS - total_chars
+
+        if remaining_chars <= 0:
+            break
+
+        if len(block) > remaining_chars:
+            block = f"{block[:remaining_chars].rstrip()}..."
+
+        blocks.append(block)
+        total_chars += len(block)
+
+    if not blocks:
+        return ""
+
+    return "RELEVANT COMPANY KNOWLEDGE:\n" + "\n\n".join(blocks)
+
+
+def _pricing_fallback_sentences(knowledge_context: str):
+    factors = _matching_fact_groups(knowledge_context, PRICING_FACT_GROUPS)
+    sentences = []
+
+    if factors:
+        sentences.append(f"Pricing depends on {_human_join(factors)}.")
+
+    if _contains_any(knowledge_context, ("one department", "start with one department", "starting with one department")):
+        sentences.append("For pilots, we usually recommend starting with one department.")
+    elif _contains_any(knowledge_context, ("department", "pilot", "pilots")):
+        sentences.append("For pilots, we usually recommend starting with a focused department first.")
+
+    if _contains_any(knowledge_context, ("3 to 5", "3-5")):
+        sentences.append("A suggested pilot can use 3 to 5 training modules.")
+
+    return sentences
+
+
+def _demo_fallback_sentence(knowledge_context: str):
+    demo_facts = _matching_fact_groups(knowledge_context, DEMO_FACT_GROUPS)
+
+    if not demo_facts:
+        return ""
+
+    return f"In a demo, we can show {_human_join(demo_facts)}."
+
+
+def fallback_response_draft(email_draft: EmailDraft, knowledge_context: str = ""):
     name = _lead_display_name(email_draft)
     intent = clean_value(email_draft.reply_intent) or "Neutral"
     offer = clean_value(email_draft.campaign.offer if email_draft.campaign else "")
+    has_knowledge_context = bool(clean_value(knowledge_context))
+    asks_for_demo = _lead_asks_for_demo(email_draft)
     offer_sentence = (
         f"Our system helps teams with {offer}."
         if offer
@@ -97,18 +242,27 @@ def fallback_response_draft(email_draft: EmailDraft):
     )
 
     if intent == "Asked for Pricing":
+        knowledge_sentences = _pricing_fallback_sentences(knowledge_context) if has_knowledge_context else []
+        demo_sentence = _demo_fallback_sentence(knowledge_context) if has_knowledge_context and asks_for_demo else ""
+        knowledge_detail = " ".join(knowledge_sentences + ([demo_sentence] if demo_sentence else []))
+        pricing_detail = (
+            knowledge_detail
+            if knowledge_detail
+            else "Pricing usually depends on the team size, use case, and the level of setup needed, so I do not want to guess without a little more context."
+        )
         body = (
             f"Hi {name},\n\n"
-            "Thanks for your reply. Pricing usually depends on the team size, use case, and the level of setup needed, "
-            "so I do not want to guess without a little more context.\n\n"
+            f"Thanks for your reply. {pricing_detail}\n\n"
             "I can share a short demo overview and discuss the right pricing range after understanding your requirements. "
             "Would a brief call be convenient this week?\n\n"
             "Regards,\nTeam"
         )
     elif intent in {"Asked for More Info", "Interested"}:
+        demo_sentence = _demo_fallback_sentence(knowledge_context) if has_knowledge_context and asks_for_demo else ""
+        detail_sentence = demo_sentence or f"{offer_sentence} It can help with onboarding, SOP training, quizzes, and visibility into employee progress."
         body = (
             f"Hi {name},\n\n"
-            f"Thanks for your reply. {offer_sentence} It can help with onboarding, SOP training, quizzes, and visibility into employee progress.\n\n"
+            f"Thanks for your reply. {detail_sentence}\n\n"
             "I can share a short overview and walk you through how it would fit your team. Would you like to schedule a brief demo?\n\n"
             "Regards,\nTeam"
         )
@@ -185,14 +339,29 @@ def format_knowledge_used(entries):
     return ", ".join(labels) or None
 
 
-def build_response_prompt(email_draft: EmailDraft, knowledge_context: str = ""):
+def build_response_prompt(email_draft: EmailDraft, knowledge_context: str = "", extra_instruction: str = ""):
     campaign = email_draft.campaign
     lead = email_draft.lead
+    has_knowledge_context = bool(clean_value(knowledge_context))
     knowledge_section = (
         knowledge_context
-        if clean_value(knowledge_context)
+        if has_knowledge_context
         else "No matching company knowledge was found."
     )
+    grounding_instruction = (
+        """
+Use the retrieved company knowledge explicitly. Prefer exact facts from the knowledge context over generic wording.
+If the lead asks pricing, mention the pricing factors found in knowledge, especially employees/team size, training modules, and analytics requirements when present.
+If pilot guidance exists, mention it.
+If demo details exist, mention what the demo shows.
+For pricing intent, include at least two retrieved pricing factors when available and do not give a fixed price unless an exact price is present in knowledge.
+For demo intent, include retrieved demo details such as document/SOP upload, video lessons, quizzes, and analytics/dashboard when available.
+Do not invent exact prices.
+"""
+        if has_knowledge_context
+        else "No matching company knowledge was found, so avoid specific product, pricing, pilot, or demo claims that are not in the outreach context."
+    ).strip()
+    retry_instruction = clean_value(extra_instruction)
 
     return f"""
 You are an AI sales assistant.
@@ -202,8 +371,8 @@ Use the company knowledge below if relevant.
 Do not invent details not present in the company knowledge or outreach context.
 If pricing is not found in company knowledge, say pricing depends on requirements instead of making up prices.
 Do not invent exact pricing if pricing data is not available.
-If the lead asks for pricing, explain that pricing depends on requirements and suggest a short call or ask for details.
-If the lead asks for more info, briefly explain product value and offer a demo.
+If the lead asks for pricing, explain that pricing depends on requirements and include the exact pricing factors from knowledge when available.
+If the lead asks for more info or a demo, briefly explain product value using demo facts from knowledge when available.
 If the lead asks for meeting, suggest sharing available slots.
 If the lead is not interested or unsubscribes, generate a polite acknowledgement and do not push.
 If wrong person, ask politely for the right contact.
@@ -212,6 +381,12 @@ Do not claim attachments or links are included unless available.
 Do not send the email. Only draft it for human approval.
 Keep the response draft under 160 words.
 Return only JSON.
+
+Knowledge grounding rules:
+{grounding_instruction}
+
+Additional instruction:
+{retry_instruction or "None"}
 
 Campaign:
 - campaign_name: {clean_value(campaign.campaign_name if campaign else "")}
@@ -255,8 +430,8 @@ Expected JSON:
 """.strip()
 
 
-def parse_response_draft_output(response_text: str, email_draft: EmailDraft):
-    fallback = fallback_response_draft(email_draft)
+def parse_response_draft_output(response_text: str, email_draft: EmailDraft, knowledge_context: str = ""):
+    fallback = fallback_response_draft(email_draft, knowledge_context)
     parsed_response = extract_first_json_object(response_text)
     subject = _truncate(parsed_response.get("subject"), 255) or fallback["subject"]
     body = _truncate(parsed_response.get("body")) or fallback["body"]
@@ -265,6 +440,64 @@ def parse_response_draft_output(response_text: str, email_draft: EmailDraft):
         "subject": subject,
         "body": body,
     }
+
+
+def _response_grounding_issue(email_draft: EmailDraft, generated_response: dict, knowledge_context: str):
+    body = clean_value(generated_response.get("body"))
+
+    if not clean_value(knowledge_context) or not body:
+        return None
+
+    expected_pricing_facts = _matching_fact_groups(knowledge_context, PRICING_FACT_GROUPS)
+    mentioned_pricing_facts = _matching_fact_groups(body, PRICING_FACT_GROUPS)
+
+    expected_pilot_guidance = _contains_any(knowledge_context, PILOT_TERMS)
+    mentioned_pilot_guidance = _contains_any(body, PILOT_TERMS)
+
+    if clean_value(email_draft.reply_intent) == "Asked for Pricing" and (
+        (
+            expected_pricing_facts
+            and len(mentioned_pricing_facts) < min(2, len(expected_pricing_facts))
+        )
+        or (expected_pilot_guidance and not mentioned_pilot_guidance)
+    ):
+        pricing_instruction = (
+            f"Explicitly mention at least two of these retrieved pricing factors: {_human_join(expected_pricing_facts)}. "
+            if expected_pricing_facts
+            else ""
+        )
+
+        return (
+            "Regenerate the response because the lead asked for pricing and the previous draft was too generic. "
+            f"{pricing_instruction}"
+            "Mention pilot guidance if present. Do not invent exact prices."
+        )
+
+    if _lead_asks_for_demo(email_draft):
+        expected_demo_facts = _matching_fact_groups(knowledge_context, DEMO_FACT_GROUPS)
+        mentioned_demo_facts = _matching_fact_groups(body, DEMO_FACT_GROUPS)
+
+        if expected_demo_facts and len(mentioned_demo_facts) < len(expected_demo_facts):
+            return (
+                "Regenerate the response because the lead asked for a demo and the previous draft missed retrieved demo facts. "
+                f"Explicitly mention demo details from knowledge such as {_human_join(expected_demo_facts)} when relevant. "
+                "Do not claim a link or attachment is included."
+            )
+
+    return None
+
+
+def _generate_gemini_response(client, email_draft: EmailDraft, knowledge_context: str, extra_instruction: str = ""):
+    response = client.models.generate_content(
+        model=settings.GEMINI_MODEL,
+        contents=build_response_prompt(email_draft, knowledge_context, extra_instruction=extra_instruction),
+    )
+    response_text = clean_value(getattr(response, "text", ""))
+
+    if not response_text:
+        raise ValueError("Gemini response draft output was empty.")
+
+    return parse_response_draft_output(response_text, email_draft, knowledge_context)
 
 
 def get_active_response_draft(db: Session, email_draft_id: int):
@@ -338,26 +571,31 @@ def generate_response_draft_for_reply(db: Session, email_draft: EmailDraft, forc
         build_response_knowledge_query(email_draft),
         limit=5,
     )
-    knowledge_context = build_knowledge_context(knowledge_entries)
+    knowledge_context = build_structured_response_knowledge(knowledge_entries)
     knowledge_used = format_knowledge_used(knowledge_entries)
 
     if settings.GEMINI_API_KEY:
         try:
             client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            response = client.models.generate_content(
-                model=settings.GEMINI_MODEL,
-                contents=build_response_prompt(email_draft, knowledge_context),
-            )
-            response_text = clean_value(getattr(response, "text", ""))
-            if not response_text:
-                raise ValueError("Gemini response draft output was empty.")
-            generated_response = parse_response_draft_output(response_text, email_draft)
+            generated_response = _generate_gemini_response(client, email_draft, knowledge_context)
+            grounding_issue = _response_grounding_issue(email_draft, generated_response, knowledge_context)
+
+            if grounding_issue:
+                try:
+                    generated_response = _generate_gemini_response(
+                        client,
+                        email_draft,
+                        knowledge_context,
+                        extra_instruction=grounding_issue,
+                    )
+                except Exception:
+                    pass
         except Exception:
-            generated_response = fallback_response_draft(email_draft)
+            generated_response = fallback_response_draft(email_draft, knowledge_context)
             model_used = FALLBACK_RESPONSE_MODEL
             send_error = FALLBACK_RESPONSE_ERROR
     else:
-        generated_response = fallback_response_draft(email_draft)
+        generated_response = fallback_response_draft(email_draft, knowledge_context)
         model_used = FALLBACK_RESPONSE_MODEL
         send_error = FALLBACK_RESPONSE_ERROR
 
