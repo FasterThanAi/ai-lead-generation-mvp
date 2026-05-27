@@ -34,6 +34,9 @@ const badgeClasses = {
   email_not_found: "border-amber-100 bg-amber-50 text-amber-700",
   website_missing: "border-slate-200 bg-slate-100 text-slate-600",
   extraction_failed: "border-red-100 bg-red-50 text-red-700",
+  not_researched: "border-slate-200 bg-slate-100 text-slate-600",
+  researching: "border-amber-100 bg-amber-50 text-amber-700",
+  researched: "border-emerald-100 bg-emerald-50 text-emerald-700",
 };
 
 function Badge({ children, variant = "neutral", className = "" }) {

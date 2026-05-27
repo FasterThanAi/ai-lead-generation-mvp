@@ -41,6 +41,19 @@ class LeadResponse(LeadBase):
     ai_scored_at: datetime | None = None
     ai_model_used: str | None = None
     ai_score_error: str | None = None
+    research_status: str | None = None
+    research_summary: str | None = None
+    research_business_type: str | None = None
+    research_target_customers: str | None = None
+    research_products_services: str | None = None
+    research_pain_points: str | None = None
+    research_use_case_fit: str | None = None
+    research_outreach_angle: str | None = None
+    research_risk_flags: str | None = None
+    research_confidence: int | None = None
+    research_sources: str | None = None
+    research_error: str | None = None
+    researched_at: datetime | None = None
     created_at: datetime
 
     class Config:

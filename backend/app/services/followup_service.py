@@ -13,6 +13,7 @@ from app.services.ai_service import (
     extract_json_from_text,
 )
 from app.services.knowledge_service import build_knowledge_context, search_relevant_knowledge
+from app.services.lead_research_service import build_research_context
 from app.utils.time_utils import utc_now
 
 MAX_FOLLOW_UPS_PER_EMAIL = 2
@@ -137,6 +138,9 @@ def build_follow_up_knowledge_query(campaign, lead, original_email_draft):
             clean_value(campaign.target_role),
             clean_value(lead.industry),
             clean_value(lead.contact_role),
+            clean_value(getattr(lead, "research_summary", "")),
+            clean_value(getattr(lead, "research_outreach_angle", "")),
+            clean_value(getattr(lead, "research_pain_points", "")),
             clean_value(original_email_draft.subject),
             clean_value(original_email_draft.body),
         ]
@@ -149,6 +153,12 @@ def build_follow_up_prompt(campaign, lead, original_email_draft, follow_up_numbe
         knowledge_context
         if clean_value(knowledge_context)
         else "No matching company knowledge was found."
+    )
+    research_context = build_research_context(lead)
+    research_section = (
+        research_context
+        if research_context
+        else "No AI lead research is available. Use only campaign, lead, and original email context."
     )
 
     return f"""
@@ -163,6 +173,9 @@ Lead data:
 - Contact name: {clean_value(lead.contact_name)}
 - Contact role: {clean_value(lead.contact_role)}
 - Email: {clean_value(lead.email)}
+
+AI lead research:
+{research_section}
 
 Original email:
 - Subject: {clean_value(original_email_draft.subject)}
@@ -179,6 +192,7 @@ Rules:
 - Keep the email under 120 words.
 - Keep it short, calm, and not spammy.
 - Use saved company knowledge if it is relevant.
+- Use AI lead research when it helps keep the follow-up relevant, but do not overclaim uncertain pain points.
 - Include one simple CTA.
 - Do not claim false facts.
 - Do not invent achievements, clients, revenue, awards, partnerships, or facts about the lead company.

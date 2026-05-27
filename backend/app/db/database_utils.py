@@ -104,6 +104,55 @@ def ensure_lead_ai_scoring_columns(engine):
             )
 
 
+def ensure_lead_research_columns(engine):
+    inspector = inspect(engine)
+
+    if "leads" not in inspector.get_table_names():
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("leads")
+    }
+
+    dialect_name = engine.dialect.name
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+
+    required_columns = {
+        "research_status": "VARCHAR(50)",
+        "research_summary": "TEXT",
+        "research_business_type": "VARCHAR(255)",
+        "research_target_customers": "TEXT",
+        "research_products_services": "TEXT",
+        "research_pain_points": "TEXT",
+        "research_use_case_fit": "TEXT",
+        "research_outreach_angle": "TEXT",
+        "research_risk_flags": "TEXT",
+        "research_confidence": "INTEGER",
+        "research_sources": "TEXT",
+        "research_error": "TEXT",
+        "researched_at": datetime_type,
+    }
+
+    missing_columns = [
+        (column_name, column_type)
+        for column_name, column_type in required_columns.items()
+        if column_name not in existing_columns
+    ]
+
+    with engine.begin() as connection:
+        for column_name, column_type in missing_columns:
+            default_clause = " DEFAULT 'not_researched'" if column_name == "research_status" else ""
+            connection.execute(
+                text(f"ALTER TABLE leads ADD COLUMN {column_name} {column_type}{default_clause}")
+            )
+
+        if "research_status" in existing_columns or any(column_name == "research_status" for column_name, _ in missing_columns):
+            connection.execute(
+                text("UPDATE leads SET research_status = 'not_researched' WHERE research_status IS NULL")
+            )
+
+
 def ensure_reply_response_draft_columns(engine):
     inspector = inspect(engine)
 

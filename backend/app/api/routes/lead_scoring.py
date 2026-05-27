@@ -75,6 +75,12 @@ def serialize_scored_lead(lead: Lead):
         "ai_scored_at": lead.ai_scored_at,
         "ai_model_used": lead.ai_model_used,
         "ai_score_error": lead.ai_score_error,
+        "research_status": lead.research_status,
+        "research_summary": lead.research_summary,
+        "research_outreach_angle": lead.research_outreach_angle,
+        "research_risk_flags": lead.research_risk_flags,
+        "research_confidence": lead.research_confidence,
+        "researched_at": lead.researched_at,
         "created_at": lead.created_at,
     }
 
@@ -96,6 +102,12 @@ def serialize_score_result(lead: Lead):
         "ai_scored_at": lead.ai_scored_at,
         "ai_model_used": lead.ai_model_used,
         "ai_score_error": lead.ai_score_error,
+        "research_status": lead.research_status,
+        "research_summary": lead.research_summary,
+        "research_outreach_angle": lead.research_outreach_angle,
+        "research_risk_flags": lead.research_risk_flags,
+        "research_confidence": lead.research_confidence,
+        "researched_at": lead.researched_at,
     }
 
 
@@ -255,11 +267,21 @@ def get_campaign_lead_scoring_summary(
     get_campaign_or_404(campaign_id, db)
     total_leads = count_rows(db, Lead, Lead.campaign_id == campaign_id)
     scored_leads = count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_score.isnot(None))
+    researched_leads = count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.research_status == "researched")
+    research_failed = count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.research_status == "failed")
     average_score = (
         db.query(func.avg(Lead.ai_score))
         .filter(
             Lead.campaign_id == campaign_id,
             Lead.ai_score.isnot(None),
+        )
+        .scalar()
+    )
+    average_research_confidence = (
+        db.query(func.avg(Lead.research_confidence))
+        .filter(
+            Lead.campaign_id == campaign_id,
+            Lead.research_confidence.isnot(None),
         )
         .scalar()
     )
@@ -283,6 +305,9 @@ def get_campaign_lead_scoring_summary(
             "scored_leads": scored_leads,
             "unscored_leads": max(total_leads - scored_leads, 0),
             "average_score": round(float(average_score), 1) if average_score is not None else 0.0,
+            "researched_leads": researched_leads,
+            "research_failed": research_failed,
+            "average_research_confidence": round(float(average_research_confidence), 1) if average_research_confidence is not None else 0.0,
             "high_priority": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_priority == "High"),
             "medium_priority": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_priority == "Medium"),
             "low_priority": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_priority == "Low"),

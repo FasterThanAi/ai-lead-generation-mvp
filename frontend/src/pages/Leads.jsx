@@ -24,6 +24,10 @@ function Leads() {
   const [scoringLeadId, setScoringLeadId] = useState(null);
   const [leadScoringMessage, setLeadScoringMessage] = useState("");
   const [leadScoringError, setLeadScoringError] = useState("");
+  const [leadResearchMessage, setLeadResearchMessage] = useState("");
+  const [leadResearchError, setLeadResearchError] = useState("");
+  const [researchingLeadId, setResearchingLeadId] = useState(null);
+  const [isResearchingCampaign, setIsResearchingCampaign] = useState(false);
   const [priorityFilter, setPriorityFilter] = useState("All");
   const [qualificationFilter, setQualificationFilter] = useState("All");
   const [sortByScore, setSortByScore] = useState(true);
@@ -42,6 +46,23 @@ function Leads() {
     () => leads.filter((lead) => lead.ai_score !== null && lead.ai_score !== undefined).length,
     [leads]
   );
+
+  const researchedLeadCount = useMemo(
+    () => leads.filter((lead) => lead.research_status === "researched").length,
+    [leads]
+  );
+
+  const averageResearchConfidence = useMemo(() => {
+    const confidenceValues = leads
+      .map((lead) => lead.research_confidence)
+      .filter((value) => value !== null && value !== undefined);
+
+    if (confidenceValues.length === 0) {
+      return 0;
+    }
+
+    return confidenceValues.reduce((total, value) => total + Number(value), 0) / confidenceValues.length;
+  }, [leads]);
 
   const visibleLeads = useMemo(() => {
     const filteredLeads = leads.filter((lead) => {
@@ -115,6 +136,8 @@ function Leads() {
     setLeadExtractionError("");
     setLeadScoringMessage("");
     setLeadScoringError("");
+    setLeadResearchMessage("");
+    setLeadResearchError("");
     setPriorityFilter("All");
     setQualificationFilter("All");
   };
@@ -186,6 +209,53 @@ function Leads() {
       console.error(err);
     } finally {
       setScoringLeadId(null);
+    }
+  };
+
+  const handleResearchLead = async (lead) => {
+    setResearchingLeadId(lead.id);
+    setLeadResearchMessage("");
+    setLeadResearchError("");
+
+    try {
+      const res = await api.post(`/leads/${lead.id}/research`);
+      const confidence = res.data.research_confidence;
+      setLeadResearchMessage(
+        `Research completed for ${lead.company_name}. Confidence: ${confidence ?? "N/A"}.`
+      );
+      refreshLeads();
+    } catch (err) {
+      setLeadResearchError(getFriendlyErrorMessage(err, "Lead research failed. Please try again."));
+      console.error(err);
+    } finally {
+      setResearchingLeadId(null);
+    }
+  };
+
+  const handleResearchCampaignLeads = async () => {
+    if (!selectedCampaignId) {
+      return;
+    }
+
+    setIsResearchingCampaign(true);
+    setLeadResearchMessage("");
+    setLeadResearchError("");
+
+    try {
+      const res = await api.post(`/campaigns/${selectedCampaignId}/research-leads`, null, {
+        params: {
+          limit: 5,
+        },
+      });
+      setLeadResearchMessage(
+        `Research processed ${res.data.processed ?? 0} leads. Researched ${res.data.researched ?? 0}, failed ${res.data.failed ?? 0}. Remaining: ${res.data.remaining ?? 0}.`
+      );
+      refreshLeads();
+    } catch (err) {
+      setLeadResearchError(getFriendlyErrorMessage(err, "Campaign lead research failed. Please try again."));
+      console.error(err);
+    } finally {
+      setIsResearchingCampaign(false);
     }
   };
 
@@ -270,6 +340,14 @@ function Leads() {
                 <p className="text-xs text-indigo-700">AI Scored</p>
                 <p className="mt-1 text-2xl font-semibold text-indigo-900">{scoredLeadCount}</p>
               </div>
+              <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
+                <p className="text-xs text-sky-700">AI Researched</p>
+                <p className="mt-1 text-2xl font-semibold text-sky-900">{researchedLeadCount}</p>
+              </div>
+              <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4">
+                <p className="text-xs text-violet-700">Avg Research Confidence</p>
+                <p className="mt-1 text-2xl font-semibold text-violet-900">{averageResearchConfidence.toFixed(1)}</p>
+              </div>
             </div>
           </Card>
         )}
@@ -349,6 +427,32 @@ function Leads() {
           </Card>
         )}
 
+        {selectedCampaign && (
+          <Card>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold tracking-tight text-slate-950">AI Lead Research</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Research uses a lead website plus campaign context before scoring or drafting.
+                </p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Processes up to 5 leads per click and fetches only a few public pages per lead.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full lg:w-auto"
+                disabled={!selectedCampaignId || isResearchingCampaign || leads.length === 0}
+                onClick={handleResearchCampaignLeads}
+              >
+                {isResearchingCampaign ? "Researching leads..." : "Research Unresearched Leads"}
+              </Button>
+            </div>
+          </Card>
+        )}
+
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <LeadUpload
             campaignId={selectedCampaignId}
@@ -361,10 +465,16 @@ function Leads() {
           />
         </div>
 
-        {(leadExtractionMessage || leadExtractionError || leadScoringMessage || leadScoringError) && (
+        {(leadExtractionMessage || leadExtractionError || leadScoringMessage || leadScoringError || leadResearchMessage || leadResearchError) && (
           <Card>
+            {leadResearchMessage && (
+              <p className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-700">
+                {leadResearchMessage}
+              </p>
+            )}
+
             {leadExtractionMessage && (
-              <p className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+              <p className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700 first:mt-0">
                 {leadExtractionMessage}
               </p>
             )}
@@ -376,7 +486,7 @@ function Leads() {
             )}
 
             {leadExtractionError && (
-              <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">
                 {leadExtractionError}
               </p>
             )}
@@ -384,6 +494,12 @@ function Leads() {
             {leadScoringError && (
               <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">
                 {leadScoringError}
+              </p>
+            )}
+
+            {leadResearchError && (
+              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">
+                {leadResearchError}
               </p>
             )}
           </Card>
@@ -398,6 +514,8 @@ function Leads() {
           extractingLeadId={extractingLeadId}
           onScoreLead={handleScoreLead}
           scoringLeadId={scoringLeadId}
+          onResearchLead={handleResearchLead}
+          researchingLeadId={researchingLeadId}
         />
       </div>
     </div>

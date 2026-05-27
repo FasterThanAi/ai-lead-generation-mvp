@@ -2,11 +2,16 @@ import csv
 import io
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.db.database import get_db
 from app.db.models import Campaign, Lead
 from app.schemas.lead_schema import LeadCreate
+from app.services.lead_research_service import (
+    LeadResearchError,
+    research_lead,
+    serialize_research_result,
+)
 from app.services.scraper_service import find_emails_from_website
 
 router = APIRouter(
@@ -36,7 +41,12 @@ def get_campaign_or_404(campaign_id: int, db: Session):
 
 
 def get_lead_or_404(lead_id: int, db: Session):
-    lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    lead = (
+        db.query(Lead)
+        .options(joinedload(Lead.campaign))
+        .filter(Lead.id == lead_id)
+        .first()
+    )
 
     if not lead:
         raise HTTPException(
@@ -45,6 +55,50 @@ def get_lead_or_404(lead_id: int, db: Session):
         )
 
     return lead
+
+
+def serialize_lead(lead: Lead):
+    return {
+        "id": lead.id,
+        "campaign_id": lead.campaign_id,
+        "company_name": lead.company_name,
+        "website": lead.website,
+        "industry": lead.industry,
+        "location": lead.location,
+        "contact_name": lead.contact_name,
+        "contact_role": lead.contact_role,
+        "email": lead.email,
+        "source": lead.source,
+        "status": lead.status,
+        "ai_score": lead.ai_score,
+        "ai_fit_score": lead.ai_fit_score,
+        "ai_contact_confidence_score": lead.ai_contact_confidence_score,
+        "ai_priority": lead.ai_priority,
+        "ai_qualification": lead.ai_qualification,
+        "ai_score_reason": lead.ai_score_reason,
+        "ai_contact_confidence_reason": lead.ai_contact_confidence_reason,
+        "ai_outreach_angle": lead.ai_outreach_angle,
+        "ai_pain_point": lead.ai_pain_point,
+        "ai_recommended_cta": lead.ai_recommended_cta,
+        "ai_final_priority_reason": lead.ai_final_priority_reason,
+        "ai_scored_at": lead.ai_scored_at,
+        "ai_model_used": lead.ai_model_used,
+        "ai_score_error": lead.ai_score_error,
+        "research_status": lead.research_status,
+        "research_summary": lead.research_summary,
+        "research_business_type": lead.research_business_type,
+        "research_target_customers": lead.research_target_customers,
+        "research_products_services": lead.research_products_services,
+        "research_pain_points": lead.research_pain_points,
+        "research_use_case_fit": lead.research_use_case_fit,
+        "research_outreach_angle": lead.research_outreach_angle,
+        "research_risk_flags": lead.research_risk_flags,
+        "research_confidence": lead.research_confidence,
+        "research_sources": lead.research_sources,
+        "research_error": lead.research_error,
+        "researched_at": lead.researched_at,
+        "created_at": lead.created_at,
+    }
 
 
 def apply_extraction_result_to_lead(lead: Lead, extraction_result: dict):
@@ -107,7 +161,7 @@ def get_leads(db: Session = Depends(get_db)):
 
     return {
         "status": "success",
-        "data": leads
+        "data": [serialize_lead(lead) for lead in leads],
     }
 
 
@@ -124,7 +178,41 @@ def get_campaign_leads(campaign_id: int, db: Session = Depends(get_db)):
 
     return {
         "status": "success",
-        "data": leads
+        "data": [serialize_lead(lead) for lead in leads],
+    }
+
+
+@router.get("/{lead_id}/research")
+def get_lead_research(lead_id: int, db: Session = Depends(get_db)):
+    lead = get_lead_or_404(lead_id, db)
+
+    return {
+        "status": "success",
+        **serialize_research_result(lead),
+    }
+
+
+@router.post("/{lead_id}/research")
+def research_one_lead(lead_id: int, db: Session = Depends(get_db)):
+    get_lead_or_404(lead_id, db)
+
+    try:
+        result = research_lead(db, lead_id)
+    except LeadResearchError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc) or "Lead research failed. Please try again.",
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Lead research failed. Please try again.",
+        ) from exc
+
+    return {
+        "status": "success",
+        "message": "Lead research completed",
+        **result,
     }
 
 

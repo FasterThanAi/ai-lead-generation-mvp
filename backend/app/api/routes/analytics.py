@@ -269,11 +269,21 @@ def get_campaign_analytics(campaign_id: int, db: Session = Depends(get_db)):
         .all()
     )
     scored_leads = count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_score.isnot(None))
+    researched_leads = count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.research_status == "researched")
+    research_failed = count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.research_status == "failed")
     average_ai_score = (
         db.query(func.avg(Lead.ai_score))
         .filter(
             Lead.campaign_id == campaign_id,
             Lead.ai_score.isnot(None),
+        )
+        .scalar()
+    )
+    average_research_confidence = (
+        db.query(func.avg(Lead.research_confidence))
+        .filter(
+            Lead.campaign_id == campaign_id,
+            Lead.research_confidence.isnot(None),
         )
         .scalar()
     )
@@ -325,6 +335,9 @@ def get_campaign_analytics(campaign_id: int, db: Session = Depends(get_db)):
             "scored_leads": scored_leads,
             "unscored_leads": max(lead_count - scored_leads, 0),
             "average_ai_score": round(float(average_ai_score), 1) if average_ai_score is not None else 0.0,
+            "researched_leads": researched_leads,
+            "research_failed": research_failed,
+            "average_research_confidence": round(float(average_research_confidence), 1) if average_research_confidence is not None else 0.0,
             "high_priority_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_priority == "High"),
             "medium_priority_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_priority == "Medium"),
             "low_priority_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_priority == "Low"),

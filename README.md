@@ -15,6 +15,7 @@ This is an AI-powered lead generation and cold email outreach MVP. It supports c
 - Company knowledge base for product, pricing, FAQ, demo, and objection handling notes
 - Document upload for the Knowledge Base with PDF, DOCX, TXT, and Markdown extraction
 - Hybrid semantic and keyword RAG for company-specific AI context
+- AI lead research and enrichment from public company website pages plus campaign/lead fields
 - Draft approve/reject workflow
 - Gmail OAuth connection
 - Send approved emails
@@ -68,6 +69,7 @@ Main data flow:
 13. The Knowledge page stores company-specific facts for the first simple RAG layer. This does not train an LLM.
 14. Users can upload PDF, DOCX, TXT, or Markdown knowledge documents. The backend extracts text, splits it into chunks, and stores each chunk as searchable company knowledge.
 15. When semantic RAG is enabled, knowledge entries are embedded on the backend and searched through Supabase/PostgreSQL `pgvector`, with keyword fallback if semantic search is unavailable.
+16. Users can research leads before scoring or email generation. The backend checks a small number of public website pages, combines that with campaign/lead data, and stores a concise enrichment profile.
 
 ## 5. Week-wise Progress
 
@@ -178,6 +180,14 @@ Week 13:
 - Search modes: Hybrid, Semantic, and Keyword
 - Embedding backfill from the Knowledge page
 - Semantic status visibility for active, embedded, missing, and errored knowledge entries
+
+Week 14:
+- AI lead research and enrichment
+- Lightweight public website research before scoring or email drafting
+- Campaign-aware enrichment that uses the current offer, target industry, target location, and target role
+- Stored research summary, business type, products/services, likely pain points, use case fit, outreach angle, risk flags, sources, and confidence
+- Lead scoring and cold email generation can use enriched research context when available
+- Research falls back to CSV/campaign data when website pages are missing or inaccessible
 
 ## 6. Local Setup
 
@@ -293,7 +303,28 @@ Suggested sample knowledge entry:
 
 Current limitation: semantic quality depends on the embedding model, chunk quality, and how specific the company knowledge is. Keyword fallback remains available for all environments.
 
-## 12. Safety Notes
+## 12. Lead Research
+
+Week 14 adds AI lead research and enrichment. Research uses only the lead's website, existing lead CSV/manual fields, and the selected campaign details. It does not use paid third-party enrichment APIs.
+
+The backend fetches at most 3 public pages per lead from a small fixed list: homepage, `/about`, `/about-us`, `/services`, and `/products`. Requests use an 8 second timeout, a 1 MB response limit, robots.txt checks, and private/local address blocking. Raw HTML is not stored; only extracted research insights are saved.
+
+Research is campaign-aware. The AI must use the current campaign offer, target industry, target location, and target role to decide lead relevance, possible pain points, use case fit, outreach angle, and risk flags. It should not assume every lead needs onboarding, SOPs, training, HR analytics, or any other product-specific need unless the campaign offer supports that.
+
+Stored enrichment fields include summary, business type, target customers, products/services, pain points, use case fit, outreach angle, risk flags, confidence, sources, error, and researched timestamp.
+
+AI lead scoring includes research context when available and should mention whether research improved or limited confidence. Cold email, follow-up, and response draft generation can also use the research summary and outreach angle without overclaiming unsupported facts.
+
+Manual test flow:
+1. Add or upload leads for a campaign.
+2. On the Leads page, click `Research Lead` for one lead or `Research Unresearched Leads` for a small batch.
+3. Confirm research status, confidence, summary, outreach angle, and risk flags appear.
+4. Rescore the lead and confirm scoring references research where relevant.
+5. Generate a cold email and confirm personalization uses the campaign-aware outreach angle without inventing facts.
+
+Current limitation: research is lightweight website research only. It does not crawl recursively and does not use external paid enrichment APIs.
+
+## 13. Safety Notes
 
 - Emails are not sent automatically.
 - AI scoring is a recommendation and should be reviewed before outreach.
@@ -312,7 +343,7 @@ Current limitation: semantic quality depends on the embedding model, chunk quali
 - Sample CSV files use placeholder data only.
 - Sample knowledge documents use placeholder data only.
 
-## 13. Future Improvements
+## 14. Future Improvements
 
 - Google Search lead discovery
 - Authentication

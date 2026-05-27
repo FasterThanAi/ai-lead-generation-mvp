@@ -121,6 +121,11 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         .filter(Lead.ai_score.isnot(None))
         .scalar()
     )
+    average_research_confidence = (
+        db.query(func.avg(Lead.research_confidence))
+        .filter(Lead.research_confidence.isnot(None))
+        .scalar()
+    )
     latest_campaigns = (
         db.query(Campaign)
         .order_by(Campaign.created_at.desc(), Campaign.id.desc())
@@ -165,6 +170,9 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             "response_drafts_sent": count_rows(db, ReplyResponseDraft, ReplyResponseDraft.status == "sent"),
             "total_scored_leads": count_rows(db, Lead, Lead.ai_score.isnot(None)),
             "average_ai_score": round(float(average_ai_score), 1) if average_ai_score is not None else 0.0,
+            "researched_leads": count_rows(db, Lead, Lead.research_status == "researched"),
+            "research_failed": count_rows(db, Lead, Lead.research_status == "failed"),
+            "average_research_confidence": round(float(average_research_confidence), 1) if average_research_confidence is not None else 0.0,
             "high_priority_leads": count_rows(db, Lead, Lead.ai_priority == "High"),
             "hot_leads": count_rows(db, Lead, Lead.ai_qualification == "Hot"),
             "gmail_connected": db.query(GmailToken.id).first() is not None,

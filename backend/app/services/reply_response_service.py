@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.db.models import EmailDraft, ReplyResponseDraft
 from app.services.ai_service import clean_value
 from app.services.knowledge_service import search_relevant_knowledge
+from app.services.lead_research_service import build_research_context
 from app.utils.time_utils import utc_now
 
 ACTIVE_RESPONSE_DRAFT_STATUSES = ("generated", "approved")
@@ -451,6 +452,9 @@ def build_response_knowledge_query(email_draft: EmailDraft):
             clean_value(email_draft.reply_suggested_response_direction),
             clean_value(email_draft.reply_snippet),
             clean_value(campaign.offer if campaign else ""),
+            clean_value(email_draft.lead.research_summary if email_draft.lead else ""),
+            clean_value(email_draft.lead.research_outreach_angle if email_draft.lead else ""),
+            clean_value(email_draft.lead.research_pain_points if email_draft.lead else ""),
         ]
         if part
     )
@@ -477,10 +481,16 @@ def build_response_prompt(email_draft: EmailDraft, knowledge_context: str = "", 
     lead = email_draft.lead
     has_knowledge_context = bool(clean_value(knowledge_context))
     pilot_guidance_sentence = _build_pilot_guidance_sentence(knowledge_context)
+    research_context = build_research_context(lead)
     knowledge_section = (
         knowledge_context
         if has_knowledge_context
         else "No matching company knowledge was found."
+    )
+    research_section = (
+        research_context
+        if research_context
+        else "No AI lead research is available. Use only the reply, campaign, lead, and knowledge context."
     )
     grounding_instruction = (
         """
@@ -507,6 +517,7 @@ You are an AI sales assistant.
 Write a professional reply email draft based on the lead's reply.
 Keep it concise, helpful, and non-pushy.
 Use the company knowledge below if relevant.
+Use AI lead research when it helps personalize the response, but do not overclaim uncertain pain points.
 Do not invent details not present in the company knowledge or outreach context.
 If pricing is not found in company knowledge, say pricing depends on requirements instead of making up prices.
 Do not invent exact pricing if pricing data is not available.
@@ -542,6 +553,9 @@ Lead:
 - contact_name: {clean_value(lead.contact_name if lead else "")}
 - contact_role: {clean_value(lead.contact_role if lead else "")}
 - email: {clean_value(lead.email if lead else "")}
+
+AI lead research:
+{research_section}
 
 Original email:
 - subject: {clean_value(email_draft.subject)}

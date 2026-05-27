@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.models import Campaign, Lead
 from app.services.ai_service import clean_value, extract_json_from_text
+from app.services.lead_research_service import build_research_context
 from app.utils.time_utils import utc_now
 
 VALID_DECISION_MAKER_KEYWORDS = (
@@ -121,17 +122,6 @@ TRAINING_TERMS = (
     "course",
     "academy",
     "simplilearn",
-)
-OFFER_RELEVANCE_TERMS = (
-    "training",
-    "onboarding",
-    "sop",
-    "employee",
-    "quiz",
-    "quizzes",
-    "hr analytics",
-    "analytics",
-    "learning",
 )
 COMPANY_STOP_WORDS = {
     "india",
@@ -299,14 +289,30 @@ def get_location_score(campaign_location, lead_location):
 
 def has_likely_offer_relevance(campaign: Campaign, lead: Lead):
     offer_text = clean_value(campaign.offer).lower()
-    lead_text = get_combined_lead_text(lead).lower()
+    lead_text = " ".join(
+        part
+        for part in [
+            get_combined_lead_text(lead),
+            clean_value(getattr(lead, "research_summary", "")),
+            clean_value(getattr(lead, "research_business_type", "")),
+            clean_value(getattr(lead, "research_products_services", "")),
+            clean_value(getattr(lead, "research_use_case_fit", "")),
+        ]
+        if part
+    ).lower()
+    offer_tokens = {
+        token
+        for token in tokenize(offer_text)
+        if token not in {"software", "service", "services", "system", "solution", "solutions", "platform", "tool", "tools"}
+    }
+    lead_tokens = set(tokenize(lead_text))
 
     return (
-        text_contains_any(offer_text, OFFER_RELEVANCE_TERMS) and
-        (
-            text_contains_any(lead_text, MANUFACTURING_TERMS) or
-            text_contains_any(lead_text, TRAINING_TERMS) or
-            has_valid_decision_maker_role(lead.contact_role)
+        bool(offer_text)
+        and (
+            bool(offer_tokens.intersection(lead_tokens))
+            or has_direct_role_match(lead.contact_role, campaign.target_role)
+            or contains_match(lead.industry, campaign.industry)
         )
     )
 
@@ -507,6 +513,18 @@ def fallback_score_lead(campaign: Campaign, lead: Lead):
     elif clean_value(campaign.offer) and (clean_value(lead.industry) or clean_value(lead.contact_role)):
         fit_score += 8
 
+    research_context = build_research_context(lead)
+    research_confidence = clamp_score(getattr(lead, "research_confidence", None))
+
+    if research_context and research_confidence is not None:
+        if research_confidence >= 70:
+            fit_score += 8
+        elif research_confidence >= 45:
+            fit_score += 4
+
+        if text_contains_any(getattr(lead, "research_use_case_fit", ""), ("low fit", "not relevant", "unrelated")):
+            fit_score -= 10
+
     fit_score = min(fit_score, 95)
 
     if is_training_vendor_like(lead) and text_contains_any(campaign.offer, ("employee", "onboarding", "sop", "hr analytics")):
@@ -530,6 +548,12 @@ def fallback_score_lead(campaign: Campaign, lead: Lead):
             f"{company_name} has a final readiness score based mostly on business fit with contact confidence as a secondary factor."
         )
 
+    research_note = (
+        f" Research confidence is {research_confidence}/100 and was included in the fit review."
+        if research_context and research_confidence is not None
+        else ""
+    )
+
     return {
         "score": score,
         "fit_score": fit_score,
@@ -538,7 +562,7 @@ def fallback_score_lead(campaign: Campaign, lead: Lead):
         "qualification": qualification,
         "reason": (
             f"{company_name} was scored for business fit using company, industry, role, location, "
-            "offer relevance, and likely pain point signals."
+            f"offer relevance, and likely pain point signals.{research_note}"
         ),
         "contact_confidence_reason": contact_confidence_reason,
         "outreach_angle": f"Connect the lead's role and company context to {campaign_offer}.",
@@ -549,6 +573,13 @@ def fallback_score_lead(campaign: Campaign, lead: Lead):
 
 
 def build_lead_scoring_prompt(campaign: Campaign, lead: Lead):
+    research_context = build_research_context(lead)
+    research_section = (
+        research_context
+        if research_context
+        else "No AI lead research is available. Use only campaign and lead fields."
+    )
+
     return f"""
 You are a B2B sales lead qualification assistant.
 Evaluate how well this lead fits the campaign.
@@ -572,16 +603,23 @@ Lead:
 - Source: {clean_value(lead.source)}
 - Status: {clean_value(lead.status)}
 
+AI lead research:
+{research_section}
+
 Rules:
 - Score business fit and contact confidence separately from 0 to 100.
 - fit_score is only company/campaign fit: company industry, campaign industry, target role, lead role, location match, offer relevance, and likely pain point.
+- When AI lead research is available, use it to improve fit reasoning, outreach angle, pain point, and risk assessment.
+- If research confidence is low, mention that uncertainty instead of over-weighting the research.
+- If research risk flags indicate role mismatch, unrelated industry, generic email, or unclear offering, reflect that in the appropriate score/reason.
 - Do not mix contact quality into fit_score.
 - A personal, test, Gmail, student, institute, or placeholder email should reduce contact_confidence_score, not fit_score.
 - For test/demo data, do not treat Gmail or student email as proof that the company is irrelevant.
-- Large manufacturing companies like Tata Steel or Bosch should score high in fit for manufacturing, SOP, onboarding, operations, training, or HR analytics campaigns.
-- Operations Head is a valid role for SOP, training, operations, and onboarding campaigns.
+- Well-known or large companies should score high only when their industry, role, location, and likely use case align with this campaign's offer.
+- Treat roles as relevant only when they plausibly own, influence, or evaluate the current campaign offer.
 - HR Manager, Training Manager, Operations Head, Admin Head, Founder, Owner, and Director are valid decision-maker roles depending on context.
 - Explain the business fit in 1-3 sentences.
+- Explicitly mention when lead research improved or limited confidence.
 - Explain contact confidence separately.
 - Suggest a practical outreach angle.
 - Identify the likely pain point.

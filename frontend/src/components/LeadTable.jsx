@@ -28,6 +28,11 @@ function getScoreTone(value) {
   return "bg-slate-100 text-slate-600";
 }
 
+function getResearchStatusLabel(status) {
+  const normalizedStatus = String(status || "not_researched").replace(/_/g, " ");
+  return normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1);
+}
+
 function ScoreMetric({ label, value }) {
   return (
     <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-3 text-center sm:px-3">
@@ -63,9 +68,29 @@ function InsightBlock({ label, children }) {
   );
 }
 
-function LeadActions({ lead, onExtractEmail, extractingLeadId, onScoreLead, scoringLeadId }) {
+function LeadActions({
+  lead,
+  onExtractEmail,
+  extractingLeadId,
+  onScoreLead,
+  scoringLeadId,
+  onResearchLead,
+  researchingLeadId,
+}) {
+  const isResearched = lead.research_status === "researched";
+
   return (
     <div className="grid w-full grid-cols-1 gap-2">
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        className="w-full"
+        disabled={researchingLeadId === lead.id}
+        onClick={() => onResearchLead?.(lead)}
+      >
+        {researchingLeadId === lead.id ? "Researching..." : isResearched ? "Refresh Research" : "Research Lead"}
+      </Button>
       <Button
         type="button"
         size="sm"
@@ -84,13 +109,21 @@ function LeadActions({ lead, onExtractEmail, extractingLeadId, onScoreLead, scor
         disabled={scoringLeadId === lead.id}
         onClick={() => onScoreLead?.(lead)}
       >
-        {scoringLeadId === lead.id ? "Scoring..." : hasScore(lead.ai_score) ? "Rescore" : "Score"}
+        {scoringLeadId === lead.id ? "Scoring..." : isResearched && hasScore(lead.ai_score) ? "Rescore after research" : hasScore(lead.ai_score) ? "Rescore" : "Score"}
       </Button>
     </div>
   );
 }
 
-function LeadItem({ lead, extractingLeadId, scoringLeadId, onExtractEmail, onScoreLead }) {
+function LeadItem({
+  lead,
+  extractingLeadId,
+  scoringLeadId,
+  researchingLeadId,
+  onExtractEmail,
+  onScoreLead,
+  onResearchLead,
+}) {
   const hasInsights = Boolean(
     lead.ai_score_reason ||
     lead.ai_contact_confidence_reason ||
@@ -99,6 +132,14 @@ function LeadItem({ lead, extractingLeadId, scoringLeadId, onExtractEmail, onSco
     lead.ai_recommended_cta ||
     lead.ai_final_priority_reason ||
     lead.ai_score_error
+  );
+  const hasResearch = Boolean(
+    lead.research_summary ||
+    lead.research_outreach_angle ||
+    lead.research_risk_flags ||
+    lead.research_pain_points ||
+    lead.research_use_case_fit ||
+    lead.research_error
   );
 
   return (
@@ -127,9 +168,17 @@ function LeadItem({ lead, extractingLeadId, scoringLeadId, onExtractEmail, onSco
         <div className="flex min-w-0 flex-col gap-3 md:items-end">
           <div className="flex flex-wrap gap-2 md:justify-end">
             <Badge variant={lead.status}>{displayValue(lead.status)}</Badge>
+            <Badge variant={lead.research_status || "not_researched"}>
+              {getResearchStatusLabel(lead.research_status)}
+            </Badge>
             {lead.ai_priority && <Badge variant={lead.ai_priority}>{lead.ai_priority}</Badge>}
             {lead.ai_qualification && <Badge variant={lead.ai_qualification}>{lead.ai_qualification}</Badge>}
           </div>
+          {lead.research_confidence !== null && lead.research_confidence !== undefined && (
+            <p className="text-xs font-medium text-sky-700 md:text-right">
+              Research confidence: {lead.research_confidence}
+            </p>
+          )}
           <p className="text-xs text-slate-400 md:text-right">
             Created: {formatDateTimeIST(lead.created_at)}
           </p>
@@ -137,8 +186,10 @@ function LeadItem({ lead, extractingLeadId, scoringLeadId, onExtractEmail, onSco
             lead={lead}
             extractingLeadId={extractingLeadId}
             scoringLeadId={scoringLeadId}
+            researchingLeadId={researchingLeadId}
             onExtractEmail={onExtractEmail}
             onScoreLead={onScoreLead}
+            onResearchLead={onResearchLead}
           />
         </div>
       </div>
@@ -173,6 +224,41 @@ function LeadItem({ lead, extractingLeadId, scoringLeadId, onExtractEmail, onSco
           </div>
         </div>
       </div>
+
+      <details className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/70 open:bg-white">
+        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-sky-800">
+          {hasResearch ? "View AI Research" : "No AI research yet"}
+        </summary>
+        <div className="border-t border-sky-100 px-4 py-4">
+          {hasResearch ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <InsightBlock label="Summary">{lead.research_summary}</InsightBlock>
+              <InsightBlock label="Business type">{lead.research_business_type}</InsightBlock>
+              <InsightBlock label="Pain points">{lead.research_pain_points}</InsightBlock>
+              <InsightBlock label="Use case fit">{lead.research_use_case_fit}</InsightBlock>
+              <InsightBlock label="Outreach angle">{lead.research_outreach_angle}</InsightBlock>
+              <InsightBlock label="Risk flags">{lead.research_risk_flags}</InsightBlock>
+              {lead.researched_at && (
+                <p className="rounded-xl border border-sky-100 bg-white/70 p-3 text-xs text-slate-400">
+                  Researched: {formatDateTimeIST(lead.researched_at)}
+                </p>
+              )}
+              {lead.research_sources && (
+                <p className="break-words whitespace-pre-line rounded-xl border border-sky-100 bg-white/70 p-3 text-xs leading-5 text-slate-500 md:col-span-2">
+                  {lead.research_sources}
+                </p>
+              )}
+              {lead.research_error && (
+                <p className="break-words rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm leading-relaxed text-amber-700 md:col-span-2 xl:col-span-3">
+                  {lead.research_error}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">Research this lead to enrich scoring and outreach drafts with website and campaign context.</p>
+          )}
+        </div>
+      </details>
 
       <details className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 open:bg-white">
         <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-700">
@@ -216,6 +302,8 @@ function LeadTable({
   extractingLeadId,
   onScoreLead,
   scoringLeadId,
+  onResearchLead,
+  researchingLeadId,
 }) {
   return (
     <Card>
@@ -260,8 +348,10 @@ function LeadTable({
               lead={lead}
               extractingLeadId={extractingLeadId}
               scoringLeadId={scoringLeadId}
+              researchingLeadId={researchingLeadId}
               onExtractEmail={onExtractEmail}
               onScoreLead={onScoreLead}
+              onResearchLead={onResearchLead}
             />
           ))}
         </div>
