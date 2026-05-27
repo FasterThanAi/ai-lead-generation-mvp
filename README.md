@@ -174,6 +174,7 @@ Week 13:
 - Semantic RAG with embeddings
 - Supabase/PostgreSQL `pgvector` support when available
 - Hybrid search that combines semantic retrieval and keyword fallback
+- Query expansion for common sales terms such as cost, walkthrough, start small, and track progress
 - Search modes: Hybrid, Semantic, and Keyword
 - Embedding backfill from the Knowledge page
 - Semantic status visibility for active, embedded, missing, and errored knowledge entries
@@ -278,11 +279,17 @@ AI email generation, follow-up generation, and response draft generation all use
 
 Week 13 adds embeddings for company knowledge. The backend uses Gemini embeddings through `EMBEDDING_MODEL` and stores vectors in Supabase/PostgreSQL with `pgvector` when the extension and permissions are available.
 
-Startup migration tries to run `CREATE EXTENSION IF NOT EXISTS vector`, add an `embedding vector(768)` column, and create an ivfflat cosine index. If any pgvector setup step fails, the app logs a warning and continues with keyword search.
+Startup migration tries to run `CREATE EXTENSION IF NOT EXISTS vector`, add an embedding column using the configured embedding dimension, and create an ivfflat cosine index. If any pgvector setup step fails, the app logs a warning and continues with keyword search.
 
 Knowledge entries are embedded when manual entries are created or edited, and document chunks are embedded after upload. If embedding generation fails, the knowledge entry remains usable and stores an `embedding_error`; document upload and AI generation continue.
 
-The Knowledge page includes a Semantic RAG status card and a `Generate Missing Embeddings` button. Search supports Hybrid, Semantic, and Keyword modes. Hybrid search tries semantic retrieval first, merges keyword matches, deduplicates results, and falls back to keyword search when semantic retrieval is unavailable.
+The Knowledge page includes a Semantic RAG status card and a `Generate Missing Embeddings` button. Search supports Hybrid, Semantic, and Keyword modes. Hybrid search tries semantic retrieval first, expands common sales/product phrases into related terms, merges keyword matches, deduplicates results, and falls back to keyword search when semantic retrieval is unavailable.
+
+Suggested sample knowledge entry:
+- Title: Training Analytics and Progress Tracking
+- Category: Product Details
+- Tags: analytics, progress, completion, quiz scores, HR dashboard
+- Content: Managers can track lesson completion, quiz scores, engagement, and employee training status.
 
 Current limitation: semantic quality depends on the embedding model, chunk quality, and how specific the company knowledge is. Keyword fallback remains available for all environments.
 

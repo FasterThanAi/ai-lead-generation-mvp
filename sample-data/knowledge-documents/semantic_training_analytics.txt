@@ -1,0 +1,5 @@
+Training Analytics and Progress Tracking
+
+Managers can track lesson completion, quiz scores, engagement, and employee training status.
+
+The analytics dashboard helps HR and operations teams understand training progress, completion gaps, and whether employees are engaging with required onboarding or SOP lessons.

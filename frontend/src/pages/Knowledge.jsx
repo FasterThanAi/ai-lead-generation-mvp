@@ -951,6 +951,16 @@ function Knowledge() {
                             Similarity: {Number(entry.similarity_score).toFixed(2)}
                           </p>
                         )}
+                        {entry.keyword_score !== null && entry.keyword_score !== undefined && (
+                          <p className="mt-1 text-xs font-medium text-slate-600">
+                            Keyword score: {entry.keyword_score}
+                          </p>
+                        )}
+                        {entry.match_reason && (
+                          <p className="mt-1 break-words text-xs text-slate-500">
+                            Match: {entry.match_reason}
+                          </p>
+                        )}
                       </div>
                     </div>
 

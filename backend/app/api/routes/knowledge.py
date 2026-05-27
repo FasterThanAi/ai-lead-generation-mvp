@@ -88,6 +88,7 @@ def serialize_knowledge(entry: CompanyKnowledge):
         "retrieval_method": getattr(entry, "retrieval_method", None),
         "similarity_score": round(float(similarity_score), 4) if similarity_score is not None else None,
         "keyword_score": int(keyword_score) if keyword_score is not None else None,
+        "match_reason": getattr(entry, "match_reason", None),
         "is_active": entry.is_active,
         "created_at": entry.created_at,
         "updated_at": entry.updated_at,
