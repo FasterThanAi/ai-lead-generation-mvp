@@ -141,6 +141,7 @@ function LeadItem({
     lead.research_use_case_fit ||
     lead.research_error
   );
+  const usedResearchFallback = Boolean(lead.research_used_fallback);
 
   return (
     <article className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5 xl:p-6">
@@ -243,12 +244,17 @@ function LeadItem({
                   Researched: {formatDateTimeIST(lead.researched_at)}
                 </p>
               )}
+              {usedResearchFallback && (
+                <p className="break-words rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm leading-relaxed text-amber-700 md:col-span-2 xl:col-span-3">
+                  Website text unavailable. AI used CSV and campaign data only.
+                </p>
+              )}
               {lead.research_sources && (
                 <p className="break-words whitespace-pre-line rounded-xl border border-sky-100 bg-white/70 p-3 text-xs leading-5 text-slate-500 md:col-span-2">
                   {lead.research_sources}
                 </p>
               )}
-              {lead.research_error && (
+              {lead.research_error && !usedResearchFallback && (
                 <p className="break-words rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm leading-relaxed text-amber-700 md:col-span-2 xl:col-span-3">
                   {lead.research_error}
                 </p>

@@ -53,6 +53,7 @@ class LeadResponse(LeadBase):
     research_confidence: int | None = None
     research_sources: str | None = None
     research_error: str | None = None
+    research_used_fallback: bool | None = None
     researched_at: datetime | None = None
     created_at: datetime
 

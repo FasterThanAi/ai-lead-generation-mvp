@@ -1,5 +1,6 @@
 import ipaddress
 import json
+import logging
 import re
 import socket
 from urllib.parse import urljoin, urlparse
@@ -23,6 +24,9 @@ MAX_PAGES_PER_LEAD = 3
 USER_AGENT = "AI Lead Generation MVP Lead Research Bot/1.0"
 RESEARCH_MODEL_FALLBACK = "fallback-research"
 ROBOTS_CACHE = {}
+WEBSITE_FALLBACK_MESSAGE = "Website text unavailable. AI used CSV and campaign data only."
+
+logger = logging.getLogger(__name__)
 
 
 class LeadResearchError(RuntimeError):
@@ -109,6 +113,69 @@ def _safe_error_message(exc):
     text = re.sub(r"Bearer\s+[0-9A-Za-z._-]+", "Bearer [redacted]", text, flags=re.IGNORECASE)
 
     return text[:500] or "Lead research failed. Please try again."
+
+
+def _friendly_website_error(exc_or_message, status_code: int | None = None):
+    if status_code == 404:
+        return "Page not found"
+
+    if status_code in {401, 403, 406, 410, 429}:
+        return "Website blocked or unreadable"
+
+    if status_code and status_code >= 400:
+        return "Website blocked or unreadable"
+
+    if isinstance(exc_or_message, requests.exceptions.SSLError):
+        return "SSL certificate verification failed"
+
+    if isinstance(exc_or_message, requests.exceptions.Timeout):
+        return "Website timeout"
+
+    if isinstance(exc_or_message, requests.exceptions.TooManyRedirects):
+        return "Website blocked or unreadable"
+
+    if isinstance(exc_or_message, requests.exceptions.HTTPError):
+        response = getattr(exc_or_message, "response", None)
+        return _friendly_website_error(str(exc_or_message), getattr(response, "status_code", None))
+
+    message = clean_value(exc_or_message).lower()
+
+    if "certificate_verify_failed" in message or "ssl" in message:
+        return "SSL certificate verification failed"
+
+    if "timed out" in message or "timeout" in message:
+        return "Website timeout"
+
+    if "404" in message or "not found" in message:
+        return "Page not found"
+
+    if "robots.txt" in message or "blocked" in message or "forbidden" in message:
+        return "Website blocked or unreadable"
+
+    if "no readable" in message:
+        return "No readable website text found"
+
+    if "too many redirects" in message or "redirect" in message:
+        return "Website blocked or unreadable"
+
+    if "missing" in message:
+        return "No readable website text found"
+
+    return "Website blocked or unreadable"
+
+
+def _dedupe_errors(errors):
+    unique_errors = []
+    seen = set()
+
+    for error in errors:
+        friendly_error = _friendly_website_error(error)
+
+        if friendly_error not in seen:
+            unique_errors.append(friendly_error)
+            seen.add(friendly_error)
+
+    return unique_errors
 
 
 def _host_is_private(hostname: str):
@@ -226,7 +293,7 @@ def fetch_public_page(url: str) -> dict:
             "status": "error",
             "url": clean_value(url),
             "html": "",
-            "error": str(exc),
+            "error": _friendly_website_error(exc),
         }
 
     try:
@@ -241,7 +308,7 @@ def fetch_public_page(url: str) -> dict:
                     "status": "error",
                     "url": current_url,
                     "html": "",
-                    "error": robots_error,
+                    "error": _friendly_website_error(robots_error),
                 }
 
             response = requests.get(
@@ -271,10 +338,19 @@ def fetch_public_page(url: str) -> dict:
                 "status": "error",
                 "url": current_url,
                 "html": "",
-                "error": "Too many redirects while researching website.",
+                "error": "Website blocked or unreadable",
             }
 
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            logger.debug("Website research HTTP error for %s: %s", current_url, exc, exc_info=True)
+            return {
+                "status": "error",
+                "url": current_url,
+                "html": "",
+                "error": _friendly_website_error(exc),
+            }
 
         content = bytearray()
         for chunk in response.iter_content(chunk_size=16384):
@@ -288,7 +364,7 @@ def fetch_public_page(url: str) -> dict:
                     "status": "error",
                     "url": response.url,
                     "html": "",
-                    "error": "Page is too large for lightweight research.",
+                    "error": "Website blocked or unreadable",
                 }
 
         encoding = response.encoding or "utf-8"
@@ -300,11 +376,12 @@ def fetch_public_page(url: str) -> dict:
             "error": None,
         }
     except requests.RequestException as exc:
+        logger.debug("Website research request failed for %s: %s", normalized_url, exc, exc_info=True)
         return {
             "status": "error",
             "url": normalized_url,
             "html": "",
-            "error": _safe_error_message(exc),
+            "error": _friendly_website_error(exc),
         }
 
 
@@ -328,16 +405,40 @@ def discover_basic_pages(base_url: str) -> list[str]:
     normalized_url = normalize_url(base_url)
     parsed_url = urlparse(normalized_url)
     root_url = f"{parsed_url.scheme}://{parsed_url.netloc}/"
-    candidate_paths = ["", "about", "about-us", "services", "products"]
+    host = clean_value(parsed_url.netloc)
+    host_without_www = host[4:] if host.startswith("www.") else host
+    variant_urls = [
+        normalized_url,
+        root_url,
+    ]
+
+    if host_without_www and host_without_www != host:
+        variant_urls.append(f"{parsed_url.scheme}://{host_without_www}/")
+
+    if parsed_url.scheme == "https":
+        variant_urls.append(f"http://{host}/")
+        if host_without_www and host_without_www != host:
+            variant_urls.append(f"http://{host_without_www}/")
+
+    variant_urls.extend([
+        urljoin(root_url, "about"),
+        urljoin(root_url, "about-us"),
+        urljoin(root_url, "services"),
+        urljoin(root_url, "products"),
+    ])
+
     urls = []
     seen = set()
 
-    for path in candidate_paths:
-        url = urljoin(root_url, path)
+    for url in variant_urls:
+        try:
+            safe_url = normalize_url(url)
+        except LeadResearchError:
+            continue
 
-        if url not in seen:
-            urls.append(url)
-            seen.add(url)
+        if safe_url not in seen:
+            urls.append(safe_url)
+            seen.add(safe_url)
 
     return urls
 
@@ -459,12 +560,13 @@ Return JSON with this exact shape:
 
 
 def _fallback_research_payload(campaign: Campaign, lead: Lead, error_message: str | None = None):
+    website_unavailable = bool(clean_value(error_message))
     risks = [
         risk
         for risk in [
             _lead_email_risk(lead),
             _role_mismatch_risk(lead, campaign),
-            "Website was missing or inaccessible, so research uses only CSV and campaign data." if error_message else "",
+            WEBSITE_FALLBACK_MESSAGE if website_unavailable else "",
         ]
         if risk
     ]
@@ -485,8 +587,9 @@ def _fallback_research_payload(campaign: Campaign, lead: Lead, error_message: st
         "use_case_fit": f"Potential fit depends on whether {company_name} has a current need for {offer}.",
         "outreach_angle": f"Use a light, exploratory angle around {offer} and ask whether it is relevant.",
         "risk_flags": "\n".join(risks) or "Low data confidence.",
-        "confidence": 30 if error_message else 40,
-        "sources": ["lead CSV fields", "campaign data"],
+        "confidence": 30 if website_unavailable else 40,
+        "sources": ["CSV/campaign fields only"] if website_unavailable else ["lead CSV fields", "campaign data"],
+        "used_fallback": website_unavailable,
     }
 
 
@@ -505,6 +608,19 @@ def _parse_research_response(response_text: str, campaign: Campaign, lead: Lead,
     if not sources:
         sources = fallback_payload["sources"]
 
+    if fallback_payload.get("used_fallback"):
+        sources = ["CSV/campaign fields only"]
+
+    confidence = _clamp_confidence(parsed.get("confidence") if parsed.get("confidence") is not None else fallback_payload["confidence"])
+
+    if fallback_payload.get("used_fallback"):
+        confidence = min(confidence, 50)
+
+    risk_flags = _truncate(parsed.get("risk_flags") or fallback_payload["risk_flags"], 1200)
+
+    if fallback_payload.get("used_fallback") and WEBSITE_FALLBACK_MESSAGE not in risk_flags:
+        risk_flags = _join_lines([risk_flags, WEBSITE_FALLBACK_MESSAGE])
+
     return {
         "summary": _truncate(parsed.get("summary") or fallback_payload["summary"], 1200),
         "business_type": _truncate(parsed.get("business_type") or fallback_payload["business_type"], 255),
@@ -513,9 +629,10 @@ def _parse_research_response(response_text: str, campaign: Campaign, lead: Lead,
         "pain_points": _truncate(parsed.get("pain_points") or fallback_payload["pain_points"], 1200),
         "use_case_fit": _truncate(parsed.get("use_case_fit") or fallback_payload["use_case_fit"], 1200),
         "outreach_angle": _truncate(parsed.get("outreach_angle") or fallback_payload["outreach_angle"], 1200),
-        "risk_flags": _truncate(parsed.get("risk_flags") or fallback_payload["risk_flags"], 1200),
-        "confidence": _clamp_confidence(parsed.get("confidence") if parsed.get("confidence") is not None else fallback_payload["confidence"]),
+        "risk_flags": _truncate(risk_flags, 1200),
+        "confidence": confidence,
         "sources": sources,
+        "used_fallback": bool(fallback_payload.get("used_fallback")),
     }
 
 
@@ -537,7 +654,15 @@ def _apply_research_to_lead(
     lead.research_risk_flags = clean_value(payload.get("risk_flags")) or None
     lead.research_confidence = _clamp_confidence(payload.get("confidence"))
     lead.research_sources = "\n".join(_split_lines(payload.get("sources"))) or None
-    lead.research_error = clean_value(error_message) or None
+    lead.research_used_fallback = bool(payload.get("used_fallback"))
+    if clean_value(error_message):
+        lead.research_error = (
+            _friendly_website_error(error_message)
+            if lead.research_used_fallback
+            else _safe_error_message(error_message)
+        )
+    else:
+        lead.research_error = None
     lead.researched_at = utc_now()
 
     if model_used:
@@ -593,7 +718,7 @@ def _fetch_research_pages(website: str):
         text = extract_clean_text(result.get("html", ""))
 
         if not text:
-            errors.append(f"No readable text found at {result.get('url') or url}.")
+            errors.append("No readable website text found")
             continue
 
         sources.append(result.get("url") or url)
@@ -680,6 +805,7 @@ def serialize_research_result(lead: Lead):
         "research_confidence": lead.research_confidence,
         "research_sources": lead.research_sources,
         "research_error": lead.research_error,
+        "research_used_fallback": lead.research_used_fallback,
         "researched_at": lead.researched_at,
     }
 
@@ -714,13 +840,13 @@ def research_lead(db: Session, lead_id: int) -> dict:
 
     if clean_value(lead.website):
         website_text, sources, fetch_errors = _fetch_research_pages(lead.website)
-        if fetch_errors:
-            website_error = "; ".join(fetch_errors[:3])
+        if fetch_errors and not website_text:
+            website_error = "; ".join(_dedupe_errors(fetch_errors)[:3])
     else:
         website_error = "Website is missing."
 
     if not website_text:
-        return fallback_research_from_csv(db, lead_id, website_error or "Website research did not find readable text.")
+        return fallback_research_from_csv(db, lead_id, website_error or "No readable website text found")
 
     fallback_payload = _fallback_research_payload(campaign, lead, website_error)
     model_used = settings.GEMINI_MODEL

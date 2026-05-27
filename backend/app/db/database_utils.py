@@ -131,6 +131,7 @@ def ensure_lead_research_columns(engine):
         "research_confidence": "INTEGER",
         "research_sources": "TEXT",
         "research_error": "TEXT",
+        "research_used_fallback": "BOOLEAN",
         "researched_at": datetime_type,
     }
 
@@ -143,6 +144,8 @@ def ensure_lead_research_columns(engine):
     with engine.begin() as connection:
         for column_name, column_type in missing_columns:
             default_clause = " DEFAULT 'not_researched'" if column_name == "research_status" else ""
+            if column_name == "research_used_fallback":
+                default_clause = " DEFAULT FALSE"
             connection.execute(
                 text(f"ALTER TABLE leads ADD COLUMN {column_name} {column_type}{default_clause}")
             )
@@ -150,6 +153,11 @@ def ensure_lead_research_columns(engine):
         if "research_status" in existing_columns or any(column_name == "research_status" for column_name, _ in missing_columns):
             connection.execute(
                 text("UPDATE leads SET research_status = 'not_researched' WHERE research_status IS NULL")
+            )
+
+        if "research_used_fallback" in existing_columns or any(column_name == "research_used_fallback" for column_name, _ in missing_columns):
+            connection.execute(
+                text("UPDATE leads SET research_used_fallback = FALSE WHERE research_used_fallback IS NULL")
             )
 
 

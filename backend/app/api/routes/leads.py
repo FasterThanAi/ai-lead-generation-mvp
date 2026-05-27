@@ -96,6 +96,7 @@ def serialize_lead(lead: Lead):
         "research_confidence": lead.research_confidence,
         "research_sources": lead.research_sources,
         "research_error": lead.research_error,
+        "research_used_fallback": lead.research_used_fallback,
         "researched_at": lead.researched_at,
         "created_at": lead.created_at,
     }

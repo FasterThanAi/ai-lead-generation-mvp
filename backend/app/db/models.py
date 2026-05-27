@@ -62,6 +62,7 @@ class Lead(Base):
     research_confidence = Column(Integer, nullable=True)
     research_sources = Column(Text, nullable=True)
     research_error = Column(Text, nullable=True)
+    research_used_fallback = Column(Boolean, default=False, nullable=False)
     researched_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=utc_now)
 

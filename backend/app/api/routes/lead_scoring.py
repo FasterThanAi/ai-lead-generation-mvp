@@ -80,6 +80,7 @@ def serialize_scored_lead(lead: Lead):
         "research_outreach_angle": lead.research_outreach_angle,
         "research_risk_flags": lead.research_risk_flags,
         "research_confidence": lead.research_confidence,
+        "research_used_fallback": lead.research_used_fallback,
         "researched_at": lead.researched_at,
         "created_at": lead.created_at,
     }
@@ -107,6 +108,7 @@ def serialize_score_result(lead: Lead):
         "research_outreach_angle": lead.research_outreach_angle,
         "research_risk_flags": lead.research_risk_flags,
         "research_confidence": lead.research_confidence,
+        "research_used_fallback": lead.research_used_fallback,
         "researched_at": lead.researched_at,
     }
 
