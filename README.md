@@ -16,6 +16,7 @@ This is an AI-powered lead generation and cold email outreach MVP. It supports c
 - Document upload for the Knowledge Base with PDF, DOCX, TXT, and Markdown extraction
 - Hybrid semantic and keyword RAG for company-specific AI context
 - AI lead research and enrichment from public company website pages plus campaign/lead fields
+- Opportunity/Campaign Generator for turning rough outreach ideas into AI-generated campaign strategies
 - Draft approve/reject workflow
 - Gmail OAuth connection
 - Send approved emails
@@ -70,6 +71,7 @@ Main data flow:
 14. Users can upload PDF, DOCX, TXT, or Markdown knowledge documents. The backend extracts text, splits it into chunks, and stores each chunk as searchable company knowledge.
 15. When semantic RAG is enabled, knowledge entries are embedded on the backend and searched through Supabase/PostgreSQL `pgvector`, with keyword fallback if semantic search is unavailable.
 16. Users can research leads before scoring or email generation. The backend checks a small number of public website pages, combines that with campaign/lead data, and stores a concise enrichment profile.
+17. Users can create an opportunity from a rough idea, generate an AI campaign strategy, and convert the reviewed strategy into a campaign.
 
 ## 5. Week-wise Progress
 
@@ -189,6 +191,14 @@ Week 14:
 - Lead scoring and cold email generation can use enriched research context when available
 - Research falls back to CSV/campaign data when website pages are missing or inaccessible
 
+Phase 3:
+- Opportunity/Campaign Generator
+- Users enter a rough business, research, or outreach goal
+- Gemini generates a complete campaign strategy with audience, roles, pain points, value proposition, outreach angle, search keywords, lead source ideas, email script, call script, follow-up sequence, qualification criteria, and risk flags
+- Strategies can be converted into campaigns after user review
+- Works generically for professors, colleges, SMEs, startups, restaurants, clinics, retail shops, SaaS, manufacturing, and service businesses
+- LinkedIn scraping is not automated; use manual search or user-provided URLs only
+
 ## 6. Local Setup
 
 Backend:
@@ -256,26 +266,29 @@ Backend:
 
 ## 9. Demo Flow
 
-1. Create campaign
-2. Add company knowledge such as product details, pricing notes, FAQs, and demo scripts
-3. Upload sample knowledge documents from `sample-data/knowledge-documents/`
-4. Generate missing embeddings from the Knowledge page when semantic RAG is enabled
-5. Upload leads CSV
-6. Score leads with AI
-7. Review top priority leads
-8. Generate first email
-9. Approve and send first email
-10. Recipient replies
-11. Check replies
-12. Classify reply with AI
-13. Generate response draft using relevant company knowledge
-14. Review intent, priority, next action, suggested response direction, knowledge used, and draft response
-15. Approve response
-16. Send approved response
-17. If no reply, generate follow-up draft
-18. Approve follow-up
-19. Send follow-up
-20. Track follow-up status
+1. Create an opportunity from a rough outreach idea
+2. Generate and review the AI strategy
+3. Convert the strategy into a campaign
+4. Add company knowledge such as product details, pricing notes, FAQs, and demo scripts
+5. Upload sample knowledge documents from `sample-data/knowledge-documents/`
+6. Generate missing embeddings from the Knowledge page when semantic RAG is enabled
+7. Upload leads CSV
+8. Research leads when website/lead context is useful
+9. Score leads with AI
+10. Review top priority leads
+11. Generate first email
+12. Approve and send first email
+13. Recipient replies
+14. Check replies
+15. Classify reply with AI
+16. Generate response draft using relevant company knowledge
+17. Review intent, priority, next action, suggested response direction, knowledge used, and draft response
+18. Approve response
+19. Send approved response
+20. If no reply, generate follow-up draft
+21. Approve follow-up
+22. Send follow-up
+23. Track follow-up status
 
 ## 10. Knowledge Document Upload
 
@@ -324,7 +337,30 @@ Manual test flow:
 
 Current limitation: research is lightweight website research only. It does not crawl recursively and does not use external paid enrichment APIs.
 
-## 13. Safety Notes
+## 13. Opportunity Generator
+
+Phase 3 adds an Opportunities page. A user enters a rough goal such as professor outreach, restaurant marketing, clinic software, cybersecurity audit outreach, college project assistance, SME outreach, or startup sales. Gemini turns that rough idea into a practical campaign strategy.
+
+Generated strategies include target audience, ideal roles, industries, locations, pain points, value proposition, outreach angle, search keywords, lead source ideas, email script, call script, follow-up sequence, qualification criteria, risk flags, and suggested campaign fields.
+
+The user can review the strategy and then create a campaign from the suggested campaign name, industry, location, target role, and offer. The system returns the existing converted campaign if the opportunity was already converted, preventing accidental duplicates.
+
+The generator is generic and campaign-aware. It should not assume a specific product. It can adapt to professor outreach, colleges, SMEs, restaurants, clinics, startups, retail shops, SaaS, manufacturing, service businesses, and other segments based on the user's goal and offer.
+
+Safety limits:
+- Emails are not sent automatically.
+- LinkedIn scraping is not automated.
+- LinkedIn may be suggested only for manual search or user-provided URLs.
+- Paid enrichment APIs are not used.
+- AI strategy output is reviewable before campaign creation.
+
+Manual test examples:
+- Professor outreach for research/project implementation assistance across engineering colleges in India.
+- Restaurant marketing for Google reviews, Instagram visibility, local discovery, and footfall.
+- Clinic software for appointments, patient records, billing, and staff coordination.
+- Cybersecurity audit outreach for startups or SaaS companies.
+
+## 14. Safety Notes
 
 - Emails are not sent automatically.
 - AI scoring is a recommendation and should be reviewed before outreach.
@@ -343,7 +379,7 @@ Current limitation: research is lightweight website research only. It does not c
 - Sample CSV files use placeholder data only.
 - Sample knowledge documents use placeholder data only.
 
-## 14. Future Improvements
+## 15. Future Improvements
 
 - Google Search lead discovery
 - Authentication

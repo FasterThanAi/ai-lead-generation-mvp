@@ -20,6 +20,45 @@ class Campaign(Base):
     email_drafts = relationship("EmailDraft", back_populates="campaign", cascade="all, delete-orphan")
     follow_up_drafts = relationship("FollowUpDraft", back_populates="campaign", cascade="all, delete-orphan")
     reply_response_drafts = relationship("ReplyResponseDraft", back_populates="campaign", cascade="all, delete-orphan")
+    converted_opportunities = relationship("Opportunity", back_populates="converted_campaign")
+
+
+class Opportunity(Base):
+    __tablename__ = "opportunities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    raw_goal = Column(Text, nullable=False)
+    target_domain = Column(String(255), nullable=True)
+    target_location = Column(String(255), nullable=True)
+    offer = Column(Text, nullable=True)
+    status = Column(String(50), default="draft", nullable=False)
+    ai_summary = Column(Text, nullable=True)
+    target_audience = Column(Text, nullable=True)
+    ideal_roles = Column(Text, nullable=True)
+    industries = Column(Text, nullable=True)
+    locations = Column(Text, nullable=True)
+    pain_points = Column(Text, nullable=True)
+    value_proposition = Column(Text, nullable=True)
+    outreach_angle = Column(Text, nullable=True)
+    search_keywords = Column(Text, nullable=True)
+    lead_source_ideas = Column(Text, nullable=True)
+    email_script = Column(Text, nullable=True)
+    call_script = Column(Text, nullable=True)
+    follow_up_sequence = Column(Text, nullable=True)
+    qualification_criteria = Column(Text, nullable=True)
+    risk_flags = Column(Text, nullable=True)
+    suggested_campaign_name = Column(String(255), nullable=True)
+    suggested_campaign_industry = Column(String(255), nullable=True)
+    suggested_campaign_location = Column(String(255), nullable=True)
+    suggested_campaign_target_role = Column(String(255), nullable=True)
+    suggested_campaign_offer = Column(Text, nullable=True)
+    ai_model = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, nullable=True, onupdate=utc_now)
+    converted_campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True, index=True)
+
+    converted_campaign = relationship("Campaign", back_populates="converted_opportunities")
 
 
 class Lead(Base):

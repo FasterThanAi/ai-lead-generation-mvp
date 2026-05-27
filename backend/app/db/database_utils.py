@@ -161,6 +161,71 @@ def ensure_lead_research_columns(engine):
             )
 
 
+def ensure_opportunity_columns(engine):
+    inspector = inspect(engine)
+    dialect_name = engine.dialect.name
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+
+    required_columns = {
+        "id": "INTEGER",
+        "title": "VARCHAR(255)",
+        "raw_goal": "TEXT",
+        "target_domain": "VARCHAR(255)",
+        "target_location": "VARCHAR(255)",
+        "offer": "TEXT",
+        "status": "VARCHAR(50)",
+        "ai_summary": "TEXT",
+        "target_audience": "TEXT",
+        "ideal_roles": "TEXT",
+        "industries": "TEXT",
+        "locations": "TEXT",
+        "pain_points": "TEXT",
+        "value_proposition": "TEXT",
+        "outreach_angle": "TEXT",
+        "search_keywords": "TEXT",
+        "lead_source_ideas": "TEXT",
+        "email_script": "TEXT",
+        "call_script": "TEXT",
+        "follow_up_sequence": "TEXT",
+        "qualification_criteria": "TEXT",
+        "risk_flags": "TEXT",
+        "suggested_campaign_name": "VARCHAR(255)",
+        "suggested_campaign_industry": "VARCHAR(255)",
+        "suggested_campaign_location": "VARCHAR(255)",
+        "suggested_campaign_target_role": "VARCHAR(255)",
+        "suggested_campaign_offer": "TEXT",
+        "ai_model": "VARCHAR(255)",
+        "created_at": datetime_type,
+        "updated_at": datetime_type,
+        "converted_campaign_id": "INTEGER",
+    }
+
+    if "opportunities" not in inspector.get_table_names():
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("opportunities")
+    }
+    missing_columns = [
+        (column_name, column_type)
+        for column_name, column_type in required_columns.items()
+        if column_name not in existing_columns and column_name != "id"
+    ]
+
+    with engine.begin() as connection:
+        for column_name, column_type in missing_columns:
+            default_clause = " DEFAULT 'draft'" if column_name == "status" else ""
+            connection.execute(
+                text(f"ALTER TABLE opportunities ADD COLUMN {column_name} {column_type}{default_clause}")
+            )
+
+        if "status" in existing_columns or any(column_name == "status" for column_name, _ in missing_columns):
+            connection.execute(
+                text("UPDATE opportunities SET status = 'draft' WHERE status IS NULL")
+            )
+
+
 def ensure_reply_response_draft_columns(engine):
     inspector = inspect(engine)
 

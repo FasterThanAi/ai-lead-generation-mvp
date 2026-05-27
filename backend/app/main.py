@@ -11,6 +11,7 @@ from app.db.database_utils import (
     ensure_knowledge_document_columns,
     ensure_lead_ai_scoring_columns,
     ensure_lead_research_columns,
+    ensure_opportunity_columns,
     ensure_reply_response_draft_columns,
 )
 from app.db.models import (  # noqa: F401
@@ -22,6 +23,7 @@ from app.db.models import (  # noqa: F401
     GmailToken,
     KnowledgeDocument,
     Lead,
+    Opportunity,
     ReplyResponseDraft,
 )
 
@@ -30,6 +32,7 @@ Base.metadata.create_all(bind=engine)
 ensure_email_draft_columns(engine)
 ensure_lead_ai_scoring_columns(engine)
 ensure_lead_research_columns(engine)
+ensure_opportunity_columns(engine)
 ensure_reply_response_draft_columns(engine)
 ensure_company_knowledge_columns(engine)
 ensure_knowledge_document_columns(engine)
