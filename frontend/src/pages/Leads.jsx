@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import EmailExtraction from "../components/EmailExtraction";
 import LeadTable from "../components/LeadTable";
 import LeadUpload from "../components/LeadUpload";
@@ -9,8 +10,9 @@ import Card from "../components/ui/Card";
 import PageHeader from "../components/ui/PageHeader";
 
 function Leads() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [campaigns, setCampaigns] = useState([]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState("");
+  const [selectedCampaignId, setSelectedCampaignId] = useState(searchParams.get("campaign_id") || "");
   const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(true);
   const [campaignsError, setCampaignsError] = useState("");
   const [leads, setLeads] = useState([]);
@@ -134,7 +136,9 @@ function Leads() {
   };
 
   const handleCampaignChange = (e) => {
-    setSelectedCampaignId(e.target.value);
+    const nextCampaignId = e.target.value;
+    setSelectedCampaignId(nextCampaignId);
+    setSearchParams(nextCampaignId ? { campaign_id: nextCampaignId } : {});
     setLeads([]);
     setLeadsError("");
     setLeadExtractionMessage("");

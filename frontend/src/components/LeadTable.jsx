@@ -34,6 +34,10 @@ function getResearchStatusLabel(status) {
   return normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1);
 }
 
+function hasDiscoveryMetadata(lead) {
+  return String(lead.source || "").toLowerCase().includes("discovery");
+}
+
 function ScoreMetric({ label, value }) {
   return (
     <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-3 text-center sm:px-3">
@@ -182,7 +186,7 @@ function LeadItem({
     lead.research_error
   );
   const usedResearchFallback = Boolean(lead.research_used_fallback);
-  const isDiscoveredLead = String(lead.source || "").toLowerCase() === "discovery";
+  const isDiscoveredLead = hasDiscoveryMetadata(lead);
 
   return (
     <article className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5 xl:p-6">

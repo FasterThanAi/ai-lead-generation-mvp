@@ -13,6 +13,7 @@ from app.schemas.discovery_schema import (
     DiscoverySelectionRequest,
 )
 from app.services.lead_discovery_service import (
+    IMPORTED_RESULT_STATUSES,
     LeadDiscoveryError,
     VALID_JOB_STATUSES,
     VALID_RESULT_STATUSES,
@@ -341,7 +342,7 @@ def update_result(result_id: int, payload: DiscoveryResultUpdate, db: Session = 
         status = clean_text(payload.status).lower()
         if status not in VALID_RESULT_STATUSES:
             raise HTTPException(status_code=400, detail="Invalid discovery result status.")
-        if result.status != "imported":
+        if result.status not in IMPORTED_RESULT_STATUSES:
             result.status = status
 
     result.updated_at = utc_now()

@@ -26,6 +26,7 @@ const emptyForm = {
 };
 
 const targetTypes = ["professor", "college", "department", "company", "startup", "student", "general"];
+const importedResultStatuses = new Set(["imported", "updated_existing"]);
 
 function splitLines(value) {
   return String(value || "")
@@ -42,6 +43,40 @@ function copyText(text) {
 
 function display(value, fallback = "N/A") {
   return value || fallback;
+}
+
+function isImportedResultStatus(status) {
+  return importedResultStatuses.has(String(status || "").toLowerCase());
+}
+
+function formatUpdatedField(field) {
+  const labels = {
+    contact_name: "name",
+    contact_role: "role",
+    company_name: "company",
+    source_url: "source URL",
+    profile_url: "profile URL",
+  };
+
+  return labels[field] || String(field || "").replace(/_/g, " ");
+}
+
+function getUpdatedFieldSummary(details) {
+  const fields = new Set();
+
+  (Array.isArray(details) ? details : []).forEach((detail) => {
+    if (detail?.action !== "updated" || !Array.isArray(detail.updated_fields)) {
+      return;
+    }
+
+    detail.updated_fields.forEach((field) => {
+      if (field) {
+        fields.add(formatUpdatedField(field));
+      }
+    });
+  });
+
+  return Array.from(fields);
 }
 
 function jobToForm(job) {
@@ -96,7 +131,7 @@ function ResultCard({ result, checked, onToggle }) {
             type="checkbox"
             checked={checked}
             onChange={() => onToggle(result.id)}
-            disabled={result.status === "imported"}
+            disabled={isImportedResultStatus(result.status)}
             className="mt-1 h-4 w-4 shrink-0"
           />
           <span className="min-w-0">
@@ -453,8 +488,24 @@ function LeadDiscovery() {
         result_ids: selectedResultIds,
         allow_no_email: false,
       });
+      const updatedFields = getUpdatedFieldSummary(res.data.details);
+      const skippedParts = [];
+      if ((res.data.skipped_no_email ?? 0) > 0) {
+        skippedParts.push(`${res.data.skipped_no_email} without email`);
+      }
+      if ((res.data.skipped_rejected ?? 0) > 0) {
+        skippedParts.push(`${res.data.skipped_rejected} rejected`);
+      }
+      if ((res.data.skipped_duplicates ?? 0) > 0) {
+        skippedParts.push(`${res.data.skipped_duplicates} duplicate skips`);
+      }
+
       setStatusMessage(
-        `Imported ${res.data.imported ?? 0} leads. Duplicates skipped: ${res.data.skipped_duplicates ?? 0}. No-email skipped: ${res.data.skipped_no_email ?? 0}.`
+        [
+          `${res.data.imported ?? 0} new leads imported, ${res.data.updated ?? 0} existing leads updated, ${res.data.unchanged ?? 0} unchanged, ${res.data.failed ?? 0} failed.`,
+          updatedFields.length > 0 ? `Updated fields: ${updatedFields.join(", ")}.` : "",
+          skippedParts.length > 0 ? `Skipped: ${skippedParts.join(", ")}.` : "",
+        ].filter(Boolean).join(" ")
       );
       setSelectedResultIds([]);
       await loadJobs();
@@ -727,7 +778,7 @@ function LeadDiscovery() {
                 </p>
               </div>
               {selectedJob && (
-                <Button as={Link} to="/leads" variant="secondary">
+                <Button as={Link} to={selectedJob.campaign_id ? `/leads?campaign_id=${selectedJob.campaign_id}` : "/leads"} variant="secondary">
                   Open Leads
                 </Button>
               )}
@@ -751,13 +802,13 @@ function LeadDiscovery() {
                     <p className="mt-1 text-xl font-semibold text-slate-950">{results.filter((item) => item.status === "approved").length}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs text-slate-500">Imported</p>
-                    <p className="mt-1 text-xl font-semibold text-slate-950">{results.filter((item) => item.status === "imported").length}</p>
+                    <p className="text-xs text-slate-500">Imported / Updated</p>
+                    <p className="mt-1 text-xl font-semibold text-slate-950">{results.filter((item) => isImportedResultStatus(item.status)).length}</p>
                   </div>
                 </div>
 
                 <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  <Button type="button" size="sm" variant="secondary" disabled={results.length === 0} onClick={() => setSelectedResultIds(results.filter((item) => item.status !== "imported").map((item) => item.id))}>
+                  <Button type="button" size="sm" variant="secondary" disabled={results.length === 0} onClick={() => setSelectedResultIds(results.filter((item) => !isImportedResultStatus(item.status)).map((item) => item.id))}>
                     Select Reviewable
                   </Button>
                   <Button type="button" size="sm" variant="secondary" disabled={selectedResultIds.length === 0} onClick={() => setSelectedResultIds([])}>
@@ -770,9 +821,9 @@ function LeadDiscovery() {
                     Reject
                   </Button>
                   <Button type="button" size="sm" variant="indigo" disabled={selectedResultIds.length === 0 || isImporting} onClick={handleImportSelected}>
-                    {isImporting ? "Importing..." : "Import Selected to Leads"}
+                    {isImporting ? "Importing..." : "Import / Update Selected"}
                   </Button>
-                  <Button type="button" size="sm" variant="secondary" disabled={isResearching || results.every((item) => item.status !== "imported")} onClick={handleResearchImported}>
+                  <Button type="button" size="sm" variant="secondary" disabled={isResearching || results.every((item) => !isImportedResultStatus(item.status))} onClick={handleResearchImported}>
                     {isResearching ? "Researching..." : "Research Imported Leads"}
                   </Button>
                 </div>

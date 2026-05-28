@@ -8,6 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 from google import genai
 from requests import exceptions as request_exceptions
+from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
@@ -26,10 +27,23 @@ USER_AGENT = "AI Lead Generation MVP Discovery Bot/1.0"
 VALID_TARGET_TYPES = {"professor", "college", "department", "company", "startup", "student", "general"}
 VALID_SOURCE_MODES = {"manual_urls", "generated_queries", "search_api_later"}
 VALID_JOB_STATUSES = {"draft", "running", "completed", "failed"}
-VALID_RESULT_STATUSES = {"pending", "approved", "rejected", "imported"}
+VALID_RESULT_STATUSES = {"pending", "approved", "rejected", "imported", "updated_existing"}
+IMPORTED_RESULT_STATUSES = {"imported", "updated_existing"}
 FAKE_EMAIL_DOMAINS = {"example.com", "example.org", "example.net"}
 GENERIC_EMAIL_PREFIXES = {"info", "contact", "admin", "support", "hello", "admissions", "office", "enquiry", "enquiries"}
 PERSONAL_EMAIL_DOMAINS = {"gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "rediffmail.com"}
+MISSING_TEXT_VALUES = {"", "n/a", "na", "-", "--", "null", "none", "unknown", "not available"}
+GENERIC_CONTACT_NAMES = {"faculty", "contact", "team", "staff", "office", "admin", "administrator", "department"}
+GENERIC_ROLES = {"faculty", "contact", "team"}
+WEAK_COMPANY_NAMES = {"discovered contact", "unknown company", "unknown organization", "organization", "company"}
+BETTER_ROLE_KEYWORDS = (
+    "assistant professor",
+    "associate professor",
+    "adjunct faculty",
+    "hod",
+    "head of department",
+    "professor",
+)
 
 robots_cache = {}
 
@@ -45,6 +59,153 @@ def _truncate(value, max_length: int | None = None):
         return text[:max_length].rstrip()
 
     return text
+
+
+def _clean_upsert_value(value, max_length: int | None = None):
+    text = re.sub(r"\s+", " ", clean_value(value)).strip()
+    if text.lower() in MISSING_TEXT_VALUES:
+        return None
+    if max_length and len(text) > max_length:
+        return text[:max_length].rstrip()
+    return text
+
+
+def _normalize_text_key(value):
+    text = _clean_upsert_value(value)
+    if not text:
+        return None
+    return re.sub(r"\s+", " ", text.lower()).strip()
+
+
+def _normalize_email(value):
+    email = _normalize_text_key(value)
+    if not email or "@" not in email:
+        return None
+    return email
+
+
+def _normalize_url_key(value):
+    text = _clean_upsert_value(value)
+    if not text:
+        return None
+    try:
+        normalized = normalize_url(text)
+    except LeadDiscoveryError:
+        normalized = text
+    parsed_url = urlparse(normalized.lower())
+    netloc = parsed_url.netloc[4:] if parsed_url.netloc.startswith("www.") else parsed_url.netloc
+    path = parsed_url.path.rstrip("/")
+    return urlunparse(parsed_url._replace(scheme="", netloc=netloc, path=path, params="", query="", fragment="")).lstrip("//")
+
+
+def _normalize_phone_digits(value):
+    digits = re.sub(r"\D+", "", clean_value(value))
+    if len(digits) < 5:
+        return None
+    return digits
+
+
+def _is_same_phone_number(first_digits, second_digits):
+    if not first_digits or not second_digits:
+        return False
+    if first_digits == second_digits:
+        return True
+    shorter, longer = sorted((first_digits, second_digits), key=len)
+    return len(shorter) >= 7 and len(longer) - len(shorter) <= 3 and longer.endswith(shorter)
+
+
+def _is_missing_value(value):
+    return _clean_upsert_value(value) is None
+
+
+def _email_domain(email):
+    normalized_email = _normalize_email(email)
+    if not normalized_email or "@" not in normalized_email:
+        return ""
+    return normalized_email.rsplit("@", 1)[-1]
+
+
+def _email_prefix(email):
+    normalized_email = _normalize_email(email)
+    if not normalized_email or "@" not in normalized_email:
+        return ""
+    return normalized_email.split("@", 1)[0]
+
+
+def _is_fake_email(email):
+    return _email_domain(email) in FAKE_EMAIL_DOMAINS
+
+
+def _is_generic_email(email):
+    prefix = re.split(r"[.+_-]", _email_prefix(email) or "", maxsplit=1)[0]
+    return prefix in GENERIC_EMAIL_PREFIXES
+
+
+def _is_generic_contact_name(value):
+    text = _normalize_text_key(value)
+    return not text or text in GENERIC_CONTACT_NAMES
+
+
+def _role_quality(value):
+    text = _normalize_text_key(value)
+    if not text:
+        return 0
+    if any(keyword in text for keyword in BETTER_ROLE_KEYWORDS):
+        if text == "professor":
+            return 2
+        return 4
+    if text in GENERIC_ROLES:
+        return 1
+    return 3
+
+
+def _is_domain_like(value):
+    text = _normalize_text_key(value)
+    if not text or " " in text:
+        return False
+    return "." in text
+
+
+def _is_weak_company_name(value):
+    text = _normalize_text_key(value)
+    return not text or text in WEAK_COMPANY_NAMES or text in MISSING_TEXT_VALUES
+
+
+def _phone_quality(value):
+    text = _clean_upsert_value(value) or ""
+    quality = len(text)
+    if text.startswith("+"):
+        quality += 6
+    if re.search(r"[\s()-]", text):
+        quality += 2
+    return quality
+
+
+def _url_quality(value):
+    text = _clean_upsert_value(value) or ""
+    quality = len(text)
+    if text.lower().startswith("https://"):
+        quality += 5
+    if "www." in text.lower():
+        quality += 1
+    return quality
+
+
+def _append_discovery_source(source):
+    existing_source = _clean_upsert_value(source, 100)
+    if not existing_source:
+        return "discovery"
+    if "discovery" in existing_source.lower():
+        return existing_source
+    candidate = f"{existing_source}; discovery"
+    return candidate[:100].rstrip()
+
+
+def _set_if_changed(target, field_name, value):
+    if getattr(target, field_name) == value:
+        return False
+    setattr(target, field_name, value)
+    return True
 
 
 def _safe_error_message(exc_or_message):
@@ -1060,12 +1221,195 @@ def approve_or_reject_results(db: Session, result_ids: list[int], status: str):
     results = db.query(DiscoveredLead).filter(DiscoveredLead.id.in_(result_ids)).all()
 
     for result in results:
-        if result.status != "imported":
+        if result.status not in IMPORTED_RESULT_STATUSES:
             result.status = status
             result.updated_at = utc_now()
 
     db.commit()
     return len(results)
+
+
+def _build_discovered_lead_values(result: DiscoveredLead, job: DiscoveryJob, include_fallbacks: bool = False):
+    email = _normalize_email(result.email)
+    source_url = _clean_upsert_value(result.source_url)
+    profile_url = _clean_upsert_value(result.profile_url)
+    website = _clean_upsert_value(result.website) or profile_url or source_url
+    organization = _clean_upsert_value(result.organization, 255)
+
+    if include_fallbacks and not organization:
+        organization = _email_domain(email) if email else "Discovered contact"
+
+    return {
+        "company_name": organization,
+        "website": _clean_upsert_value(website, 255),
+        "industry": _clean_upsert_value(result.department, 255)
+        or _clean_upsert_value(result.lead_type, 255)
+        or (_clean_upsert_value(job.campaign.industry, 255) if include_fallbacks and job.campaign else None),
+        "location": _clean_upsert_value(result.location, 255)
+        or (_clean_upsert_value(job.location, 255) if include_fallbacks else None)
+        or (_clean_upsert_value(job.campaign.location, 255) if include_fallbacks and job.campaign else None),
+        "contact_name": _clean_upsert_value(result.name, 255),
+        "contact_role": _clean_upsert_value(result.designation, 255)
+        or (_clean_upsert_value(job.target_role, 255) if include_fallbacks else None),
+        "email": email,
+        "phone": _clean_upsert_value(result.phone, 100),
+        "source_url": _clean_upsert_value(source_url),
+        "profile_url": _clean_upsert_value(profile_url),
+    }
+
+
+def _find_duplicate_lead(db: Session, campaign_id: int, values: dict):
+    email = values.get("email")
+    if email:
+        duplicate = (
+            db.query(Lead)
+            .filter(
+                Lead.campaign_id == campaign_id,
+                func.lower(func.trim(Lead.email)) == email,
+            )
+            .first()
+        )
+        if duplicate:
+            return duplicate
+
+    name_key = _normalize_text_key(values.get("contact_name"))
+    organization_key = _normalize_text_key(values.get("company_name"))
+    if name_key and organization_key:
+        candidates = (
+            db.query(Lead)
+            .filter(
+                Lead.campaign_id == campaign_id,
+                Lead.contact_name.isnot(None),
+                Lead.company_name.isnot(None),
+            )
+            .all()
+        )
+        for candidate in candidates:
+            if (
+                _normalize_text_key(candidate.contact_name) == name_key
+                and _normalize_text_key(candidate.company_name) == organization_key
+            ):
+                return candidate
+
+    if not email:
+        discovered_url_keys = {
+            key
+            for key in (
+                _normalize_url_key(values.get("website")),
+                _normalize_url_key(values.get("source_url")),
+                _normalize_url_key(values.get("profile_url")),
+            )
+            if key
+        }
+        if discovered_url_keys:
+            candidates = db.query(Lead).filter(Lead.campaign_id == campaign_id).all()
+            for candidate in candidates:
+                candidate_url_keys = {
+                    key
+                    for key in (
+                        _normalize_url_key(candidate.website),
+                        _normalize_url_key(candidate.source_url),
+                        _normalize_url_key(candidate.profile_url),
+                    )
+                    if key
+                }
+                if discovered_url_keys.intersection(candidate_url_keys):
+                    return candidate
+
+    return None
+
+
+def _apply_discovered_data_to_existing_lead(lead: Lead, values: dict):
+    updated_fields = []
+
+    contact_name = values.get("contact_name")
+    if contact_name and not _is_generic_contact_name(contact_name):
+        if _is_missing_value(lead.contact_name) or _is_generic_contact_name(lead.contact_name):
+            if _set_if_changed(lead, "contact_name", contact_name):
+                updated_fields.append("contact_name")
+
+    contact_role = values.get("contact_role")
+    new_role_quality = _role_quality(contact_role)
+    existing_role_quality = _role_quality(lead.contact_role)
+    if contact_role and new_role_quality > 0:
+        if _is_missing_value(lead.contact_role) or (
+            existing_role_quality < new_role_quality and existing_role_quality <= 2
+        ):
+            if _set_if_changed(lead, "contact_role", contact_role):
+                updated_fields.append("contact_role")
+
+    email = values.get("email")
+    existing_email = _normalize_email(lead.email)
+    if email and not _is_fake_email(email):
+        existing_email_is_weak = (
+            not existing_email
+            or _is_fake_email(existing_email)
+            or (_is_generic_email(existing_email) and not _is_generic_email(email))
+        )
+        if existing_email_is_weak and _set_if_changed(lead, "email", email):
+            updated_fields.append("email")
+
+    phone = values.get("phone")
+    if phone:
+        existing_phone_digits = _normalize_phone_digits(lead.phone)
+        new_phone_digits = _normalize_phone_digits(phone)
+        if _is_missing_value(lead.phone):
+            if _set_if_changed(lead, "phone", phone):
+                updated_fields.append("phone")
+        elif (
+            existing_phone_digits
+            and new_phone_digits
+            and _is_same_phone_number(existing_phone_digits, new_phone_digits)
+            and _phone_quality(phone) > _phone_quality(lead.phone)
+        ):
+            if _set_if_changed(lead, "phone", phone):
+                updated_fields.append("phone")
+
+    website = values.get("website") or values.get("profile_url") or values.get("source_url")
+    if website:
+        existing_website_key = _normalize_url_key(lead.website)
+        website_key = _normalize_url_key(website)
+        if _is_missing_value(lead.website):
+            if _set_if_changed(lead, "website", website[:255]):
+                updated_fields.append("website")
+        elif website_key and existing_website_key == website_key and _url_quality(website) > _url_quality(lead.website):
+            if _set_if_changed(lead, "website", website[:255]):
+                updated_fields.append("website")
+
+    company_name = values.get("company_name")
+    if company_name:
+        should_update_company = _is_weak_company_name(lead.company_name) or (
+            _is_domain_like(lead.company_name) and not _is_domain_like(company_name)
+        )
+        if should_update_company and _set_if_changed(lead, "company_name", company_name[:255]):
+            updated_fields.append("company_name")
+
+    industry = values.get("industry")
+    if industry and _is_missing_value(lead.industry):
+        if _set_if_changed(lead, "industry", industry[:255]):
+            updated_fields.append("industry")
+
+    location = values.get("location")
+    if location and _is_missing_value(lead.location):
+        if _set_if_changed(lead, "location", location[:255]):
+            updated_fields.append("location")
+
+    source_url = values.get("source_url")
+    if source_url and _is_missing_value(lead.source_url):
+        if _set_if_changed(lead, "source_url", source_url):
+            updated_fields.append("source_url")
+
+    profile_url = values.get("profile_url")
+    if profile_url and _is_missing_value(lead.profile_url):
+        if _set_if_changed(lead, "profile_url", profile_url):
+            updated_fields.append("profile_url")
+
+    if updated_fields or _is_missing_value(lead.source):
+        source = _append_discovery_source(lead.source)
+        if _set_if_changed(lead, "source", source):
+            updated_fields.append("source")
+
+    return updated_fields
 
 
 def import_selected_results(db: Session, job_id: int, result_ids: list[int], allow_no_email: bool = False):
@@ -1091,57 +1435,84 @@ def import_selected_results(db: Session, job_id: int, result_ids: list[int], all
         .all()
     )
     imported = 0
+    updated = 0
     skipped_duplicates = 0
+    unchanged = 0
+    failed = 0
     skipped_no_email = 0
     skipped_rejected = 0
     imported_lead_ids = []
+    details = []
 
     try:
         for result in results:
-            if result.status in {"rejected", "imported"}:
+            if result.status == "rejected":
                 skipped_rejected += 1
+                details.append({
+                    "discovered_lead_id": result.id,
+                    "lead_id": result.imported_lead_id,
+                    "action": "skipped",
+                    "reason": "rejected",
+                    "updated_fields": [],
+                })
                 continue
 
-            email = clean_value(result.email).lower()
-            if not email and not allow_no_email:
-                skipped_no_email += 1
-                continue
+            values = _build_discovered_lead_values(result, job)
+            duplicate = _find_duplicate_lead(db, job.campaign_id, values)
 
-            if email:
-                duplicate = (
-                    db.query(Lead)
-                    .filter(
-                        Lead.campaign_id == job.campaign_id,
-                        Lead.email == email,
-                    )
-                    .first()
+            if duplicate:
+                updated_fields = _apply_discovered_data_to_existing_lead(duplicate, values)
+                result.imported_lead_id = duplicate.id
+                result.status = (
+                    "updated_existing"
+                    if updated_fields or result.status == "updated_existing"
+                    else "imported"
                 )
-                if duplicate:
-                    if clean_value(result.phone) and not clean_value(duplicate.phone):
-                        duplicate.phone = clean_value(result.phone)
-                    if clean_value(result.source_url) and not clean_value(duplicate.source_url):
-                        duplicate.source_url = clean_value(result.source_url)
-                    if clean_value(result.profile_url) and not clean_value(duplicate.profile_url):
-                        duplicate.profile_url = clean_value(result.profile_url)
-                    skipped_duplicates += 1
-                    result.status = "imported"
-                    result.imported_lead_id = duplicate.id
-                    result.updated_at = utc_now()
-                    continue
+                result.updated_at = utc_now()
 
-            organization = clean_value(result.organization) or (email.split("@")[-1] if email else "Discovered contact")
+                if updated_fields:
+                    updated += 1
+                    details.append({
+                        "discovered_lead_id": result.id,
+                        "lead_id": duplicate.id,
+                        "action": "updated",
+                        "updated_fields": updated_fields,
+                    })
+                else:
+                    unchanged += 1
+                    details.append({
+                        "discovered_lead_id": result.id,
+                        "lead_id": duplicate.id,
+                        "action": "unchanged",
+                        "updated_fields": [],
+                    })
+                continue
+
+            if not values.get("email") and not allow_no_email:
+                skipped_no_email += 1
+                details.append({
+                    "discovered_lead_id": result.id,
+                    "lead_id": None,
+                    "action": "skipped",
+                    "reason": "no_email",
+                    "updated_fields": [],
+                })
+                continue
+
+            create_values = _build_discovered_lead_values(result, job, include_fallbacks=True)
+            organization = create_values.get("company_name") or "Discovered contact"
             lead = Lead(
                 campaign_id=job.campaign_id,
                 company_name=organization[:255],
-                website=clean_value(result.website) or clean_value(result.profile_url) or clean_value(result.source_url),
-                industry=clean_value(result.department) or clean_value(result.lead_type) or clean_value(job.campaign.industry),
-                location=clean_value(result.location) or clean_value(job.location) or clean_value(job.campaign.location),
-                contact_name=clean_value(result.name) or None,
-                contact_role=clean_value(result.designation) or clean_value(job.target_role) or None,
-                email=email or None,
-                phone=clean_value(result.phone) or None,
-                source_url=clean_value(result.source_url) or None,
-                profile_url=clean_value(result.profile_url) or None,
+                website=create_values.get("website"),
+                industry=create_values.get("industry"),
+                location=create_values.get("location"),
+                contact_name=create_values.get("contact_name"),
+                contact_role=create_values.get("contact_role"),
+                email=create_values.get("email"),
+                phone=create_values.get("phone"),
+                source_url=create_values.get("source_url"),
+                profile_url=create_values.get("profile_url"),
                 source="discovery",
                 status="new",
             )
@@ -1152,6 +1523,12 @@ def import_selected_results(db: Session, job_id: int, result_ids: list[int], all
             result.updated_at = utc_now()
             imported += 1
             imported_lead_ids.append(lead.id)
+            details.append({
+                "discovered_lead_id": result.id,
+                "lead_id": lead.id,
+                "action": "imported",
+                "updated_fields": [],
+            })
 
         db.commit()
     except SQLAlchemyError as exc:
@@ -1161,10 +1538,14 @@ def import_selected_results(db: Session, job_id: int, result_ids: list[int], all
     return {
         "processed": len(results),
         "imported": imported,
+        "updated": updated,
         "skipped_duplicates": skipped_duplicates,
+        "unchanged": unchanged,
+        "failed": failed,
         "skipped_no_email": skipped_no_email,
         "skipped_rejected": skipped_rejected,
         "imported_lead_ids": imported_lead_ids,
+        "details": details,
     }
 
 
@@ -1174,7 +1555,7 @@ def research_imported_leads(db: Session, job_id: int, limit: int = 5):
         db.query(DiscoveredLead)
         .filter(
             DiscoveredLead.discovery_job_id == job_id,
-            DiscoveredLead.status == "imported",
+            DiscoveredLead.status.in_(IMPORTED_RESULT_STATUSES),
             DiscoveredLead.imported_lead_id.isnot(None),
         )
         .order_by(DiscoveredLead.updated_at.desc(), DiscoveredLead.id.desc())
