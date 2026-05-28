@@ -293,8 +293,8 @@ def extract_phone_regex(text: str):
     phones = []
     seen = set()
 
-    def add_phone(candidate):
-        phone = _normalize_extracted_phone(candidate)
+    def add_phone(candidate, label=""):
+        phone = _normalize_extracted_phone(candidate, label=label)
         if not phone:
             return
 
@@ -304,9 +304,9 @@ def extract_phone_regex(text: str):
             phones.append(phone)
 
     label_pattern = re.compile(
-        r"(?i)(?:mobile|mob\.?|phone|ph\.?|telephone|tel\.?|contact|office|cell)"
+        r"(?i)\b(mobile|mob|phone|ph|telephone|tel|contact|office|cell)\.?"
         r"\s*(?:no\.?|number)?\s*[:\-]?\s*"
-        r"(\+?\d[\d\s()./-]{6,}\d(?:\s*(?:ext|extension)\.?\s*\d{1,5})?)"
+        r"(\+?\d[\d\s()./-]{6,}\d(?:\s*\(?\s*(?:ext|extension)\.?\s*[:.-]?\s*-?\d{1,5}\s*\)?)?)"
     )
     general_patterns = [
         r"\+91[\s().-]?[6-9]\d[\d\s().-]{8,12}",
@@ -315,8 +315,8 @@ def extract_phone_regex(text: str):
         r"\+91[\s().-]?[1-9]\d{1,4}[\s().-]?\d{6,8}\b",
     ]
 
-    for match in label_pattern.findall(text):
-        add_phone(match)
+    for label, match in label_pattern.findall(text):
+        add_phone(match, label=label)
 
     for line in clean_value(text).splitlines():
         line_text = clean_value(line)
@@ -334,19 +334,27 @@ def extract_phone_regex(text: str):
     return phones[:8]
 
 
-def _normalize_extracted_phone(candidate: str):
+def _normalize_extracted_phone(candidate: str, label: str = ""):
     phone = re.sub(r"\s+", " ", clean_value(candidate)).strip(".,;:()[]{}<>\"'")
 
     if not phone:
         return ""
 
-    extension_match = re.search(r"(?i)\b(?:ext|extension)\.?\s*(\d{1,5})\b", phone)
-    extension = extension_match.group(1) if extension_match else ""
-    main_phone = re.sub(r"(?i)\b(?:ext|extension)\.?\s*\d{1,5}\b", "", phone)
+    extension_match = re.search(r"(?i)\b(?:ext|extension)\.?\s*[:.-]?\s*(-?\d{1,5})\b", phone)
+    extension = extension_match.group(1).lstrip("-") if extension_match else ""
+    main_phone = re.sub(r"(?i)\(?\s*\b(?:ext|extension)\.?\s*[:.-]?\s*-?\d{1,5}\s*\)?", "", phone)
+    main_phone = re.sub(r"\s+", " ", main_phone).strip(" -./()")
     digits = re.sub(r"\D", "", main_phone)
+    normalized_label = clean_value(label).lower().replace(".", "")
+    mobile_label = normalized_label in {"mobile", "mob", "cell"}
     office_like = bool(
-        re.match(r"^\+?91[\s().-]?\d{2,4}[\s().-]+\d{6,8}$", main_phone.strip())
-        or re.match(r"^0\d{2,4}[\s().-]+\d{6,8}$", main_phone.strip())
+        not mobile_label
+        and (
+            re.match(r"^\+?91[\s().-]+\d{2,5}[\s().-]+\d[\d\s().-]{5,10}$", main_phone)
+            or re.match(r"^0\d{2,5}[\s().-]+\d[\d\s().-]{5,10}$", main_phone)
+            or (len(digits) == 11 and digits.startswith("0") and re.search(r"[\s().-]", main_phone))
+            or (len(digits) == 12 and digits.startswith("91") and re.search(r"[\s().-]", main_phone))
+        )
     )
 
     if len(digits) < 8 or len(digits) > 15:
@@ -362,8 +370,9 @@ def _normalize_extracted_phone(candidate: str):
     elif not office_like and len(digits) == 11 and digits.startswith("0") and digits[1] in "6789":
         normalized = f"+91{digits[1:]}"
     else:
-        normalized = re.sub(r"\s+", " ", main_phone).strip(" -./()")
-        if normalized.startswith("91") and not normalized.startswith("+"):
+        normalized = re.sub(r"\s*-\s*", "-", main_phone)
+        normalized = re.sub(r"\s+", " ", normalized).strip(" -./()")
+        if normalized.startswith("91") and not normalized.startswith("+") and len(digits) > 10:
             normalized = f"+{normalized}"
 
     if extension:
@@ -388,6 +397,88 @@ def _find_phone_near_text(text: str, marker: str):
     nearby_phones = extract_phone_regex(text[start:end])
 
     return nearby_phones[0] if nearby_phones else ""
+
+
+def _extract_label_value(block: str, label: str, stop_labels: tuple[str, ...]):
+    stop_pattern = "|".join(re.escape(stop_label) for stop_label in stop_labels)
+    match = re.search(
+        rf"(?is)\b{re.escape(label)}\s*:\s*(.*?)(?=\b(?:{stop_pattern})\s*:|$)",
+        block,
+    )
+
+    if not match:
+        return ""
+
+    value = re.sub(r"\s+", " ", match.group(1)).strip(" -|")
+    return value
+
+
+def _extract_person_contact_blocks(page_text: str, source_url: str, organization: str):
+    text = clean_value(page_text)
+    if not text:
+        return []
+
+    contexts = []
+    blocks = [
+        block.strip()
+        for block in re.split(r"(?=\bName\s*:)", text)
+        if block.strip()
+    ]
+
+    for block in blocks:
+        if "Name:" not in block or ("Email:" not in block and "Phone:" not in block and "Mobile:" not in block):
+            continue
+
+        block = _truncate(block, 1600)
+        emails = extract_emails_regex(block)
+        phones = extract_phone_regex(block)
+
+        if not emails and not phones:
+            continue
+
+        name = _truncate(
+            _extract_label_value(
+                block,
+                "Name",
+                ("Designation", "Date of Joining", "Email", "Phone", "Mobile", "Contact", "Office", "Area of Interest", "Personal Website"),
+            ),
+            255,
+        )
+        designation = _truncate(
+            _extract_label_value(
+                block,
+                "Designation",
+                ("Date of Joining", "Email", "Phone", "Mobile", "Contact", "Office", "Area of Interest", "Personal Website"),
+            ),
+            255,
+        )
+
+        if emails:
+            for email in emails:
+                contexts.append({
+                    "email": email,
+                    "phone": phones[0] if phones else "",
+                    "name": name or "",
+                    "designation": designation or "",
+                    "source_url": source_url,
+                    "organization": organization,
+                    "context": block,
+                    "page_text": page_text,
+                })
+        else:
+            for phone in phones:
+                contexts.append({
+                    "email": "",
+                    "phone": phone,
+                    "name": name or "",
+                    "designation": designation or "",
+                    "source_url": source_url,
+                    "organization": organization,
+                    "context": block,
+                    "page_text": page_text,
+                })
+
+    return contexts
 
 
 def extract_context_around_email(text: str, email: str):
@@ -495,10 +586,10 @@ def _fallback_contacts(contexts, job: DiscoveryJob):
             confidence = 35
 
         contacts.append({
-            "name": None,
+            "name": _truncate(item.get("name"), 255) or None,
             "organization": organization,
             "department": clean_value(job.department) or None,
-            "designation": clean_value(job.target_role) or None,
+            "designation": _truncate(item.get("designation"), 255) or clean_value(job.target_role) or None,
             "email": email or None,
             "phone": phone or None,
             "lead_type": clean_value(job.target_type) or "general",
@@ -520,6 +611,8 @@ def _build_contact_prompt(contexts, job: DiscoveryJob, campaign: Campaign | None
             "\n".join([
                 f"CONTACT_CONTEXT_{index}",
                 f"Source URL: {clean_value(item.get('source_url'))}",
+                f"Found name: {clean_value(item.get('name'))}",
+                f"Found designation: {clean_value(item.get('designation'))}",
                 f"Found email: {clean_value(item.get('email'))}",
                 f"Found phone: {clean_value(item.get('phone'))}",
                 f"Page organization hint: {clean_value(item.get('organization'))}",
@@ -643,10 +736,15 @@ def ai_structure_contacts(contexts, job: DiscoveryJob, campaign: Campaign | None
             phone = ""
         elif phone:
             phone = allowed_phone_by_key.get(phone_key) or phone
+
+        fallback = fallback_by_email.get(email) or fallback_by_phone.get(_phone_key(phone)) or {}
+        if not phone and fallback.get("phone"):
+            phone = clean_value(fallback.get("phone"))
+        if not email and fallback.get("email"):
+            email = clean_value(fallback.get("email")).lower()
         if not email and not phone:
             continue
 
-        fallback = fallback_by_email.get(email) or fallback_by_phone.get(_phone_key(phone)) or {}
         confidence = item.get("confidence")
         try:
             confidence = max(0, min(100, int(confidence)))
@@ -677,9 +775,22 @@ def _make_contexts_for_page(source_url: str, html: str, page_text: str):
     emails = extract_emails_regex(combined_text)
     phones = extract_phone_regex(page_text)
     organization = _infer_organization(page_text, source_url)
-    contexts = []
+    contexts = _extract_person_contact_blocks(page_text, source_url, organization)
+    seen_emails = {
+        clean_value(item.get("email")).lower()
+        for item in contexts
+        if clean_value(item.get("email"))
+    }
+    seen_phone_keys = {
+        _phone_key(item.get("phone"))
+        for item in contexts
+        if clean_value(item.get("phone"))
+    }
 
     for email in emails:
+        if email in seen_emails:
+            continue
+
         nearby_phone = _find_phone_near_text(page_text, email)
         contexts.append({
             "email": email,
@@ -689,9 +800,14 @@ def _make_contexts_for_page(source_url: str, html: str, page_text: str):
             "context": extract_context_around_email(page_text, email),
             "page_text": page_text,
         })
+        seen_emails.add(email)
 
-    if not emails:
+    if not contexts:
         for phone in phones[:2]:
+            phone_key = _phone_key(phone)
+            if phone_key in seen_phone_keys:
+                continue
+
             contexts.append({
                 "email": "",
                 "phone": phone,
@@ -700,23 +816,24 @@ def _make_contexts_for_page(source_url: str, html: str, page_text: str):
                 "context": _truncate(page_text, MAX_CONTEXT_CHARS),
                 "page_text": page_text,
             })
+            seen_phone_keys.add(phone_key)
 
     return contexts
 
 
-def _contact_exists(db: Session, job_id: int, email: str | None, phone: str | None, source_url: str):
+def _find_existing_contact(db: Session, job_id: int, email: str | None, phone: str | None, source_url: str):
     query = db.query(DiscoveredLead).filter(DiscoveredLead.discovery_job_id == job_id)
 
     if email:
-        return query.filter(DiscoveredLead.email == email).first() is not None
+        return query.filter(DiscoveredLead.email == email).first()
 
     if phone:
         return query.filter(
             DiscoveredLead.phone == phone,
             DiscoveredLead.source_url == source_url,
-        ).first() is not None
+        ).first()
 
-    return False
+    return None
 
 
 def run_discovery_job(db: Session, job_id: int):
@@ -794,7 +911,17 @@ def run_discovery_job(db: Session, job_id: int):
 
                 if not email and not phone:
                     continue
-                if _contact_exists(db, job.id, email, phone, contact_source_url):
+                existing_contact = _find_existing_contact(db, job.id, email, phone, contact_source_url)
+                if existing_contact:
+                    if phone and not clean_value(existing_contact.phone):
+                        existing_contact.phone = _truncate(phone, 100) or None
+                        existing_contact.updated_at = utc_now()
+                        if existing_contact.imported_lead_id:
+                            imported_lead = db.get(Lead, existing_contact.imported_lead_id)
+                            if imported_lead and not clean_value(imported_lead.phone):
+                                imported_lead.phone = _truncate(phone, 100) or None
+                    if contact.get("raw_context") and not clean_value(existing_contact.raw_context):
+                        existing_contact.raw_context = _truncate(contact.get("raw_context"), 1200) or None
                     continue
 
                 discovered_lead = DiscoveredLead(
@@ -990,6 +1117,12 @@ def import_selected_results(db: Session, job_id: int, result_ids: list[int], all
                     .first()
                 )
                 if duplicate:
+                    if clean_value(result.phone) and not clean_value(duplicate.phone):
+                        duplicate.phone = clean_value(result.phone)
+                    if clean_value(result.source_url) and not clean_value(duplicate.source_url):
+                        duplicate.source_url = clean_value(result.source_url)
+                    if clean_value(result.profile_url) and not clean_value(duplicate.profile_url):
+                        duplicate.profile_url = clean_value(result.profile_url)
                     skipped_duplicates += 1
                     result.status = "imported"
                     result.imported_lead_id = duplicate.id
