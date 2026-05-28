@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { formatDateTimeIST } from "../utils/dateUtils";
 import Badge from "./ui/Badge";
 import Button from "./ui/Button";
@@ -76,8 +77,13 @@ function LeadActions({
   scoringLeadId,
   onResearchLead,
   researchingLeadId,
+  onGenerateCallScript,
+  generatingCallScriptLeadId,
+  onStartTestCall,
+  startingCallLeadId,
 }) {
   const isResearched = lead.research_status === "researched";
+  const doNotCall = Boolean(lead.do_not_call);
 
   return (
     <div className="grid w-full grid-cols-1 gap-2">
@@ -111,6 +117,35 @@ function LeadActions({
       >
         {scoringLeadId === lead.id ? "Scoring..." : isResearched && hasScore(lead.ai_score) ? "Rescore after research" : hasScore(lead.ai_score) ? "Rescore" : "Score"}
       </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        className="w-full"
+        disabled={generatingCallScriptLeadId === lead.id}
+        onClick={() => onGenerateCallScript?.(lead)}
+      >
+        {generatingCallScriptLeadId === lead.id ? "Generating..." : "Generate Call Script"}
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        className="w-full"
+        disabled={doNotCall || startingCallLeadId === lead.id}
+        onClick={() => onStartTestCall?.(lead)}
+      >
+        {startingCallLeadId === lead.id ? "Starting..." : "Start Test AI Call"}
+      </Button>
+      <Button
+        as={Link}
+        to={`/calls?campaign_id=${lead.campaign_id}&lead_id=${lead.id}`}
+        size="sm"
+        variant="ghost"
+        className="w-full"
+      >
+        Manual Call Log
+      </Button>
     </div>
   );
 }
@@ -123,6 +158,11 @@ function LeadItem({
   onExtractEmail,
   onScoreLead,
   onResearchLead,
+  onGenerateCallScript,
+  generatingCallScriptLeadId,
+  onStartTestCall,
+  startingCallLeadId,
+  callScript,
 }) {
   const hasInsights = Boolean(
     lead.ai_score_reason ||
@@ -171,6 +211,7 @@ function LeadItem({
           <div className="flex flex-wrap gap-2 md:justify-end">
             <Badge variant={lead.status}>{displayValue(lead.status)}</Badge>
             {isDiscoveredLead && <Badge variant="discovery">Discovered</Badge>}
+            {lead.do_not_call && <Badge variant="do_not_call">Do Not Call</Badge>}
             <Badge variant={lead.research_status || "not_researched"}>
               {getResearchStatusLabel(lead.research_status)}
             </Badge>
@@ -185,6 +226,16 @@ function LeadItem({
           <p className="text-xs text-slate-400 md:text-right">
             Created: {formatDateTimeIST(lead.created_at)}
           </p>
+          {(lead.last_call_outcome || lead.call_status) && (
+            <p className="text-xs font-medium text-indigo-700 md:text-right">
+              Last call: {lead.last_call_outcome || lead.call_status}
+            </p>
+          )}
+          {!lead.phone && (
+            <p className="text-xs text-amber-700 md:text-right">
+              No phone number. Use test number or add phone.
+            </p>
+          )}
           <LeadActions
             lead={lead}
             extractingLeadId={extractingLeadId}
@@ -193,6 +244,10 @@ function LeadItem({
             onExtractEmail={onExtractEmail}
             onScoreLead={onScoreLead}
             onResearchLead={onResearchLead}
+            onGenerateCallScript={onGenerateCallScript}
+            generatingCallScriptLeadId={generatingCallScriptLeadId}
+            onStartTestCall={onStartTestCall}
+            startingCallLeadId={startingCallLeadId}
           />
         </div>
       </div>
@@ -228,7 +283,11 @@ function LeadItem({
           )}
         </InfoBlock>
 
-        <div className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 md:col-span-2 xl:col-span-3">
+        <InfoBlock label="Phone" className="xl:col-span-1">
+          <p className="mt-2 break-words text-sm font-semibold text-slate-900">{displayValue(lead.phone)}</p>
+        </InfoBlock>
+
+        <div className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 md:col-span-2 xl:col-span-2">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">AI Scores</p>
           <div className="mt-3 grid min-w-0 grid-cols-3 gap-2 sm:gap-3">
             <ScoreMetric label="Fit" value={lead.ai_fit_score} />
@@ -237,6 +296,20 @@ function LeadItem({
           </div>
         </div>
       </div>
+
+      {callScript && (
+        <details className="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/70 open:bg-white">
+          <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-indigo-800">
+            View Generated Call Script
+          </summary>
+          <div className="grid gap-3 border-t border-indigo-100 px-4 py-4 md:grid-cols-2">
+            <InsightBlock label="Opener">{callScript.opener}</InsightBlock>
+            <InsightBlock label="Questions">{callScript.questions}</InsightBlock>
+            <InsightBlock label="Objection handling">{callScript.objection_handling}</InsightBlock>
+            <InsightBlock label="Closing">{callScript.closing}</InsightBlock>
+          </div>
+        </details>
+      )}
 
       <details className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/70 open:bg-white">
         <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-sky-800">
@@ -322,6 +395,11 @@ function LeadTable({
   scoringLeadId,
   onResearchLead,
   researchingLeadId,
+  onGenerateCallScript,
+  generatingCallScriptLeadId,
+  onStartTestCall,
+  startingCallLeadId,
+  callScriptsByLead = {},
 }) {
   return (
     <Card>
@@ -370,6 +448,11 @@ function LeadTable({
               onExtractEmail={onExtractEmail}
               onScoreLead={onScoreLead}
               onResearchLead={onResearchLead}
+              onGenerateCallScript={onGenerateCallScript}
+              generatingCallScriptLeadId={generatingCallScriptLeadId}
+              onStartTestCall={onStartTestCall}
+              startingCallLeadId={startingCallLeadId}
+              callScript={callScriptsByLead[lead.id]}
             />
           ))}
         </div>

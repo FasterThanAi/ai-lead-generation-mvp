@@ -86,6 +86,13 @@ class Settings:
     GMAIL_REDIRECT_URI: str = os.getenv("GMAIL_REDIRECT_URI", "")
     GMAIL_SENDER_EMAIL: str = os.getenv("GMAIL_SENDER_EMAIL", "")
     GMAIL_DAILY_LIMIT: int = get_int_env("GMAIL_DAILY_LIMIT", 20)
+    VAPI_ENABLED: bool = get_bool_env("VAPI_ENABLED", False)
+    VAPI_API_KEY: str = os.getenv("VAPI_API_KEY", "")
+    VAPI_ASSISTANT_ID: str = os.getenv("VAPI_ASSISTANT_ID", "")
+    VAPI_PHONE_NUMBER_ID: str = os.getenv("VAPI_PHONE_NUMBER_ID", "")
+    VAPI_WEBHOOK_SECRET: str = os.getenv("VAPI_WEBHOOK_SECRET", "")
+    VAPI_DEFAULT_TEST_PHONE: str = os.getenv("VAPI_DEFAULT_TEST_PHONE", "")
+    VAPI_BASE_URL: str = os.getenv("VAPI_BASE_URL", "https://api.vapi.ai").rstrip("/")
     BACKEND_HOST: str = os.getenv("BACKEND_HOST", "127.0.0.1")
     BACKEND_PORT: int = get_int_env("BACKEND_PORT", 8000)
 

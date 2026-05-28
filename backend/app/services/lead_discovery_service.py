@@ -923,6 +923,7 @@ def import_selected_results(db: Session, job_id: int, result_ids: list[int], all
                 contact_name=clean_value(result.name) or None,
                 contact_role=clean_value(result.designation) or clean_value(job.target_role) or None,
                 email=email or None,
+                phone=clean_value(result.phone) or None,
                 source_url=clean_value(result.source_url) or None,
                 profile_url=clean_value(result.profile_url) or None,
                 source="discovery",

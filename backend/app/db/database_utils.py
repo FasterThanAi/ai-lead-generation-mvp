@@ -193,6 +193,47 @@ def ensure_lead_discovery_source_columns(engine):
             )
 
 
+def ensure_lead_call_columns(engine):
+    inspector = inspect(engine)
+
+    if "leads" not in inspector.get_table_names():
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("leads")
+    }
+
+    dialect_name = engine.dialect.name
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+
+    required_columns = {
+        "phone": "VARCHAR(100)",
+        "call_status": "VARCHAR(100)",
+        "last_call_outcome": "VARCHAR(100)",
+        "last_called_at": datetime_type,
+        "do_not_call": "BOOLEAN",
+    }
+
+    missing_columns = [
+        (column_name, column_type)
+        for column_name, column_type in required_columns.items()
+        if column_name not in existing_columns
+    ]
+
+    with engine.begin() as connection:
+        for column_name, column_type in missing_columns:
+            default_clause = " DEFAULT FALSE" if column_name == "do_not_call" else ""
+            connection.execute(
+                text(f"ALTER TABLE leads ADD COLUMN {column_name} {column_type}{default_clause}")
+            )
+
+        if "do_not_call" in existing_columns or any(column_name == "do_not_call" for column_name, _ in missing_columns):
+            connection.execute(
+                text("UPDATE leads SET do_not_call = FALSE WHERE do_not_call IS NULL")
+            )
+
+
 def ensure_opportunity_columns(engine):
     inspector = inspect(engine)
     dialect_name = engine.dialect.name
@@ -358,6 +399,89 @@ def ensure_discovery_columns(engine):
                 connection.execute(text("UPDATE discovery_jobs SET contacts_found = 0 WHERE contacts_found IS NULL"))
             if table_name == "discovered_leads":
                 connection.execute(text("UPDATE discovered_leads SET status = 'pending' WHERE status IS NULL"))
+
+
+def ensure_call_columns(engine):
+    inspector = inspect(engine)
+    dialect_name = engine.dialect.name
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+
+    call_log_columns = {
+        "id": "INTEGER",
+        "lead_id": "INTEGER",
+        "campaign_id": "INTEGER",
+        "provider": "VARCHAR(50)",
+        "provider_call_id": "VARCHAR(255)",
+        "provider_assistant_id": "VARCHAR(255)",
+        "provider_phone_number_id": "VARCHAR(255)",
+        "direction": "VARCHAR(50)",
+        "phone_number": "VARCHAR(100)",
+        "status": "VARCHAR(50)",
+        "outcome": "VARCHAR(100)",
+        "sentiment": "VARCHAR(50)",
+        "priority": "VARCHAR(50)",
+        "transcript": "TEXT",
+        "summary": "TEXT",
+        "next_action": "TEXT",
+        "call_script": "TEXT",
+        "recording_url": "TEXT",
+        "duration_seconds": "INTEGER",
+        "started_at": datetime_type,
+        "ended_at": datetime_type,
+        "raw_vapi_payload": "TEXT",
+        "error_message": "TEXT",
+        "created_at": datetime_type,
+        "updated_at": datetime_type,
+    }
+    call_script_columns = {
+        "id": "INTEGER",
+        "lead_id": "INTEGER",
+        "campaign_id": "INTEGER",
+        "script": "TEXT",
+        "opener": "TEXT",
+        "questions": "TEXT",
+        "objection_handling": "TEXT",
+        "closing": "TEXT",
+        "created_at": datetime_type,
+    }
+    table_columns = {
+        "call_logs": call_log_columns,
+        "call_scripts": call_script_columns,
+    }
+
+    table_names = inspector.get_table_names()
+
+    for table_name, required_columns in table_columns.items():
+        if table_name not in table_names:
+            continue
+
+        existing_columns = {
+            column["name"]
+            for column in inspector.get_columns(table_name)
+        }
+        missing_columns = [
+            (column_name, column_type)
+            for column_name, column_type in required_columns.items()
+            if column_name not in existing_columns and column_name != "id"
+        ]
+
+        with engine.begin() as connection:
+            for column_name, column_type in missing_columns:
+                default_clause = ""
+                if table_name == "call_logs" and column_name == "provider":
+                    default_clause = " DEFAULT 'vapi'"
+                if table_name == "call_logs" and column_name == "direction":
+                    default_clause = " DEFAULT 'outbound'"
+                if table_name == "call_logs" and column_name == "status":
+                    default_clause = " DEFAULT 'created'"
+                connection.execute(
+                    text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}{default_clause}")
+                )
+
+            if table_name == "call_logs":
+                connection.execute(text("UPDATE call_logs SET provider = 'vapi' WHERE provider IS NULL"))
+                connection.execute(text("UPDATE call_logs SET direction = 'outbound' WHERE direction IS NULL"))
+                connection.execute(text("UPDATE call_logs SET status = 'created' WHERE status IS NULL"))
 
 
 def ensure_reply_response_draft_columns(engine):

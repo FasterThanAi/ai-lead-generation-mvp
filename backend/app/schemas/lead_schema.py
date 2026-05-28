@@ -11,6 +11,7 @@ class LeadBase(BaseModel):
     contact_name: str | None = None
     contact_role: str | None = None
     email: str | None = None
+    phone: str | None = None
     source_url: str | None = None
     profile_url: str | None = None
     source: str | None = None
@@ -29,6 +30,10 @@ class LeadResponse(LeadBase):
     campaign_id: int
     source: str
     status: str
+    call_status: str | None = None
+    last_call_outcome: str | None = None
+    last_called_at: datetime | None = None
+    do_not_call: bool | None = None
     ai_score: int | None = None
     ai_fit_score: int | None = None
     ai_contact_confidence_score: int | None = None

@@ -7,10 +7,12 @@ from app.db.database import Base, engine
 from app.db.database_utils import (
     ensure_company_knowledge_columns,
     ensure_company_knowledge_embedding_columns,
+    ensure_call_columns,
     ensure_discovery_columns,
     ensure_email_draft_columns,
     ensure_knowledge_document_columns,
     ensure_lead_ai_scoring_columns,
+    ensure_lead_call_columns,
     ensure_lead_discovery_source_columns,
     ensure_lead_research_columns,
     ensure_opportunity_columns,
@@ -18,6 +20,8 @@ from app.db.database_utils import (
 )
 from app.db.models import (  # noqa: F401
     Campaign,
+    CallLog,
+    CallScript,
     CompanyKnowledge,
     DiscoveredLead,
     DiscoveryJob,
@@ -37,8 +41,10 @@ ensure_email_draft_columns(engine)
 ensure_lead_ai_scoring_columns(engine)
 ensure_lead_research_columns(engine)
 ensure_lead_discovery_source_columns(engine)
+ensure_lead_call_columns(engine)
 ensure_opportunity_columns(engine)
 ensure_discovery_columns(engine)
+ensure_call_columns(engine)
 ensure_reply_response_draft_columns(engine)
 ensure_company_knowledge_columns(engine)
 ensure_knowledge_document_columns(engine)

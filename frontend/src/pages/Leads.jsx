@@ -28,6 +28,11 @@ function Leads() {
   const [leadResearchError, setLeadResearchError] = useState("");
   const [researchingLeadId, setResearchingLeadId] = useState(null);
   const [isResearchingCampaign, setIsResearchingCampaign] = useState(false);
+  const [generatingCallScriptLeadId, setGeneratingCallScriptLeadId] = useState(null);
+  const [startingCallLeadId, setStartingCallLeadId] = useState(null);
+  const [callScriptsByLead, setCallScriptsByLead] = useState({});
+  const [callMessage, setCallMessage] = useState("");
+  const [callError, setCallError] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("All");
   const [qualificationFilter, setQualificationFilter] = useState("All");
   const [sortByScore, setSortByScore] = useState(true);
@@ -138,6 +143,9 @@ function Leads() {
     setLeadScoringError("");
     setLeadResearchMessage("");
     setLeadResearchError("");
+    setCallMessage("");
+    setCallError("");
+    setCallScriptsByLead({});
     setPriorityFilter("All");
     setQualificationFilter("All");
   };
@@ -256,6 +264,51 @@ function Leads() {
       console.error(err);
     } finally {
       setIsResearchingCampaign(false);
+    }
+  };
+
+  const handleGenerateCallScript = async (lead) => {
+    setGeneratingCallScriptLeadId(lead.id);
+    setCallMessage("");
+    setCallError("");
+
+    try {
+      const res = await api.post("/calls/generate-script", {
+        lead_id: lead.id,
+        campaign_id: lead.campaign_id,
+      });
+      setCallScriptsByLead((current) => ({
+        ...current,
+        [lead.id]: res.data,
+      }));
+      setCallMessage(`Call script generated for ${lead.company_name}.`);
+    } catch (err) {
+      setCallError(getFriendlyErrorMessage(err, "Call script could not be generated."));
+      console.error(err);
+    } finally {
+      setGeneratingCallScriptLeadId(null);
+    }
+  };
+
+  const handleStartTestCall = async (lead) => {
+    setStartingCallLeadId(lead.id);
+    setCallMessage("");
+    setCallError("");
+
+    try {
+      const res = await api.post("/calls/start-vapi", {
+        lead_id: lead.id,
+        campaign_id: lead.campaign_id,
+        phone_number: lead.phone || null,
+        use_test_number: true,
+      });
+      setCallMessage(`AI test call started. Call log ID: ${res.data.call_log_id}.`);
+      refreshLeads();
+    } catch (err) {
+      setCallError(getFriendlyErrorMessage(err, "AI test call could not be started."));
+      console.error(err);
+    } finally {
+      setStartingCallLeadId(null);
     }
   };
 
@@ -465,10 +518,16 @@ function Leads() {
           />
         </div>
 
-        {(leadExtractionMessage || leadExtractionError || leadScoringMessage || leadScoringError || leadResearchMessage || leadResearchError) && (
+        {(leadExtractionMessage || leadExtractionError || leadScoringMessage || leadScoringError || leadResearchMessage || leadResearchError || callMessage || callError) && (
           <Card>
+            {callMessage && (
+              <p className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-700">
+                {callMessage}
+              </p>
+            )}
+
             {leadResearchMessage && (
-              <p className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-700">
+              <p className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-700 first:mt-0">
                 {leadResearchMessage}
               </p>
             )}
@@ -502,6 +561,12 @@ function Leads() {
                 {leadResearchError}
               </p>
             )}
+
+            {callError && (
+              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">
+                {callError}
+              </p>
+            )}
           </Card>
         )}
 
@@ -516,6 +581,11 @@ function Leads() {
           scoringLeadId={scoringLeadId}
           onResearchLead={handleResearchLead}
           researchingLeadId={researchingLeadId}
+          onGenerateCallScript={handleGenerateCallScript}
+          generatingCallScriptLeadId={generatingCallScriptLeadId}
+          onStartTestCall={handleStartTestCall}
+          startingCallLeadId={startingCallLeadId}
+          callScriptsByLead={callScriptsByLead}
         />
       </div>
     </div>

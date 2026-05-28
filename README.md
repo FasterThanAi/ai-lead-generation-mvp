@@ -18,6 +18,7 @@ This is an AI-powered lead generation and cold email outreach MVP. It supports c
 - AI lead research and enrichment from public company website pages plus campaign/lead fields
 - Opportunity/Campaign Generator for turning rough outreach ideas into AI-generated campaign strategies
 - Lead Discovery for extracting public contacts from user-reviewed source URLs
+- Vapi Calling Agent integration for selected-lead AI calls, call logs, outcomes, transcripts, and follow-up draft actions
 - Draft approve/reject workflow
 - Gmail OAuth connection
 - Send approved emails
@@ -48,6 +49,7 @@ Backend:
 AI and email:
 - Gemini API
 - Gmail API OAuth
+- Vapi API for optional AI calling
 
 ## 4. Architecture
 
@@ -77,6 +79,8 @@ Main data flow:
 19. Users paste public source URLs into discovery jobs. The backend fetches only those reviewed URLs and extracts readable public contact details.
 20. Users approve, reject, and import selected discovered contacts into the existing Leads table.
 21. Imported discovery leads can be researched, scored, and used for manual email/call outreach preparation.
+22. Users can generate call scripts, start a selected Vapi AI call, receive Vapi webhooks/tool calls, and store call outcomes.
+23. Interested or details-requested calls can create follow-up email drafts, but nothing is sent automatically.
 
 ## 5. Week-wise Progress
 
@@ -207,6 +211,14 @@ Phase 3:
 - Works generically for professors, colleges, SMEs, startups, restaurants, clinics, retail shops, SaaS, manufacturing, and service businesses
 - LinkedIn scraping is not automated; use manual search or user-provided URLs only
 
+Vapi Calling Agent:
+- Calls page for configuration status, script generation, selected-lead AI calls, manual call logs, and call history
+- Backend-only Vapi API calls through `POST /api/calls/start-vapi`
+- Call logs store provider call id, status, outcome, sentiment, transcript, summary, recording URL, and next action
+- Vapi webhooks and tool calls update call logs and lead call fields
+- Do-not-call leads are blocked before any Vapi request
+- Follow-up email drafts can be created from call outcomes without sending
+
 ## 6. Local Setup
 
 Backend:
@@ -253,6 +265,13 @@ GMAIL_CLIENT_SECRET=
 GMAIL_REDIRECT_URI=
 GMAIL_SENDER_EMAIL=
 GMAIL_DAILY_LIMIT=
+VAPI_ENABLED=
+VAPI_API_KEY=
+VAPI_ASSISTANT_ID=
+VAPI_PHONE_NUMBER_ID=
+VAPI_WEBHOOK_SECRET=
+VAPI_DEFAULT_TEST_PHONE=
+VAPI_BASE_URL=
 ```
 
 Frontend:
@@ -287,19 +306,22 @@ Backend:
 11. Research leads when website/lead context is useful
 12. Score leads with AI
 13. Review top priority leads
-14. Generate first email
-15. Approve and send first email
-16. Recipient replies
-17. Check replies
-18. Classify reply with AI
-19. Generate response draft using relevant company knowledge
-20. Review intent, priority, next action, suggested response direction, knowledge used, and draft response
-21. Approve response
-22. Send approved response
-23. If no reply, generate follow-up draft
-24. Approve follow-up
-25. Send follow-up
-26. Track follow-up status
+14. Generate a call script or save a manual call log when calling is part of the workflow
+15. If Vapi is configured, start an AI test call for one selected lead only
+16. Review call transcript, summary, outcome, next action, and optional follow-up draft
+17. Generate first email
+18. Approve and send first email
+19. Recipient replies
+20. Check replies
+21. Classify reply with AI
+22. Generate response draft using relevant company knowledge
+23. Review intent, priority, next action, suggested response direction, knowledge used, and draft response
+24. Approve response
+25. Send approved response
+26. If no reply, generate follow-up draft
+27. Approve follow-up
+28. Send follow-up
+29. Track follow-up status
 
 ## 10. Knowledge Document Upload
 
@@ -388,10 +410,67 @@ Manual test examples:
 - Manual URL discovery for public faculty, department, company, restaurant, clinic, or startup pages.
 - Fake/unavailable URLs should fail cleanly with a friendly warning and zero imported leads.
 
-## 14. Safety Notes
+## 14. Vapi Calling Agent
+
+The Calls module adds optional AI calling through Vapi. The frontend never calls Vapi directly. It calls the FastAPI backend, and the backend uses `VAPI_API_KEY` server-side.
+
+Environment variables:
+
+```env
+VAPI_ENABLED=false
+VAPI_API_KEY=
+VAPI_ASSISTANT_ID=
+VAPI_PHONE_NUMBER_ID=
+VAPI_WEBHOOK_SECRET=
+VAPI_DEFAULT_TEST_PHONE=
+VAPI_BASE_URL=https://api.vapi.ai
+```
+
+Backend endpoints:
+- `GET /api/calls/config/status`
+- `GET /api/calls`
+- `GET /api/calls/{call_log_id}`
+- `POST /api/calls/generate-script`
+- `POST /api/calls/start-vapi`
+- `POST /api/calls/manual-log`
+- `PATCH /api/calls/{call_log_id}/outcome`
+- `POST /api/calls/{call_log_id}/create-followup-email`
+- `POST /api/calls/vapi/webhook`
+- `POST /api/calls/vapi/tool`
+
+The Vapi assistant setup guide is in `backend/docs/vapi_assistant_setup.md`. It includes the assistant system prompt, required tools, webhook URLs, and dashboard setup steps.
+
+The call script generator uses the current campaign offer, lead fields, lead research, AI score context, and relevant company knowledge when available. It is generic and campaign-aware. Professor/research campaigns get a respectful academic tone only when the campaign context supports that.
+
+Vapi webhook handling supports status updates, transcript updates, end-of-call reports, hang events, unknown payloads, and tool/function calls. Tool calls can fetch lead context, update outcomes, save summaries, create follow-up email drafts, mark do-not-call, and store callback notes.
+
+Testing flow:
+1. Open Calls page with Vapi env missing. It should show `Vapi not configured` without crashing.
+2. Generate a call script for one lead.
+3. Save a manual call log with outcome `asked_details`.
+4. Create a follow-up email draft from that call log.
+5. Configure Vapi envs and test only with your own number first.
+6. Start one selected test call.
+7. Confirm Vapi webhooks update status, transcript, summary, and outcome.
+8. Mark a lead do-not-call and confirm AI calling is blocked.
+
+Current limitations:
+- No bulk calling.
+- No automatic calling.
+- Real calls require Vapi phone setup and credits.
+- Use a test number first.
+- Follow-up emails are drafts only and require manual approval before sending.
+
+## 15. Safety Notes
 
 - Emails are not sent automatically.
 - AI scoring is a recommendation and should be reviewed before outreach.
+- Calls are not started automatically.
+- Bulk calling is not implemented.
+- Vapi calls require explicit user action on a selected lead.
+- Vapi API keys stay backend-only.
+- Do-not-call leads cannot be called from the app.
+- Vapi raw payloads are stored for debugging but not shown by default in the UI.
 - Only approved drafts can be sent.
 - Follow-ups are never sent automatically.
 - Discovered contacts are not imported automatically.
@@ -409,10 +488,12 @@ Manual test examples:
 - Sample CSV files use placeholder data only.
 - Sample knowledge documents use placeholder data only.
 
-## 15. Future Improvements
+## 16. Future Improvements
 
 - Google Search lead discovery
 - Authentication
 - CRM integration
 - Better semantic reranking for larger knowledge bases
 - Richer embedding health monitoring and retry controls
+- Callback/task calendar for call-later outcomes
+- Bulk call queue with explicit opt-in safeguards

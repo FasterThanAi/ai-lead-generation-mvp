@@ -3,6 +3,7 @@ from app.api.routes import (
     ai,
     analytics,
     campaigns,
+    calls,
     dashboard,
     discovery,
     emails,
@@ -23,6 +24,7 @@ api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(campaigns.router)
+api_router.include_router(calls.router)
 api_router.include_router(leads.router)
 api_router.include_router(lead_scoring.router)
 api_router.include_router(opportunities.router)

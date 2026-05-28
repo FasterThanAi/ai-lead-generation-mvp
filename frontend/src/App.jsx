@@ -7,6 +7,7 @@ import Campaigns from "./pages/Campaigns";
 import Opportunities from "./pages/Opportunities";
 import LeadDiscovery from "./pages/LeadDiscovery";
 import Leads from "./pages/Leads";
+import Calls from "./pages/Calls";
 import Emails from "./pages/Emails";
 import Knowledge from "./pages/Knowledge";
 import Settings from "./pages/Settings";
@@ -17,6 +18,7 @@ const pageTitles = {
   "/opportunities": "Opportunities",
   "/discovery": "Lead Discovery",
   "/leads": "Leads",
+  "/calls": "Calls",
   "/emails": "Emails",
   "/knowledge": "Knowledge",
   "/settings": "Settings",
@@ -70,6 +72,7 @@ function AppShell() {
               <Route path="/opportunities" element={<Opportunities />} />
               <Route path="/discovery" element={<LeadDiscovery />} />
               <Route path="/leads" element={<Leads />} />
+              <Route path="/calls" element={<Calls />} />
               <Route path="/emails" element={<Emails />} />
               <Route path="/knowledge" element={<Knowledge />} />
               <Route path="/settings" element={<Settings />} />
