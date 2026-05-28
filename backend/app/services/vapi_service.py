@@ -86,6 +86,7 @@ def vapi_config_status():
         "assistant_configured": bool(settings.VAPI_ASSISTANT_ID),
         "phone_configured": bool(settings.VAPI_PHONE_NUMBER_ID),
         "test_phone_configured": bool(settings.VAPI_DEFAULT_TEST_PHONE),
+        "default_test_phone": settings.VAPI_DEFAULT_TEST_PHONE,
     }
 
 
@@ -402,6 +403,8 @@ def start_outbound_call(
     lead_id: int,
     phone_number: str,
     campaign_id: int | None = None,
+    call_mode: str = "test",
+    lead_phone_used: bool = False,
 ):
     if not is_vapi_configured():
         raise VapiConfigurationError("Vapi is not configured.")
@@ -425,6 +428,9 @@ def start_outbound_call(
         provider_phone_number_id=settings.VAPI_PHONE_NUMBER_ID,
         direction="outbound",
         phone_number=phone,
+        called_number=phone,
+        call_mode=call_mode if call_mode in {"test", "actual"} else "test",
+        lead_phone_used=lead_phone_used,
         status="created",
         call_script=script_payload.get("script"),
         raw_vapi_payload=None,
@@ -436,6 +442,8 @@ def start_outbound_call(
         "lead_id": str(lead.id),
         "campaign_id": str(campaign.id),
         "app_call_log_id": str(call_log.id),
+        "call_mode": call_log.call_mode,
+        "lead_phone_used": str(bool(call_log.lead_phone_used)).lower(),
     }
     variable_values = {
         "lead_id": str(lead.id),

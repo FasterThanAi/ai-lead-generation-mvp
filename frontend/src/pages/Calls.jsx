@@ -20,6 +20,22 @@ function display(value, fallback = "N/A") {
   return value || fallback;
 }
 
+function getCallModeLabel(callLog) {
+  if (callLog.provider === "manual") {
+    return "Manual Call";
+  }
+
+  return callLog.call_mode === "actual" ? "Actual Lead Call" : "Test Call";
+}
+
+function getCallModeVariant(callLog) {
+  if (callLog.provider === "manual") {
+    return "neutral";
+  }
+
+  return callLog.call_mode === "actual" ? "actual" : "test";
+}
+
 function ScriptPreview({ script }) {
   if (!script) {
     return (
@@ -64,6 +80,7 @@ function CallLogCard({ callLog, onCreateFollowup, creatingFollowupId }) {
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap gap-2">
+            <Badge variant={getCallModeVariant(callLog)}>{getCallModeLabel(callLog)}</Badge>
             <Badge variant={callLog.status}>{callLog.status}</Badge>
             {callLog.outcome && <Badge variant={callLog.outcome}>{callLog.outcome}</Badge>}
             {callLog.sentiment && <Badge variant={callLog.sentiment}>{callLog.sentiment}</Badge>}
@@ -76,7 +93,7 @@ function CallLogCard({ callLog, onCreateFollowup, creatingFollowupId }) {
             {[callLog.lead_name, callLog.lead_contact_role, callLog.campaign_name].filter(Boolean).join(" | ") || "No lead context"}
           </p>
           <p className="mt-1 break-words text-xs text-slate-400">
-            Phone: {display(callLog.phone_number)} | Duration: {callLog.duration_seconds ?? "-"}s
+            Called: {display(callLog.called_number || callLog.phone_number)} | Duration: {callLog.duration_seconds ?? "-"}s
           </p>
         </div>
         <p className="text-xs text-slate-400 lg:text-right">{formatDateTimeIST(callLog.created_at)}</p>
@@ -158,6 +175,11 @@ function Calls() {
     () => campaigns.find((campaign) => String(campaign.id) === String(selectedCampaignId)),
     [campaigns, selectedCampaignId]
   );
+
+  const callingNumber = useTestNumber
+    ? testPhoneNumber || configStatus?.default_test_phone || ""
+    : selectedLead?.phone || "";
+  const callingLabel = useTestNumber ? "Test number" : "Actual lead number";
 
   const loadCallLogs = async (leadId = selectedLeadId, campaignId = selectedCampaignId) => {
     const params = {};
@@ -278,11 +300,11 @@ function Calls() {
       const res = await api.post("/calls/start-vapi", {
         lead_id: Number(selectedLeadId),
         campaign_id: selectedCampaignId ? Number(selectedCampaignId) : null,
-        phone_number: phoneNumber || null,
         use_test_number: useTestNumber,
         test_phone_number: testPhoneNumber || null,
+        call_mode: useTestNumber ? "test" : "actual",
       });
-      setStatusMessage(`AI call started. Call log ID: ${res.data.call_log_id}.`);
+      setStatusMessage(`${useTestNumber ? "Test call" : "Actual lead call"} started. Call log ID: ${res.data.call_log_id}.`);
       await loadCallLogs();
     } catch (err) {
       setErrorMessage(getFriendlyErrorMessage(err, "AI call could not be started."));
@@ -350,7 +372,7 @@ function Calls() {
     <div>
       <PageHeader
         title="Calls"
-        description="Generate call scripts, start selected Vapi test calls, and review call outcomes before follow-up."
+        description="Generate call scripts, start selected Vapi calls, and review call outcomes before follow-up."
       />
 
       <div className="space-y-6">
@@ -401,7 +423,7 @@ function Calls() {
 
         <div className="grid gap-6 xl:grid-cols-[minmax(320px,460px)_minmax(0,1fr)]">
           <Card>
-            <h2 className="text-xl font-semibold tracking-tight text-slate-950">Start Test Call</h2>
+            <h2 className="text-xl font-semibold tracking-tight text-slate-950">Start AI Call</h2>
             <div className="mt-4 grid gap-4">
               <label className="text-sm">
                 <span className="mb-1 block font-medium text-slate-700">Campaign</span>
@@ -443,13 +465,13 @@ function Calls() {
                 <span className="mb-1 block font-medium text-slate-700">Lead phone number</span>
                 <input
                   type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  value={selectedLead?.phone || ""}
+                  readOnly
                   className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
                   placeholder="+91..."
                 />
                 <span className="mt-1 block text-xs text-slate-500">
-                  {selectedLead?.phone ? "Prefilled from the selected lead." : "No lead phone found. Keep test number checked or add a number."}
+                  {selectedLead?.phone ? "Saved on the selected lead." : "No saved lead phone. Keep test number checked."}
                 </span>
               </label>
 
@@ -460,6 +482,11 @@ function Calls() {
               {!useTestNumber && selectedLead?.phone && (
                 <p className="rounded-2xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800">
                   Test number is off. Starting the call will use this lead phone number.
+                </p>
+              )}
+              {!useTestNumber && !selectedLead?.phone && (
+                <p className="rounded-2xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+                  Lead does not have a phone number.
                 </p>
               )}
 
@@ -482,6 +509,10 @@ function Calls() {
                 </p>
               )}
 
+              <p className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-800">
+                Calling: {callingLabel} {display(callingNumber)}
+              </p>
+
               {selectedCampaign && selectedLead && (
                 <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3 text-sm leading-6 text-indigo-800">
                   <p className="font-semibold text-indigo-900">Call context preview</p>
@@ -495,8 +526,8 @@ function Calls() {
                 <Button type="button" variant="secondary" disabled={!selectedLeadId || isGeneratingScript} onClick={handleGenerateScript}>
                   {isGeneratingScript ? "Generating..." : "Generate Call Script"}
                 </Button>
-                <Button type="button" variant="indigo" disabled={!selectedLeadId || isStartingCall || selectedLead?.do_not_call} onClick={handleStartCall}>
-                  {isStartingCall ? "Starting..." : "Start AI Call"}
+                <Button type="button" variant="indigo" disabled={!selectedLeadId || isStartingCall || selectedLead?.do_not_call || (!useTestNumber && !selectedLead?.phone)} onClick={handleStartCall}>
+                  {isStartingCall ? "Starting..." : useTestNumber ? "Start Test AI Call" : "Start Actual Lead Call"}
                 </Button>
               </div>
             </div>

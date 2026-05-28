@@ -78,6 +78,9 @@ def serialize_call_log(call_log: CallLog, include_raw: bool = False):
         "provider_phone_number_id": call_log.provider_phone_number_id,
         "direction": call_log.direction,
         "phone_number": call_log.phone_number,
+        "called_number": call_log.called_number or call_log.phone_number,
+        "call_mode": call_log.call_mode,
+        "lead_phone_used": bool(call_log.lead_phone_used),
         "status": call_log.status,
         "outcome": call_log.outcome,
         "sentiment": call_log.sentiment,
@@ -195,12 +198,23 @@ def start_vapi_call(payload: StartVapiCallRequest, db: Session = Depends(get_db)
     if not is_vapi_configured():
         raise HTTPException(status_code=400, detail="Vapi is not configured.")
 
-    phone_number = clean_text(payload.phone_number)
-    if payload.use_test_number:
+    requested_call_mode = clean_text(payload.call_mode).lower()
+    if requested_call_mode not in {"test", "actual"}:
+        requested_call_mode = "test" if payload.use_test_number else "actual"
+
+    use_test_call = payload.use_test_number or requested_call_mode == "test"
+    if use_test_call:
+        call_mode = "test"
         phone_number = clean_text(payload.test_phone_number) or settings.VAPI_DEFAULT_TEST_PHONE
+        lead_phone_used = False
+    else:
+        call_mode = "actual"
+        phone_number = clean_text(lead.phone)
+        lead_phone_used = True
 
     if not phone_number:
-        raise HTTPException(status_code=400, detail="Phone number is required.")
+        detail = "Phone number is required." if call_mode == "test" else "Lead does not have a phone number."
+        raise HTTPException(status_code=400, detail=detail)
 
     try:
         call_log = start_outbound_call(
@@ -208,6 +222,8 @@ def start_vapi_call(payload: StartVapiCallRequest, db: Session = Depends(get_db)
             lead_id=payload.lead_id,
             phone_number=phone_number,
             campaign_id=payload.campaign_id,
+            call_mode=call_mode,
+            lead_phone_used=lead_phone_used,
         )
     except VapiConfigurationError as exc:
         raise HTTPException(status_code=400, detail=str(exc) or "Vapi is not configured.") from exc

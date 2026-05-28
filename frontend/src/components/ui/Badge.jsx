@@ -9,6 +9,8 @@ const badgeClasses = {
   pending: "border-slate-200 bg-slate-100 text-slate-600",
   imported: "border-indigo-100 bg-indigo-50 text-indigo-700",
   updated_existing: "border-sky-100 bg-sky-50 text-sky-700",
+  test: "border-indigo-100 bg-indigo-50 text-indigo-700",
+  actual: "border-emerald-100 bg-emerald-50 text-emerald-700",
   discovery: "border-sky-100 bg-sky-50 text-sky-700",
   queued: "border-blue-100 bg-blue-50 text-blue-700",
   ringing: "border-amber-100 bg-amber-50 text-amber-700",

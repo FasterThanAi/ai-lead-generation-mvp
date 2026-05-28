@@ -84,10 +84,13 @@ function LeadActions({
   onGenerateCallScript,
   generatingCallScriptLeadId,
   onStartTestCall,
+  onStartActualCall,
   startingCallLeadId,
+  startingCallMode,
 }) {
   const isResearched = lead.research_status === "researched";
   const doNotCall = Boolean(lead.do_not_call);
+  const isStartingThisLead = startingCallLeadId === lead.id;
 
   return (
     <div className="grid w-full grid-cols-1 gap-2">
@@ -136,11 +139,23 @@ function LeadActions({
         size="sm"
         variant="secondary"
         className="w-full"
-        disabled={doNotCall || startingCallLeadId === lead.id}
+        disabled={doNotCall || isStartingThisLead}
         onClick={() => onStartTestCall?.(lead)}
       >
-        {startingCallLeadId === lead.id ? "Starting..." : "Start Test AI Call"}
+        {isStartingThisLead && startingCallMode === "test" ? "Starting..." : "Start Test AI Call"}
       </Button>
+      {lead.phone && (
+        <Button
+          type="button"
+          size="sm"
+          variant="indigo"
+          className="w-full"
+          disabled={doNotCall || isStartingThisLead}
+          onClick={() => onStartActualCall?.(lead)}
+        >
+          {isStartingThisLead && startingCallMode === "actual" ? "Starting..." : "Start Actual Lead Call"}
+        </Button>
+      )}
       <Button
         as={Link}
         to={`/calls?campaign_id=${lead.campaign_id}&lead_id=${lead.id}`}
@@ -165,7 +180,9 @@ function LeadItem({
   onGenerateCallScript,
   generatingCallScriptLeadId,
   onStartTestCall,
+  onStartActualCall,
   startingCallLeadId,
+  startingCallMode,
   callScript,
 }) {
   const hasInsights = Boolean(
@@ -251,7 +268,9 @@ function LeadItem({
             onGenerateCallScript={onGenerateCallScript}
             generatingCallScriptLeadId={generatingCallScriptLeadId}
             onStartTestCall={onStartTestCall}
+            onStartActualCall={onStartActualCall}
             startingCallLeadId={startingCallLeadId}
+            startingCallMode={startingCallMode}
           />
         </div>
       </div>
@@ -412,7 +431,9 @@ function LeadTable({
   onGenerateCallScript,
   generatingCallScriptLeadId,
   onStartTestCall,
+  onStartActualCall,
   startingCallLeadId,
+  startingCallMode,
   callScriptsByLead = {},
 }) {
   return (
@@ -465,7 +486,9 @@ function LeadTable({
               onGenerateCallScript={onGenerateCallScript}
               generatingCallScriptLeadId={generatingCallScriptLeadId}
               onStartTestCall={onStartTestCall}
+              onStartActualCall={onStartActualCall}
               startingCallLeadId={startingCallLeadId}
+              startingCallMode={startingCallMode}
               callScript={callScriptsByLead[lead.id]}
             />
           ))}

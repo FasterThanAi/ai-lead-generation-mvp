@@ -32,6 +32,7 @@ function Leads() {
   const [isResearchingCampaign, setIsResearchingCampaign] = useState(false);
   const [generatingCallScriptLeadId, setGeneratingCallScriptLeadId] = useState(null);
   const [startingCallLeadId, setStartingCallLeadId] = useState(null);
+  const [startingCallMode, setStartingCallMode] = useState(null);
   const [callScriptsByLead, setCallScriptsByLead] = useState({});
   const [callMessage, setCallMessage] = useState("");
   const [callError, setCallError] = useState("");
@@ -294,8 +295,9 @@ function Leads() {
     }
   };
 
-  const handleStartTestCall = async (lead) => {
+  const handleStartLeadCall = async (lead, callMode) => {
     setStartingCallLeadId(lead.id);
+    setStartingCallMode(callMode);
     setCallMessage("");
     setCallError("");
 
@@ -303,16 +305,17 @@ function Leads() {
       const res = await api.post("/calls/start-vapi", {
         lead_id: lead.id,
         campaign_id: lead.campaign_id,
-        phone_number: lead.phone || null,
-        use_test_number: true,
+        use_test_number: callMode === "test",
+        call_mode: callMode,
       });
-      setCallMessage(`AI test call started. Call log ID: ${res.data.call_log_id}.`);
+      setCallMessage(`${callMode === "actual" ? "Actual lead call" : "AI test call"} started. Call log ID: ${res.data.call_log_id}.`);
       refreshLeads();
     } catch (err) {
-      setCallError(getFriendlyErrorMessage(err, "AI test call could not be started."));
+      setCallError(getFriendlyErrorMessage(err, `${callMode === "actual" ? "Actual lead call" : "AI test call"} could not be started.`));
       console.error(err);
     } finally {
       setStartingCallLeadId(null);
+      setStartingCallMode(null);
     }
   };
 
@@ -587,8 +590,10 @@ function Leads() {
           researchingLeadId={researchingLeadId}
           onGenerateCallScript={handleGenerateCallScript}
           generatingCallScriptLeadId={generatingCallScriptLeadId}
-          onStartTestCall={handleStartTestCall}
+          onStartTestCall={(lead) => handleStartLeadCall(lead, "test")}
+          onStartActualCall={(lead) => handleStartLeadCall(lead, "actual")}
           startingCallLeadId={startingCallLeadId}
+          startingCallMode={startingCallMode}
           callScriptsByLead={callScriptsByLead}
         />
       </div>

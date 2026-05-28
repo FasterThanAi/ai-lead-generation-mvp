@@ -13,6 +13,9 @@ class CallLogResponse(BaseModel):
     provider_phone_number_id: str | None = None
     direction: str
     phone_number: str | None = None
+    called_number: str | None = None
+    call_mode: str | None = None
+    lead_phone_used: bool | None = None
     status: str
     outcome: str | None = None
     sentiment: str | None = None
@@ -42,6 +45,7 @@ class StartVapiCallRequest(BaseModel):
     phone_number: str | None = None
     use_test_number: bool = True
     test_phone_number: str | None = None
+    call_mode: str | None = None
     campaign_id: int | None = None
 
 
