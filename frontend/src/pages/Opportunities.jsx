@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { formatDateTimeIST } from "../utils/dateUtils";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
@@ -84,7 +84,7 @@ function ListBlock({ label, value }) {
   );
 }
 
-function StrategyView({ opportunity, onConvert, isConverting }) {
+function StrategyView({ opportunity, onConvert, onCreateDiscoveryJob, isConverting, isCreatingDiscoveryJob }) {
   if (!opportunity) {
     return (
       <Card>
@@ -126,6 +126,14 @@ function StrategyView({ opportunity, onConvert, isConverting }) {
               Open Campaigns
             </Button>
           )}
+          <Button
+            type="button"
+            variant="indigo"
+            disabled={!hasStrategy || isCreatingDiscoveryJob}
+            onClick={() => onCreateDiscoveryJob(opportunity)}
+          >
+            {isCreatingDiscoveryJob ? "Creating..." : "Create Lead Discovery Job"}
+          </Button>
         </div>
       </div>
 
@@ -183,6 +191,16 @@ function StrategyView({ opportunity, onConvert, isConverting }) {
               <TextBlock label="Offer" value={opportunity.suggested_campaign_offer} className="md:col-span-2 xl:col-span-5" />
             </div>
           </div>
+
+          <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Suggested discovery</p>
+            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <TextBlock label="Target type" value={opportunity.suggested_discovery_target_type} />
+              <TextBlock label="Department/domain" value={opportunity.suggested_discovery_department} />
+              <TextBlock label="Role" value={opportunity.suggested_discovery_role} />
+              <ListBlock label="Search queries" value={opportunity.suggested_discovery_queries} />
+            </div>
+          </div>
         </div>
       )}
     </Card>
@@ -190,6 +208,7 @@ function StrategyView({ opportunity, onConvert, isConverting }) {
 }
 
 function Opportunities() {
+  const navigate = useNavigate();
   const [opportunities, setOpportunities] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [formValues, setFormValues] = useState(emptyForm);
@@ -197,6 +216,7 @@ function Opportunities() {
   const [isCreating, setIsCreating] = useState(false);
   const [generatingId, setGeneratingId] = useState(null);
   const [convertingId, setConvertingId] = useState(null);
+  const [creatingDiscoveryJobId, setCreatingDiscoveryJobId] = useState(null);
   const [archivingId, setArchivingId] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -336,6 +356,26 @@ function Opportunities() {
       console.error(err);
     } finally {
       setConvertingId(null);
+    }
+  };
+
+  const handleCreateDiscoveryJob = async (opportunity) => {
+    setCreatingDiscoveryJobId(opportunity.id);
+    setStatusMessage("");
+    setErrorMessage("");
+
+    try {
+      const res = await api.post(`/opportunities/${opportunity.id}/create-discovery-job`, {
+        campaign_id: opportunity.converted_campaign_id || null,
+      });
+      const jobId = res.data.discovery_job_id;
+      setStatusMessage(`Discovery job created successfully. Job ID: ${jobId}.`);
+      navigate(`/discovery?job_id=${jobId}`);
+    } catch (err) {
+      setErrorMessage(getFriendlyErrorMessage(err, "Discovery job could not be created from strategy. Please try again."));
+      console.error(err);
+    } finally {
+      setCreatingDiscoveryJobId(null);
     }
   };
 
@@ -515,7 +555,9 @@ function Opportunities() {
           <StrategyView
             opportunity={selectedOpportunity}
             onConvert={handleConvert}
+            onCreateDiscoveryJob={handleCreateDiscoveryJob}
             isConverting={Boolean(selectedOpportunity && convertingId === selectedOpportunity.id)}
+            isCreatingDiscoveryJob={Boolean(selectedOpportunity && creatingDiscoveryJobId === selectedOpportunity.id)}
           />
         </div>
       </div>

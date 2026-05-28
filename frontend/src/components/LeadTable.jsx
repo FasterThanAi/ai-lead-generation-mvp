@@ -142,6 +142,7 @@ function LeadItem({
     lead.research_error
   );
   const usedResearchFallback = Boolean(lead.research_used_fallback);
+  const isDiscoveredLead = String(lead.source || "").toLowerCase() === "discovery";
 
   return (
     <article className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5 xl:p-6">
@@ -169,6 +170,7 @@ function LeadItem({
         <div className="flex min-w-0 flex-col gap-3 md:items-end">
           <div className="flex flex-wrap gap-2 md:justify-end">
             <Badge variant={lead.status}>{displayValue(lead.status)}</Badge>
+            {isDiscoveredLead && <Badge variant="discovery">Discovered</Badge>}
             <Badge variant={lead.research_status || "not_researched"}>
               {getResearchStatusLabel(lead.research_status)}
             </Badge>
@@ -214,6 +216,16 @@ function LeadItem({
             <p className="mt-2 text-sm text-slate-500">No email yet</p>
           )}
           <p className="mt-2 break-words text-xs text-slate-400">{displayValue(lead.source)}</p>
+          {(lead.source_url || lead.profile_url) && (
+            <a
+              href={lead.profile_url || lead.source_url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 block break-all text-xs font-medium text-blue-600 hover:text-blue-700"
+            >
+              Discovery source
+            </a>
+          )}
         </InfoBlock>
 
         <div className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 md:col-span-2 xl:col-span-3">

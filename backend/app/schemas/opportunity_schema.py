@@ -28,6 +28,10 @@ class OpportunityConvertToCampaignRequest(BaseModel):
     force_new: bool = False
 
 
+class OpportunityCreateDiscoveryJobRequest(BaseModel):
+    campaign_id: int | None = None
+
+
 class OpportunityResponse(BaseModel):
     id: int
     title: str
@@ -56,6 +60,10 @@ class OpportunityResponse(BaseModel):
     suggested_campaign_location: str | None = None
     suggested_campaign_target_role: str | None = None
     suggested_campaign_offer: str | None = None
+    suggested_discovery_target_type: str | None = None
+    suggested_discovery_department: str | None = None
+    suggested_discovery_role: str | None = None
+    suggested_discovery_queries: str | None = None
     ai_model: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -77,3 +85,10 @@ class OpportunityConvertToCampaignResponse(BaseModel):
     opportunity_id: int
     campaign_id: int
     already_converted: bool = False
+
+
+class OpportunityCreateDiscoveryJobResponse(BaseModel):
+    status: str
+    message: str
+    opportunity_id: int
+    discovery_job_id: int

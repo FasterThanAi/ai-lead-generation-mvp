@@ -161,6 +161,38 @@ def ensure_lead_research_columns(engine):
             )
 
 
+def ensure_lead_discovery_source_columns(engine):
+    inspector = inspect(engine)
+
+    if "leads" not in inspector.get_table_names():
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("leads")
+    }
+
+    required_columns = {
+        "source_url": "TEXT",
+        "profile_url": "TEXT",
+    }
+
+    missing_columns = [
+        (column_name, column_type)
+        for column_name, column_type in required_columns.items()
+        if column_name not in existing_columns
+    ]
+
+    if not missing_columns:
+        return
+
+    with engine.begin() as connection:
+        for column_name, column_type in missing_columns:
+            connection.execute(
+                text(f"ALTER TABLE leads ADD COLUMN {column_name} {column_type}")
+            )
+
+
 def ensure_opportunity_columns(engine):
     inspector = inspect(engine)
     dialect_name = engine.dialect.name
@@ -194,6 +226,10 @@ def ensure_opportunity_columns(engine):
         "suggested_campaign_location": "VARCHAR(255)",
         "suggested_campaign_target_role": "VARCHAR(255)",
         "suggested_campaign_offer": "TEXT",
+        "suggested_discovery_target_type": "VARCHAR(100)",
+        "suggested_discovery_department": "VARCHAR(255)",
+        "suggested_discovery_role": "VARCHAR(255)",
+        "suggested_discovery_queries": "TEXT",
         "ai_model": "VARCHAR(255)",
         "created_at": datetime_type,
         "updated_at": datetime_type,
@@ -224,6 +260,104 @@ def ensure_opportunity_columns(engine):
             connection.execute(
                 text("UPDATE opportunities SET status = 'draft' WHERE status IS NULL")
             )
+
+
+def ensure_discovery_columns(engine):
+    inspector = inspect(engine)
+    dialect_name = engine.dialect.name
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+
+    discovery_job_columns = {
+        "id": "INTEGER",
+        "opportunity_id": "INTEGER",
+        "campaign_id": "INTEGER",
+        "title": "VARCHAR(255)",
+        "target_type": "VARCHAR(100)",
+        "department": "VARCHAR(255)",
+        "location": "VARCHAR(255)",
+        "target_role": "VARCHAR(255)",
+        "query_goal": "TEXT",
+        "source_mode": "VARCHAR(50)",
+        "source_urls": "TEXT",
+        "generated_queries": "TEXT",
+        "status": "VARCHAR(50)",
+        "limit": "INTEGER",
+        "pages_attempted": "INTEGER",
+        "contacts_found": "INTEGER",
+        "errors": "TEXT",
+        "created_at": datetime_type,
+        "updated_at": datetime_type,
+    }
+    discovered_lead_columns = {
+        "id": "INTEGER",
+        "discovery_job_id": "INTEGER",
+        "campaign_id": "INTEGER",
+        "name": "VARCHAR(255)",
+        "organization": "VARCHAR(255)",
+        "department": "VARCHAR(255)",
+        "designation": "VARCHAR(255)",
+        "email": "VARCHAR(255)",
+        "phone": "VARCHAR(100)",
+        "website": "VARCHAR(500)",
+        "profile_url": "VARCHAR(500)",
+        "source_url": "TEXT",
+        "lead_type": "VARCHAR(100)",
+        "location": "VARCHAR(255)",
+        "confidence": "INTEGER",
+        "fit_reason": "TEXT",
+        "risk_flags": "TEXT",
+        "raw_context": "TEXT",
+        "status": "VARCHAR(50)",
+        "imported_lead_id": "INTEGER",
+        "created_at": datetime_type,
+        "updated_at": datetime_type,
+    }
+    table_columns = {
+        "discovery_jobs": discovery_job_columns,
+        "discovered_leads": discovered_lead_columns,
+    }
+
+    table_names = inspector.get_table_names()
+
+    for table_name, required_columns in table_columns.items():
+        if table_name not in table_names:
+            continue
+
+        existing_columns = {
+            column["name"]
+            for column in inspector.get_columns(table_name)
+        }
+        missing_columns = [
+            (column_name, column_type)
+            for column_name, column_type in required_columns.items()
+            if column_name not in existing_columns and column_name != "id"
+        ]
+
+        with engine.begin() as connection:
+            for column_name, column_type in missing_columns:
+                column_sql = f'"{column_name}"' if column_name == "limit" else column_name
+                default_clause = ""
+                if table_name == "discovery_jobs" and column_name == "source_mode":
+                    default_clause = " DEFAULT 'manual_urls'"
+                if table_name == "discovery_jobs" and column_name == "status":
+                    default_clause = " DEFAULT 'draft'"
+                if table_name == "discovery_jobs" and column_name in {"limit", "pages_attempted", "contacts_found"}:
+                    default_value = 20 if column_name == "limit" else 0
+                    default_clause = f" DEFAULT {default_value}"
+                if table_name == "discovered_leads" and column_name == "status":
+                    default_clause = " DEFAULT 'pending'"
+                connection.execute(
+                    text(f"ALTER TABLE {table_name} ADD COLUMN {column_sql} {column_type}{default_clause}")
+                )
+
+            if table_name == "discovery_jobs":
+                connection.execute(text("UPDATE discovery_jobs SET source_mode = 'manual_urls' WHERE source_mode IS NULL"))
+                connection.execute(text("UPDATE discovery_jobs SET status = 'draft' WHERE status IS NULL"))
+                connection.execute(text('UPDATE discovery_jobs SET "limit" = 20 WHERE "limit" IS NULL'))
+                connection.execute(text("UPDATE discovery_jobs SET pages_attempted = 0 WHERE pages_attempted IS NULL"))
+                connection.execute(text("UPDATE discovery_jobs SET contacts_found = 0 WHERE contacts_found IS NULL"))
+            if table_name == "discovered_leads":
+                connection.execute(text("UPDATE discovered_leads SET status = 'pending' WHERE status IS NULL"))
 
 
 def ensure_reply_response_draft_columns(engine):

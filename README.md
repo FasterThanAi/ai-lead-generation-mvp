@@ -17,6 +17,7 @@ This is an AI-powered lead generation and cold email outreach MVP. It supports c
 - Hybrid semantic and keyword RAG for company-specific AI context
 - AI lead research and enrichment from public company website pages plus campaign/lead fields
 - Opportunity/Campaign Generator for turning rough outreach ideas into AI-generated campaign strategies
+- Lead Discovery for extracting public contacts from user-reviewed source URLs
 - Draft approve/reject workflow
 - Gmail OAuth connection
 - Send approved emails
@@ -72,6 +73,10 @@ Main data flow:
 15. When semantic RAG is enabled, knowledge entries are embedded on the backend and searched through Supabase/PostgreSQL `pgvector`, with keyword fallback if semantic search is unavailable.
 16. Users can research leads before scoring or email generation. The backend checks a small number of public website pages, combines that with campaign/lead data, and stores a concise enrichment profile.
 17. Users can create an opportunity from a rough idea, generate an AI campaign strategy, and convert the reviewed strategy into a campaign.
+18. Opportunities can create lead discovery jobs with suggested target type, department, role, and manual search queries.
+19. Users paste public source URLs into discovery jobs. The backend fetches only those reviewed URLs and extracts readable public contact details.
+20. Users approve, reject, and import selected discovered contacts into the existing Leads table.
+21. Imported discovery leads can be researched, scored, and used for manual email/call outreach preparation.
 
 ## 5. Week-wise Progress
 
@@ -195,7 +200,10 @@ Phase 3:
 - Opportunity/Campaign Generator
 - Users enter a rough business, research, or outreach goal
 - Gemini generates a complete campaign strategy with audience, roles, pain points, value proposition, outreach angle, search keywords, lead source ideas, email script, call script, follow-up sequence, qualification criteria, and risk flags
+- Gemini also suggests discovery target type, department/domain, target role, and safe manual search queries
 - Strategies can be converted into campaigns after user review
+- Strategies can create lead discovery jobs after user review
+- Lead Discovery accepts public source URLs, extracts public emails/phones, structures contacts, and keeps them pending for review before import
 - Works generically for professors, colleges, SMEs, startups, restaurants, clinics, retail shops, SaaS, manufacturing, and service businesses
 - LinkedIn scraping is not automated; use manual search or user-provided URLs only
 
@@ -269,26 +277,29 @@ Backend:
 1. Create an opportunity from a rough outreach idea
 2. Generate and review the AI strategy
 3. Convert the strategy into a campaign
-4. Add company knowledge such as product details, pricing notes, FAQs, and demo scripts
-5. Upload sample knowledge documents from `sample-data/knowledge-documents/`
-6. Generate missing embeddings from the Knowledge page when semantic RAG is enabled
-7. Upload leads CSV
-8. Research leads when website/lead context is useful
-9. Score leads with AI
-10. Review top priority leads
-11. Generate first email
-12. Approve and send first email
-13. Recipient replies
-14. Check replies
-15. Classify reply with AI
-16. Generate response draft using relevant company knowledge
-17. Review intent, priority, next action, suggested response direction, knowledge used, and draft response
-18. Approve response
-19. Send approved response
-20. If no reply, generate follow-up draft
-21. Approve follow-up
-22. Send follow-up
-23. Track follow-up status
+4. Create a lead discovery job from the strategy, or create one manually
+5. Generate manual search queries, collect public source URLs, paste them into Lead Discovery, and run discovery
+6. Review discovered contacts, approve selected contacts, and import them into Leads
+7. Add company knowledge such as product details, pricing notes, FAQs, and demo scripts
+8. Upload sample knowledge documents from `sample-data/knowledge-documents/`
+9. Generate missing embeddings from the Knowledge page when semantic RAG is enabled
+10. Upload leads CSV if you are using file-based lead sourcing instead of discovery
+11. Research leads when website/lead context is useful
+12. Score leads with AI
+13. Review top priority leads
+14. Generate first email
+15. Approve and send first email
+16. Recipient replies
+17. Check replies
+18. Classify reply with AI
+19. Generate response draft using relevant company knowledge
+20. Review intent, priority, next action, suggested response direction, knowledge used, and draft response
+21. Approve response
+22. Send approved response
+23. If no reply, generate follow-up draft
+24. Approve follow-up
+25. Send follow-up
+26. Track follow-up status
 
 ## 10. Knowledge Document Upload
 
@@ -337,13 +348,23 @@ Manual test flow:
 
 Current limitation: research is lightweight website research only. It does not crawl recursively and does not use external paid enrichment APIs.
 
-## 13. Opportunity Generator
+## 13. Opportunity And Lead Discovery
 
 Phase 3 adds an Opportunities page. A user enters a rough goal such as professor outreach, restaurant marketing, clinic software, cybersecurity audit outreach, college project assistance, SME outreach, or startup sales. Gemini turns that rough idea into a practical campaign strategy.
 
-Generated strategies include target audience, ideal roles, industries, locations, pain points, value proposition, outreach angle, search keywords, lead source ideas, email script, call script, follow-up sequence, qualification criteria, risk flags, and suggested campaign fields.
+Generated strategies include target audience, ideal roles, industries, locations, pain points, value proposition, outreach angle, search keywords, lead source ideas, email script, call script, follow-up sequence, qualification criteria, risk flags, suggested campaign fields, and suggested discovery fields.
 
 The user can review the strategy and then create a campaign from the suggested campaign name, industry, location, target role, and offer. The system returns the existing converted campaign if the opportunity was already converted, preventing accidental duplicates.
+
+The user can also create a Lead Discovery job from a generated strategy. Discovery jobs can be tied to a campaign, an opportunity, or both. They store a target type, department/domain, target role, goal, source URLs, generated search queries, status, attempted page count, contact count, and friendly errors.
+
+Lead Discovery supports two practical sourcing paths:
+- CSV upload remains available for lead lists the user already has.
+- Discovery accepts public source URLs, extracts readable emails and phone numbers, structures contacts with Gemini when available, and keeps every contact pending until the user reviews it.
+
+Generated query mode is guidance only. The app can create safe manual queries such as `site:.ac.in "faculty" "computer science" "email" "India"`, but it does not scrape Google results or automate LinkedIn. Users copy queries, find public official pages, and paste those URLs into the discovery job.
+
+Imported discovery contacts are mapped into the existing Leads table with `source="discovery"`. Duplicate imports are skipped for the same campaign/email. Contacts without an email are skipped by default. After import, users can research imported leads, score them, generate emails, and use the opportunity call script for manual outreach.
 
 The generator is generic and campaign-aware. It should not assume a specific product. It can adapt to professor outreach, colleges, SMEs, restaurants, clinics, startups, retail shops, SaaS, manufacturing, service businesses, and other segments based on the user's goal and offer.
 
@@ -353,12 +374,19 @@ Safety limits:
 - LinkedIn may be suggested only for manual search or user-provided URLs.
 - Paid enrichment APIs are not used.
 - AI strategy output is reviewable before campaign creation.
+- Discovery fetches only user-provided public URLs.
+- Discovery does not bypass login pages, CAPTCHA, private systems, or rate limits.
+- Discovery uses short timeouts, a small response-size cap, private/local URL blocking, and friendly errors.
+- Raw page HTML is not stored; only extracted contact context and structured review fields are saved.
+- Discovered contacts must be reviewed before import.
 
 Manual test examples:
 - Professor outreach for research/project implementation assistance across engineering colleges in India.
 - Restaurant marketing for Google reviews, Instagram visibility, local discovery, and footfall.
 - Clinic software for appointments, patient records, billing, and staff coordination.
 - Cybersecurity audit outreach for startups or SaaS companies.
+- Manual URL discovery for public faculty, department, company, restaurant, clinic, or startup pages.
+- Fake/unavailable URLs should fail cleanly with a friendly warning and zero imported leads.
 
 ## 14. Safety Notes
 
@@ -366,6 +394,8 @@ Manual test examples:
 - AI scoring is a recommendation and should be reviewed before outreach.
 - Only approved drafts can be sent.
 - Follow-ups are never sent automatically.
+- Discovered contacts are not imported automatically.
+- Discovery uses public URLs selected by the user; it does not scrape search result pages or LinkedIn automatically.
 - Only approved follow-ups can be sent.
 - Follow-ups are limited to 2 per original email.
 - Gmail sending is limited.

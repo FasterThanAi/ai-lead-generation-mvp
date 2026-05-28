@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.db.models import Opportunity
 from app.schemas.opportunity_schema import (
+    OpportunityCreateDiscoveryJobRequest,
     OpportunityConvertToCampaignRequest,
     OpportunityCreate,
     OpportunityGenerateRequest,
@@ -14,6 +15,7 @@ from app.services.opportunity_service import (
     OpportunityServiceError,
     VALID_OPPORTUNITY_STATUSES,
     convert_opportunity_to_campaign,
+    create_discovery_job_from_opportunity,
     generate_opportunity_strategy,
 )
 from app.utils.time_utils import utc_now
@@ -77,6 +79,10 @@ def serialize_opportunity(opportunity: Opportunity):
         "suggested_campaign_location": opportunity.suggested_campaign_location,
         "suggested_campaign_target_role": opportunity.suggested_campaign_target_role,
         "suggested_campaign_offer": opportunity.suggested_campaign_offer,
+        "suggested_discovery_target_type": opportunity.suggested_discovery_target_type,
+        "suggested_discovery_department": opportunity.suggested_discovery_department,
+        "suggested_discovery_role": opportunity.suggested_discovery_role,
+        "suggested_discovery_queries": opportunity.suggested_discovery_queries,
         "ai_model": opportunity.ai_model,
         "created_at": opportunity.created_at,
         "updated_at": opportunity.updated_at,
@@ -254,4 +260,31 @@ def convert_to_campaign(
         "opportunity_id": opportunity.id,
         "campaign_id": campaign.id,
         "already_converted": already_converted,
+    }
+
+
+@router.post("/{opportunity_id}/create-discovery-job")
+def create_discovery_job(
+    opportunity_id: int,
+    payload: OpportunityCreateDiscoveryJobRequest | None = None,
+    db: Session = Depends(get_db),
+):
+    opportunity = get_opportunity_or_404(opportunity_id, db)
+
+    try:
+        job = create_discovery_job_from_opportunity(
+            db,
+            opportunity,
+            campaign_id=payload.campaign_id if payload else None,
+        )
+    except OpportunityServiceError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Discovery job could not be created from opportunity.") from exc
+
+    return {
+        "status": "success",
+        "message": "Lead discovery job created from opportunity",
+        "opportunity_id": opportunity.id,
+        "discovery_job_id": job.id,
     }

@@ -68,6 +68,8 @@ def serialize_lead(lead: Lead):
         "contact_name": lead.contact_name,
         "contact_role": lead.contact_role,
         "email": lead.email,
+        "source_url": lead.source_url,
+        "profile_url": lead.profile_url,
         "source": lead.source,
         "status": lead.status,
         "ai_score": lead.ai_score,
@@ -142,6 +144,8 @@ def create_lead(lead: LeadCreate, db: Session = Depends(get_db)):
         contact_name=clean_optional(lead.contact_name),
         contact_role=clean_optional(lead.contact_role),
         email=clean_optional(lead.email),
+        source_url=clean_optional(getattr(lead, "source_url", None)),
+        profile_url=clean_optional(getattr(lead, "profile_url", None)),
         source=clean_optional(lead.source) or "Manual",
     )
 
@@ -273,6 +277,8 @@ async def upload_leads_csv(
                 contact_name=clean_optional(normalized_row.get("contact_name")),
                 contact_role=clean_optional(normalized_row.get("contact_role")),
                 email=clean_optional(normalized_row.get("email")),
+                source_url=clean_optional(normalized_row.get("source_url")),
+                profile_url=clean_optional(normalized_row.get("profile_url")),
                 source=clean_optional(normalized_row.get("source")) or "CSV",
             )
         )

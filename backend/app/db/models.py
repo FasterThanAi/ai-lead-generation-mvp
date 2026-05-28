@@ -21,6 +21,8 @@ class Campaign(Base):
     follow_up_drafts = relationship("FollowUpDraft", back_populates="campaign", cascade="all, delete-orphan")
     reply_response_drafts = relationship("ReplyResponseDraft", back_populates="campaign", cascade="all, delete-orphan")
     converted_opportunities = relationship("Opportunity", back_populates="converted_campaign")
+    discovery_jobs = relationship("DiscoveryJob", back_populates="campaign")
+    discovered_leads = relationship("DiscoveredLead", back_populates="campaign")
 
 
 class Opportunity(Base):
@@ -53,12 +55,76 @@ class Opportunity(Base):
     suggested_campaign_location = Column(String(255), nullable=True)
     suggested_campaign_target_role = Column(String(255), nullable=True)
     suggested_campaign_offer = Column(Text, nullable=True)
+    suggested_discovery_target_type = Column(String(100), nullable=True)
+    suggested_discovery_department = Column(String(255), nullable=True)
+    suggested_discovery_role = Column(String(255), nullable=True)
+    suggested_discovery_queries = Column(Text, nullable=True)
     ai_model = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=utc_now)
     updated_at = Column(DateTime, nullable=True, onupdate=utc_now)
     converted_campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True, index=True)
 
     converted_campaign = relationship("Campaign", back_populates="converted_opportunities")
+    discovery_jobs = relationship("DiscoveryJob", back_populates="opportunity")
+
+
+class DiscoveryJob(Base):
+    __tablename__ = "discovery_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    opportunity_id = Column(Integer, ForeignKey("opportunities.id"), nullable=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True, index=True)
+    title = Column(String(255), nullable=False)
+    target_type = Column(String(100), nullable=True)
+    department = Column(String(255), nullable=True)
+    location = Column(String(255), nullable=True)
+    target_role = Column(String(255), nullable=True)
+    query_goal = Column(Text, nullable=True)
+    source_mode = Column(String(50), default="manual_urls", nullable=False)
+    source_urls = Column(Text, nullable=True)
+    generated_queries = Column(Text, nullable=True)
+    status = Column(String(50), default="draft", nullable=False)
+    limit = Column(Integer, default=20, nullable=False)
+    pages_attempted = Column(Integer, default=0, nullable=False)
+    contacts_found = Column(Integer, default=0, nullable=False)
+    errors = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, nullable=True, onupdate=utc_now)
+
+    opportunity = relationship("Opportunity", back_populates="discovery_jobs")
+    campaign = relationship("Campaign", back_populates="discovery_jobs")
+    discovered_leads = relationship("DiscoveredLead", back_populates="discovery_job", cascade="all, delete-orphan")
+
+
+class DiscoveredLead(Base):
+    __tablename__ = "discovered_leads"
+
+    id = Column(Integer, primary_key=True, index=True)
+    discovery_job_id = Column(Integer, ForeignKey("discovery_jobs.id"), nullable=False, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True, index=True)
+    name = Column(String(255), nullable=True)
+    organization = Column(String(255), nullable=True)
+    department = Column(String(255), nullable=True)
+    designation = Column(String(255), nullable=True)
+    email = Column(String(255), nullable=True, index=True)
+    phone = Column(String(100), nullable=True)
+    website = Column(String(500), nullable=True)
+    profile_url = Column(String(500), nullable=True)
+    source_url = Column(Text, nullable=False)
+    lead_type = Column(String(100), nullable=True)
+    location = Column(String(255), nullable=True)
+    confidence = Column(Integer, nullable=True)
+    fit_reason = Column(Text, nullable=True)
+    risk_flags = Column(Text, nullable=True)
+    raw_context = Column(Text, nullable=True)
+    status = Column(String(50), default="pending", nullable=False)
+    imported_lead_id = Column(Integer, ForeignKey("leads.id"), nullable=True, index=True)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, nullable=True, onupdate=utc_now)
+
+    discovery_job = relationship("DiscoveryJob", back_populates="discovered_leads")
+    campaign = relationship("Campaign", back_populates="discovered_leads")
+    imported_lead = relationship("Lead")
 
 
 class Lead(Base):
@@ -73,6 +139,8 @@ class Lead(Base):
     contact_name = Column(String(255), nullable=True)
     contact_role = Column(String(255), nullable=True)
     email = Column(String(255), nullable=True)
+    source_url = Column(Text, nullable=True)
+    profile_url = Column(Text, nullable=True)
     source = Column(String(100), default="CSV")
     status = Column(String(100), default="new")
     ai_score = Column(Integer, nullable=True)

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../services/api";
 import { formatDateTimeIST } from "../utils/dateUtils";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
+import Button from "./ui/Button";
 import Card from "./ui/Card";
 import EmptyState from "./ui/EmptyState";
 
@@ -94,6 +96,12 @@ function CampaignList({ refreshKey }) {
               </div>
 
               <p className="mt-4 break-words text-sm leading-6 text-slate-600">{campaign.offer}</p>
+
+              <div className="mt-4">
+                <Button as={Link} to={`/discovery?campaign_id=${campaign.id}`} variant="secondary" size="sm">
+                  Create Discovery Job
+                </Button>
+              </div>
             </article>
           ))}
         </div>

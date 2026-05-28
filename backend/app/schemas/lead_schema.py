@@ -11,6 +11,8 @@ class LeadBase(BaseModel):
     contact_name: str | None = None
     contact_role: str | None = None
     email: str | None = None
+    source_url: str | None = None
+    profile_url: str | None = None
     source: str | None = None
 
 

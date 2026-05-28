@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db.models import Campaign, Opportunity
+from app.db.models import Campaign, DiscoveryJob, Opportunity
 from app.services.ai_service import clean_value, extract_json_from_text
 from app.services.knowledge_service import build_knowledge_context, search_relevant_knowledge
 from app.utils.time_utils import utc_now
@@ -90,18 +90,62 @@ def _fallback_strategy(opportunity: Opportunity):
     target_location = clean_value(opportunity.target_location) or "the selected region"
     offer = clean_value(opportunity.offer) or clean_value(opportunity.raw_goal) or "the offer"
     title = clean_value(opportunity.title) or "New opportunity"
+    goal_text = f"{title} {target_domain} {target_location} {offer} {clean_value(opportunity.raw_goal)}".lower()
+    ideal_roles = ["Founder", "Owner", "Manager", "Operations Head", "Relevant department lead"]
+    pain_points = [
+        "Current process may be manual or inconsistent.",
+        "Decision-makers may need a clearer way to evaluate the offer.",
+        "Relevance should be confirmed before making strong claims.",
+    ]
+    discovery = {
+        "target_type": "general",
+        "department": target_domain,
+        "role": "Relevant decision-maker",
+        "queries": [
+            f"{target_domain} {target_location} contact email",
+            f"{target_domain} {target_location} team decision maker",
+            f"{target_domain} {target_location} official website",
+        ],
+    }
+
+    if any(keyword in goal_text for keyword in ("professor", "faculty", "hod", "college", "department", "research")):
+        ideal_roles = ["Professor", "HOD", "Faculty coordinator", "Research coordinator", "Project coordinator"]
+        pain_points = [
+            "Students may need project implementation support, prototypes, mentorship, or documentation.",
+            "Departments may need practical project and research execution support.",
+            "Faculty relevance should be verified before outreach.",
+        ]
+        discovery = {
+            "target_type": "professor",
+            "department": target_domain,
+            "role": "Professor / HOD / Faculty coordinator",
+            "queries": [
+                f'site:.ac.in "faculty" "{target_domain}" "email" "{target_location}"',
+                f'site:.edu.in "engineering college" "HOD" "email" "{target_location}"',
+                f'site:.ac.in "{target_domain}" "research" "faculty" "email"',
+            ],
+        }
+    elif "restaurant" in goal_text:
+        ideal_roles = ["Owner", "Restaurant manager", "Marketing manager"]
+        pain_points = ["Weak local discovery", "Few Google reviews", "Low Instagram visibility", "Inconsistent footfall"]
+        discovery = {
+            "target_type": "company",
+            "department": "Restaurants",
+            "role": "Owner / Manager",
+            "queries": [
+                f'"restaurant" "{target_location}" "contact" "email"',
+                f'"restaurant owner" "{target_location}" "official website"',
+                f'"restaurant" "{target_location}" "contact us"',
+            ],
+        }
 
     return {
         "ai_summary": f"Build an outreach campaign for {target_domain} in {target_location} around {offer}.",
         "target_audience": f"Organizations, decision-makers, and coordinators connected to {target_domain}.",
-        "ideal_roles": ["Founder", "Owner", "Manager", "Operations Head", "Relevant department lead"],
+        "ideal_roles": ideal_roles,
         "industries": [target_domain],
         "locations": [target_location],
-        "pain_points": [
-            "Current process may be manual or inconsistent.",
-            "Decision-makers may need a clearer way to evaluate the offer.",
-            "Relevance should be confirmed before making strong claims.",
-        ],
+        "pain_points": pain_points,
         "value_proposition": f"A practical way to explore whether {offer} can help the target audience.",
         "outreach_angle": "Lead with a short, exploratory message focused on relevance and a low-pressure conversation.",
         "search_keywords": [target_domain, target_location, "decision maker", "contact"],
@@ -152,6 +196,7 @@ def _fallback_strategy(opportunity: Opportunity):
             "target_role": "Founder / Owner / Manager / Relevant decision-maker",
             "offer": offer,
         },
+        "suggested_discovery": discovery,
     }
 
 
@@ -208,6 +253,9 @@ Rules:
 - If the goal is cybersecurity, focus on vulnerabilities, data protection, compliance, and security risk.
 - If the goal is research/project assistance, focus on SIP, final-year projects, prototype support, technical mentorship, and documentation.
 - Search keywords must be realistic and safe.
+- Suggested discovery should describe what public source URLs the user should collect manually.
+- For professor/college/research goals, suggested discovery target_type should usually be professor, college, or department.
+- For company/SME/startup/service-business goals, suggested discovery target_type should usually be company, startup, or general.
 - Do not recommend scraping LinkedIn directly.
 - For LinkedIn, suggest manual search or user-provided URLs only.
 - Do not claim exact market facts, pricing, partnerships, or credentials unless provided.
@@ -242,6 +290,12 @@ Return JSON with this exact shape:
     "location": "...",
     "target_role": "...",
     "offer": "..."
+  }},
+  "suggested_discovery": {{
+    "target_type": "...",
+    "department": "...",
+    "role": "...",
+    "queries": ["..."]
   }}
 }}
 """.strip()
@@ -259,9 +313,12 @@ def _parse_strategy(response_text: str, opportunity: Opportunity):
         return fallback, True
 
     suggested_campaign = parsed.get("suggested_campaign")
+    suggested_discovery = parsed.get("suggested_discovery")
 
     if not isinstance(suggested_campaign, dict):
         suggested_campaign = fallback["suggested_campaign"]
+    if not isinstance(suggested_discovery, dict):
+        suggested_discovery = fallback["suggested_discovery"]
 
     strategy = {
         "ai_summary": parsed.get("ai_summary") or fallback["ai_summary"],
@@ -286,6 +343,12 @@ def _parse_strategy(response_text: str, opportunity: Opportunity):
             "target_role": suggested_campaign.get("target_role") or fallback["suggested_campaign"]["target_role"],
             "offer": suggested_campaign.get("offer") or fallback["suggested_campaign"]["offer"],
         },
+        "suggested_discovery": {
+            "target_type": suggested_discovery.get("target_type") or fallback["suggested_discovery"]["target_type"],
+            "department": suggested_discovery.get("department") or fallback["suggested_discovery"]["department"],
+            "role": suggested_discovery.get("role") or fallback["suggested_discovery"]["role"],
+            "queries": suggested_discovery.get("queries") or fallback["suggested_discovery"]["queries"],
+        },
     }
 
     return strategy, False
@@ -293,6 +356,7 @@ def _parse_strategy(response_text: str, opportunity: Opportunity):
 
 def _apply_strategy(opportunity: Opportunity, strategy: dict, model_used: str):
     suggested_campaign = strategy.get("suggested_campaign") or {}
+    suggested_discovery = strategy.get("suggested_discovery") or {}
 
     opportunity.ai_summary = _truncate(strategy.get("ai_summary"), 3000)
     opportunity.target_audience = _truncate(strategy.get("target_audience"), 3000)
@@ -314,6 +378,10 @@ def _apply_strategy(opportunity: Opportunity, strategy: dict, model_used: str):
     opportunity.suggested_campaign_location = _truncate(suggested_campaign.get("location"), 255)
     opportunity.suggested_campaign_target_role = _truncate(suggested_campaign.get("target_role"), 255)
     opportunity.suggested_campaign_offer = _truncate(suggested_campaign.get("offer"), 5000)
+    opportunity.suggested_discovery_target_type = _truncate(suggested_discovery.get("target_type"), 100)
+    opportunity.suggested_discovery_department = _truncate(suggested_discovery.get("department"), 255)
+    opportunity.suggested_discovery_role = _truncate(suggested_discovery.get("role"), 255)
+    opportunity.suggested_discovery_queries = _join_list(suggested_discovery.get("queries"))
     opportunity.status = "generated"
     opportunity.ai_model = model_used
     opportunity.updated_at = utc_now()
@@ -413,3 +481,49 @@ def convert_opportunity_to_campaign(db: Session, opportunity: Opportunity, force
         raise OpportunityServiceError("Campaign could not be created from opportunity.") from exc
 
     return campaign, False
+
+
+def create_discovery_job_from_opportunity(
+    db: Session,
+    opportunity: Opportunity,
+    campaign_id: int | None = None,
+):
+    selected_campaign_id = campaign_id or opportunity.converted_campaign_id
+
+    if selected_campaign_id:
+        campaign = db.get(Campaign, selected_campaign_id)
+        if not campaign:
+            raise OpportunityServiceError("Selected campaign was not found.")
+
+    generated_queries = (
+        clean_value(opportunity.suggested_discovery_queries)
+        or clean_value(opportunity.search_keywords)
+        or clean_value(opportunity.lead_source_ideas)
+    )
+    title = f"{clean_value(opportunity.title) or 'Opportunity'} Discovery"
+    query_goal = clean_value(opportunity.raw_goal) or clean_value(opportunity.ai_summary)
+
+    job = DiscoveryJob(
+        opportunity_id=opportunity.id,
+        campaign_id=selected_campaign_id,
+        title=title[:255],
+        target_type=clean_value(opportunity.suggested_discovery_target_type) or "general",
+        department=clean_value(opportunity.suggested_discovery_department) or clean_value(opportunity.target_domain),
+        location=clean_value(opportunity.suggested_campaign_location) or clean_value(opportunity.target_location),
+        target_role=clean_value(opportunity.suggested_discovery_role) or clean_value(opportunity.suggested_campaign_target_role),
+        query_goal=query_goal,
+        source_mode="generated_queries",
+        generated_queries=generated_queries or None,
+        limit=20,
+        status="draft",
+    )
+    db.add(job)
+
+    try:
+        db.commit()
+        db.refresh(job)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise OpportunityServiceError("Discovery job could not be created from opportunity.") from exc
+
+    return job
