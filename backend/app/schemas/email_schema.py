@@ -12,6 +12,7 @@ class EmailDraftResponse(BaseModel):
     body: str
     status: str
     source_type: str | None = None
+    knowledge_used: str | None = None
     ai_model: str | None = None
     sent_at: datetime | None = None
     send_error: str | None = None

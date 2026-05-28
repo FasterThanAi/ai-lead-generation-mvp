@@ -29,6 +29,7 @@ def serialize_email_draft(email_draft: EmailDraft):
         "body": email_draft.body,
         "status": email_draft.status,
         "source_type": email_draft.source_type,
+        "knowledge_used": email_draft.knowledge_used,
         "ai_model": email_draft.ai_model,
         "sent_at": email_draft.sent_at,
         "send_error": email_draft.send_error,

@@ -19,6 +19,7 @@ MAX_EMAIL_BODY_LENGTH = 10000
 
 def serialize_email_draft(email_draft: EmailDraft):
     lead = email_draft.lead
+    call_log = email_draft.call_log
 
     return {
         "id": email_draft.id,
@@ -29,6 +30,7 @@ def serialize_email_draft(email_draft: EmailDraft):
         "body": email_draft.body,
         "status": email_draft.status,
         "source_type": email_draft.source_type,
+        "knowledge_used": email_draft.knowledge_used,
         "ai_model": email_draft.ai_model,
         "sent_at": email_draft.sent_at,
         "send_error": email_draft.send_error,
@@ -56,11 +58,14 @@ def serialize_email_draft(email_draft: EmailDraft):
         "lead_ai_contact_confidence_score": lead.ai_contact_confidence_score if lead else None,
         "lead_ai_priority": lead.ai_priority if lead else None,
         "lead_ai_qualification": lead.ai_qualification if lead else None,
+        "call_created_at": call_log.created_at if call_log else None,
+        "call_started_at": call_log.started_at if call_log else None,
+        "call_outcome": call_log.outcome if call_log else None,
     }
 
 
 def email_draft_query(db: Session):
-    return db.query(EmailDraft).options(joinedload(EmailDraft.lead))
+    return db.query(EmailDraft).options(joinedload(EmailDraft.lead), joinedload(EmailDraft.call_log))
 
 
 @router.get("/")

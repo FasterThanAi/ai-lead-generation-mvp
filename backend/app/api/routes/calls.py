@@ -13,9 +13,9 @@ from app.schemas.call_schema import (
 from app.services.vapi_service import (
     VapiConfigurationError,
     VapiServiceError,
-    create_call_followup_email_draft,
     create_manual_call_log,
     generate_call_script,
+    generate_call_followup_email,
     handle_tool_call,
     handle_vapi_webhook,
     is_vapi_configured,
@@ -289,7 +289,7 @@ def create_followup_from_call(call_log_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Call log must be linked to a lead and campaign.")
 
     try:
-        draft = create_call_followup_email_draft(db, call_log)
+        draft, created = generate_call_followup_email(db, call_log.id)
         db.commit()
         db.refresh(draft)
     except Exception as exc:
@@ -298,10 +298,11 @@ def create_followup_from_call(call_log_id: int, db: Session = Depends(get_db)):
 
     return {
         "status": "success",
-        "message": "Follow-up draft created. It was not sent.",
+        "message": "Follow-up draft created. It was not sent." if created else "Follow-up draft already exists. It was not sent.",
         "email_draft_id": draft.id,
         "campaign_id": draft.campaign_id,
         "lead_id": draft.lead_id,
+        "created": created,
     }
 
 

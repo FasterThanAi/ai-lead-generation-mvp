@@ -219,6 +219,7 @@ class CallLog(Base):
 
     lead = relationship("Lead", back_populates="call_logs")
     campaign = relationship("Campaign", back_populates="call_logs")
+    email_drafts = relationship("EmailDraft", back_populates="call_log")
 
 
 class CallScript(Base):
@@ -249,6 +250,7 @@ class EmailDraft(Base):
     body = Column(Text, nullable=False)
     status = Column(String(100), default="generated", nullable=False)
     source_type = Column(String(100), default="cold_email", nullable=False)
+    knowledge_used = Column(Text, nullable=True)
     ai_model = Column(String(255), nullable=True)
     sent_at = Column(DateTime, nullable=True)
     send_error = Column(Text, nullable=True)
@@ -271,6 +273,7 @@ class EmailDraft(Base):
 
     campaign = relationship("Campaign", back_populates="email_drafts")
     lead = relationship("Lead", back_populates="email_drafts")
+    call_log = relationship("CallLog", back_populates="email_drafts")
     follow_up_drafts = relationship("FollowUpDraft", back_populates="original_email_draft", cascade="all, delete-orphan")
     reply_response_drafts = relationship("ReplyResponseDraft", back_populates="original_email_draft", cascade="all, delete-orphan")
 

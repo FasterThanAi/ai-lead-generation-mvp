@@ -1513,6 +1513,7 @@ function Emails() {
                 const canEditDraft = ["generated", "approved", "failed"].includes(draft.status);
                 const isCallFollowUp = draft.source_type === "call_follow_up" || draft.ai_model === "vapi-call-followup-template";
                 const isLinkedDraft = selectedDraftId && String(draft.id) === String(selectedDraftId);
+                const draftKnowledgeUsedItems = getKnowledgeUsedItems(draft.knowledge_used);
 
                 return (
                 <div
@@ -1558,6 +1559,12 @@ function Emails() {
                           <Badge variant="asked_details">Call Follow-up</Badge>
                           {draft.call_log_id && <Badge variant="neutral">Call #{draft.call_log_id}</Badge>}
                         </div>
+                      )}
+                      {isCallFollowUp && draft.call_log_id && (
+                        <p className="mt-2 text-xs font-medium text-indigo-700">
+                          Based on call {draft.call_created_at ? `from ${formatDateTimeIST(draft.call_started_at || draft.call_created_at)}` : `#${draft.call_log_id}`}
+                          {draft.call_outcome ? ` | Outcome: ${draft.call_outcome}` : ""}
+                        </p>
                       )}
                       {draft.lead_ai_score !== null && draft.lead_ai_score !== undefined ? (
                         <p className="mt-2 text-sm font-medium text-indigo-700">
@@ -1625,6 +1632,27 @@ function Emails() {
                       {draft.send_error && (
                         <p className="text-red-700">Send error: {draft.send_error}</p>
                       )}
+                    </div>
+                  )}
+
+                  {isCallFollowUp && draftKnowledgeUsedItems.length > 0 && (
+                    <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3">
+                      <p className="text-xs font-semibold uppercase text-slate-500">Knowledge used</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {draftKnowledgeUsedItems.map((item, index) => (
+                          <span
+                            key={`${item.label}-${index}`}
+                            className="inline-flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
+                          >
+                            <span className="font-medium">{item.title}</span>
+                            {item.sourceType && (
+                              <Badge variant={String(item.sourceType).toLowerCase() === "document" ? "sent" : "neutral"}>
+                                {item.sourceType}
+                              </Badge>
+                            )}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
 

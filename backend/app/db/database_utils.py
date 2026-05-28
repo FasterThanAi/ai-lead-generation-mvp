@@ -28,6 +28,7 @@ def ensure_email_draft_columns(engine):
         "send_error": "TEXT",
         "gmail_message_id": "VARCHAR(255)",
         "source_type": "VARCHAR(100)",
+        "knowledge_used": "TEXT",
         "reply_checked_at": datetime_type,
         "reply_message_id": "VARCHAR(255)",
         "reply_snippet": "TEXT",

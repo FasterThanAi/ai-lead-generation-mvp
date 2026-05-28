@@ -336,7 +336,7 @@ function Calls() {
         id: res.data.email_draft_id,
         campaignId: res.data.campaign_id || callLog.campaign_id,
       });
-      setStatusMessage("Follow-up draft created.");
+      setStatusMessage(res.data.message || "Follow-up draft created.");
       await loadCallLogs();
     } catch (err) {
       setErrorMessage(getFriendlyErrorMessage(err, "Follow-up email draft could not be created."));

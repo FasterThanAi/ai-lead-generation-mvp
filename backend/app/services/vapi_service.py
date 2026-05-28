@@ -799,6 +799,83 @@ def _latest_call_log_for_tool(db: Session, lead_id: int | None = None, provider_
     return None
 
 
+def _knowledge_used_labels(entries):
+    labels = []
+    seen = set()
+
+    for entry in entries or []:
+        title = clean_value(getattr(entry, "title", ""))
+        if not title:
+            continue
+
+        source_type = clean_value(getattr(entry, "source_type", "")).lower()
+        source_label = "Document" if source_type == "document" else "Manual"
+        label = f"{title} ({source_label})"
+
+        if label not in seen:
+            labels.append(label)
+            seen.add(label)
+
+    return ", ".join(labels[:5])
+
+
+def _build_call_followup_knowledge(db: Session, call_log: CallLog, lead: Lead, campaign: Campaign):
+    query = " ".join(
+        part
+        for part in [
+            clean_value(campaign.offer),
+            clean_value(campaign.campaign_name),
+            clean_value(campaign.industry),
+            clean_value(campaign.target_role),
+            clean_value(call_log.summary),
+            clean_value(call_log.next_action),
+            clean_value(call_log.transcript),
+            clean_value(lead.company_name),
+            clean_value(lead.contact_role),
+            clean_value(getattr(lead, "research_summary", "")),
+            clean_value(getattr(lead, "research_pain_points", "")),
+            clean_value(getattr(lead, "research_use_case_fit", "")),
+        ]
+        if part
+    )
+
+    if not query:
+        return "", ""
+
+    try:
+        entries = search_relevant_knowledge(db, query, limit=4)
+        return build_knowledge_context(entries), _knowledge_used_labels(entries)
+    except Exception:
+        return "", ""
+
+
+def _previous_email_context(db: Session, lead: Lead, call_log_id: int | None = None):
+    drafts = (
+        db.query(EmailDraft)
+        .filter(EmailDraft.lead_id == lead.id)
+        .order_by(EmailDraft.created_at.desc(), EmailDraft.id.desc())
+        .limit(4)
+        .all()
+    )
+    lines = []
+
+    for draft in drafts:
+        if call_log_id and draft.call_log_id == call_log_id:
+            continue
+
+        parts = [
+            f"Subject: {clean_value(draft.subject)}",
+            f"Status: {clean_value(draft.status)}",
+        ]
+        if clean_value(draft.reply_summary):
+            parts.append(f"Reply summary: {clean_value(draft.reply_summary)}")
+        if clean_value(draft.reply_next_action):
+            parts.append(f"Reply next action: {clean_value(draft.reply_next_action)}")
+        lines.append(" | ".join(parts))
+
+    return _truncate("\n".join(lines), 1600)
+
+
 def _call_followup_subject(campaign: Campaign):
     goal_type = _campaign_goal_type(campaign)
 
@@ -861,13 +938,13 @@ def _format_call_followup_body(
         body_parts.append(f"I have kept the context in mind for {' at '.join(context_parts)}.")
 
     if call_summary:
-        body_parts.append(f"From the call, I understood: {clean_value(call_summary)}")
+        body_parts.append(f"On the call, I understood that {clean_value(call_summary)}.")
 
     if topic and topic != clean_value(call_summary):
         body_parts.append(f"Based on your requested topic, we can share more detail on {topic}.")
 
     if next_action:
-        body_parts.append(f"Next step: {clean_value(next_action)}")
+        body_parts.append(f"For the next step, {clean_value(next_action)}.")
 
     body_parts.extend([
         "",
@@ -880,56 +957,238 @@ def _format_call_followup_body(
     return "\n\n".join(part for part in body_parts if part is not None).strip()
 
 
-def _create_followup_email_draft(
-    db: Session,
-    lead: Lead,
-    campaign: Campaign,
-    reason: str,
-    suggested_message: str,
-    call_log: CallLog | None = None,
-):
-    call_summary = clean_value(call_log.summary if call_log else "") or clean_value(reason)
-    next_action = clean_value(call_log.next_action if call_log else "") or clean_value(suggested_message)
-    requested_topic = clean_value(reason) or clean_value(suggested_message) or call_summary or next_action
-    subject = _call_followup_subject(campaign)[:255]
+def _call_followup_fallback(lead: Lead, campaign: Campaign, call_log: CallLog):
+    subject = _call_followup_subject(campaign)
+    summary = clean_value(call_log.summary)
+    next_action = clean_value(call_log.next_action)
+    offer = clean_value(campaign.offer)
+    cleaned_summary = _clean_internal_call_text(summary)
+    cleaned_next_action = _clean_internal_call_text(next_action)
+
+    if "spintronics" in summary.lower() or "spintronics" in clean_value(call_log.transcript).lower():
+        subject = "Follow-up: Technical Assistance for Spintronics Research Work"
+
+    if "send follow-up email" in next_action.lower() or "send follow up email" in next_action.lower():
+        cleaned_next_action = "please share the specific requirement, research direction, or problem statement so we can suggest the right support approach"
+
     body = _format_call_followup_body(
         lead,
         campaign,
-        call_summary=call_summary,
-        next_action=next_action,
-        requested_topic=requested_topic,
+        call_summary=cleaned_summary,
+        next_action=cleaned_next_action,
+        requested_topic=cleaned_summary or cleaned_next_action,
     )
 
-    draft = EmailDraft(
-        campaign_id=campaign.id,
-        lead_id=lead.id,
-        call_log_id=call_log.id if call_log else None,
-        subject=subject,
-        body=body,
-        status="generated",
-        source_type="call_follow_up",
-        ai_model="vapi-call-followup-template",
+    if not offer and not summary:
+        body = (
+            f"{_call_followup_greeting(lead)}\n\n"
+            "Thank you for your time on the call.\n\n"
+            "I am sharing the details we discussed for your review. "
+            "Please let me know the best way to continue from here.\n\n"
+            "Regards,\nTeam"
+        )
+
+    return {"subject": subject[:255], "body": body}
+
+
+def _clean_internal_call_text(value: str):
+    text = clean_value(value)
+    if not text:
+        return ""
+
+    text = re.sub(r"(?i)\bsend\s+(?:a\s+)?follow[-\s]?up\s+email\s+(?:with|about|for)?", "", text)
+    text = re.sub(r"(?i)\bcontext\s*:\s*", "", text)
+    text = re.sub(r"(?i)\bnext\s+action\s*:\s*", "", text)
+    text = re.sub(r"\s+", " ", text).strip(" .:-")
+
+    return text
+
+
+def _has_internal_note_leak(subject: str, body: str):
+    combined = f"{subject}\n{body}".lower()
+    blocked_phrases = [
+        "send follow-up email",
+        "send follow up email",
+        "context:",
+        "next action:",
+        "internal note",
+    ]
+
+    return any(phrase in combined for phrase in blocked_phrases)
+
+
+def _build_call_followup_prompt(
+    call_log: CallLog,
+    lead: Lead,
+    campaign: Campaign,
+    knowledge_context: str,
+    previous_email_context: str,
+):
+    academic = _campaign_goal_type(campaign) == "professor"
+    academic_rules = """
+Professor/research campaign rules:
+- Address the professor respectfully.
+- Mention research/project implementation assistance.
+- Mention SIP, final-year project, prototype, simulation, planning, documentation, or mentorship only if supported by campaign/knowledge/call context.
+- If a specific domain was mentioned, such as spintronics, include it carefully as "spintronics-related research work".
+- Ask for the exact requirement, research direction, or problem statement before promising support.
+""".strip() if academic else "Use the campaign-specific tone and offer. Do not assume an academic use case unless the campaign or call says so."
+
+    return f"""
+You are writing a professional follow-up email after a phone call.
+Return strict JSON only.
+
+Call context:
+- Outcome: {clean_value(call_log.outcome)}
+- Sentiment: {clean_value(call_log.sentiment)}
+- Summary: {clean_value(call_log.summary)}
+- Next action: {clean_value(call_log.next_action)}
+- Transcript: {_truncate(call_log.transcript, 3500)}
+
+Lead:
+- Name: {clean_value(lead.contact_name)}
+- Role: {clean_value(lead.contact_role)}
+- Organization: {clean_value(lead.company_name)}
+- Email: {clean_value(lead.email)}
+
+Campaign:
+- Name: {clean_value(campaign.campaign_name)}
+- Industry: {clean_value(campaign.industry)}
+- Target role: {clean_value(campaign.target_role)}
+- Offer: {clean_value(campaign.offer)}
+
+Lead research:
+- Summary: {clean_value(getattr(lead, "research_summary", ""))}
+- Pain points: {clean_value(getattr(lead, "research_pain_points", ""))}
+- Use case fit: {clean_value(getattr(lead, "research_use_case_fit", ""))}
+- Outreach angle: {clean_value(getattr(lead, "research_outreach_angle", ""))}
+
+Lead scoring:
+- Score: {clean_value(getattr(lead, "ai_score", ""))}
+- Outreach angle: {clean_value(getattr(lead, "ai_outreach_angle", ""))}
+- Pain point: {clean_value(getattr(lead, "ai_pain_point", ""))}
+- Recommended CTA: {clean_value(getattr(lead, "ai_recommended_cta", ""))}
+
+Relevant company knowledge:
+{knowledge_context or "No relevant company knowledge found."}
+
+Previous email/reply context:
+{previous_email_context or "No previous email context found."}
+
+Rules:
+- Write as a real email, not internal notes.
+- Do not include labels like "Context:" or "Next action:" in the body.
+- Do not copy the next_action sentence directly.
+- Do not say "Send follow-up email".
+- Do not use generic filler like "Please let me know if you would like me to share a short overview".
+- Do not include raw call-summary labels.
+- Do not invent fake pricing, fake guarantees, fake case studies, or fake team details.
+- Use the exact call context.
+- Keep it concise but specific.
+- Mention the requested topic from the call.
+- End with a clear next step.
+- Do not send the email; only draft it for review.
+- Sign off as "Team".
+{academic_rules}
+
+Return JSON:
+{{
+  "subject": "...",
+  "body": "..."
+}}
+""".strip()
+
+
+def _generate_call_followup_payload(db: Session, call_log: CallLog, lead: Lead, campaign: Campaign):
+    knowledge_context, knowledge_used = _build_call_followup_knowledge(db, call_log, lead, campaign)
+    previous_context = _previous_email_context(db, lead, call_log.id)
+    fallback = _call_followup_fallback(lead, campaign, call_log)
+    model_used = "vapi-call-followup-fallback"
+
+    if settings.GEMINI_API_KEY:
+        try:
+            client = genai.Client(api_key=settings.GEMINI_API_KEY)
+            response = client.models.generate_content(
+                model=settings.GEMINI_MODEL,
+                contents=_build_call_followup_prompt(call_log, lead, campaign, knowledge_context, previous_context),
+            )
+            parsed = extract_json_from_text(clean_value(getattr(response, "text", "")))
+            subject = _truncate(parsed.get("subject"), 255)
+            body = clean_value(parsed.get("body"))
+
+            if subject and body and not _has_internal_note_leak(subject, body):
+                model_used = settings.GEMINI_MODEL
+                return {
+                    "subject": subject,
+                    "body": body,
+                    "ai_model": model_used,
+                    "knowledge_used": knowledge_used,
+                }
+        except Exception:
+            pass
+
+    return {
+        "subject": fallback["subject"],
+        "body": fallback["body"],
+        "ai_model": model_used,
+        "knowledge_used": knowledge_used,
+    }
+
+
+def _existing_call_followup_draft(db: Session, call_log_id: int | None):
+    if not call_log_id:
+        return None
+
+    return (
+        db.query(EmailDraft)
+        .filter(
+            EmailDraft.call_log_id == call_log_id,
+            EmailDraft.source_type == "call_follow_up",
+        )
+        .order_by(EmailDraft.created_at.desc(), EmailDraft.id.desc())
+        .first()
     )
-    db.add(draft)
-    db.flush()
-    return draft
 
 
 def create_call_followup_email_draft(db: Session, call_log: CallLog):
     if not call_log.lead or not call_log.campaign:
         raise VapiServiceError("Call log must be linked to a lead and campaign.")
 
-    draft = _create_followup_email_draft(
-        db,
-        call_log.lead,
-        call_log.campaign,
-        call_log.summary or call_log.outcome or "Follow-up requested after call.",
-        call_log.next_action or "As discussed, I am sharing the requested details.",
-        call_log=call_log,
+    existing_draft = _existing_call_followup_draft(db, call_log.id)
+    if existing_draft:
+        return existing_draft, False
+
+    payload = _generate_call_followup_payload(db, call_log, call_log.lead, call_log.campaign)
+    draft = EmailDraft(
+        campaign_id=call_log.campaign.id,
+        lead_id=call_log.lead.id,
+        call_log_id=call_log.id,
+        subject=payload["subject"],
+        body=payload["body"],
+        status="generated",
+        source_type="call_follow_up",
+        knowledge_used=payload.get("knowledge_used") or None,
+        ai_model=payload.get("ai_model"),
     )
+    db.add(draft)
+    db.flush()
     call_log.next_action = call_log.next_action or "Follow-up email draft created for review."
     call_log.updated_at = utc_now()
-    return draft
+    return draft, True
+
+
+def generate_call_followup_email(db: Session, call_log_id: int):
+    call_log = (
+        db.query(CallLog)
+        .options(joinedload(CallLog.lead), joinedload(CallLog.campaign))
+        .filter(CallLog.id == call_log_id)
+        .first()
+    )
+
+    if not call_log:
+        raise VapiServiceError("Call log was not found.")
+
+    return create_call_followup_email_draft(db, call_log)
 
 
 def _tool_success(tool_call_id: str | None, result: dict):
@@ -1101,22 +1360,35 @@ def _handle_single_tool_call(db: Session, name: str, args: dict, payload: dict):
         if not lead or not campaign:
             raise VapiServiceError("Lead and campaign are required.")
         try:
-            draft = _create_followup_email_draft(
-                db,
-                lead,
-                campaign,
-                clean_value(args.get("reason")) or clean_value(call_log.summary if call_log else ""),
-                clean_value(args.get("suggested_message")) or clean_value(call_log.next_action if call_log else ""),
-                call_log=call_log,
-            )
-            if call_log:
-                call_log.next_action = call_log.next_action or "Follow-up email draft created for review."
-                call_log.updated_at = utc_now()
+            if not call_log:
+                call_log = CallLog(
+                    lead_id=lead.id,
+                    campaign_id=campaign.id,
+                    provider="vapi",
+                    provider_call_id=provider_call_id or None,
+                    direction="outbound",
+                    status="completed",
+                    outcome=clean_value(args.get("outcome")).lower() or "asked_details",
+                    summary=_truncate(args.get("reason") or args.get("summary"), 3000) or None,
+                    next_action=_truncate(args.get("suggested_message") or args.get("next_action"), 3000) or None,
+                    started_at=utc_now(),
+                    ended_at=utc_now(),
+                )
+                db.add(call_log)
+                db.flush()
+                call_log.lead = lead
+                call_log.campaign = campaign
+
+            draft, created = create_call_followup_email_draft(db, call_log)
             db.commit()
             return {
                 "success": True,
                 "email_draft_id": draft.id,
-                "message": "Follow-up email draft created for review. It was not sent.",
+                "message": (
+                    "Follow-up email draft created for review. It was not sent."
+                    if created
+                    else "Follow-up email draft already exists for review. It was not sent."
+                ),
             }
         except Exception as exc:
             db.rollback()
