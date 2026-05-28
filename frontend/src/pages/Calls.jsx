@@ -153,6 +153,11 @@ function Calls() {
     [leads, selectedLeadId]
   );
 
+  const selectedCampaign = useMemo(
+    () => campaigns.find((campaign) => String(campaign.id) === String(selectedCampaignId)),
+    [campaigns, selectedCampaignId]
+  );
+
   const loadCallLogs = async (leadId = selectedLeadId, campaignId = selectedCampaignId) => {
     const params = {};
     if (leadId) {
@@ -445,6 +450,15 @@ function Calls() {
                 <p className="rounded-2xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
                   This lead is marked do-not-call. AI calling is disabled.
                 </p>
+              )}
+
+              {selectedCampaign && selectedLead && (
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3 text-sm leading-6 text-indigo-800">
+                  <p className="font-semibold text-indigo-900">Call context preview</p>
+                  <p className="mt-1">
+                    This call will use campaign: {selectedCampaign.campaign_name}, offer: {selectedCampaign.offer}, lead: {selectedLead.contact_name || selectedLead.company_name}.
+                  </p>
+                </div>
               )}
 
               <div className="grid gap-2 sm:grid-cols-2">

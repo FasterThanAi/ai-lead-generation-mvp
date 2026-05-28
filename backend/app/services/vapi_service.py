@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from datetime import datetime
 
@@ -29,6 +30,8 @@ VALID_CALL_SENTIMENTS = {"positive", "neutral", "negative", "unknown"}
 VALID_CALL_PRIORITIES = {"high", "medium", "low"}
 VAPI_TIMEOUT_SECONDS = 20
 MAX_CONTEXT_CHARS = 6000
+
+logger = logging.getLogger(__name__)
 
 
 class VapiConfigurationError(RuntimeError):
@@ -234,6 +237,58 @@ def _fallback_call_script(campaign: Campaign, lead: Lead):
     }
 
 
+def _campaign_goal_type(campaign: Campaign):
+    goal_text = " ".join(
+        part
+        for part in [
+            clean_value(campaign.campaign_name),
+            clean_value(campaign.industry),
+            clean_value(campaign.target_role),
+            clean_value(campaign.offer),
+        ]
+        if part
+    ).lower()
+
+    if any(keyword in goal_text for keyword in ("professor", "faculty", "hod", "college", "research", "student", "sip", "final-year", "prototype")):
+        return "professor"
+    if "restaurant" in goal_text or "food" in goal_text:
+        return "restaurant"
+    if any(keyword in goal_text for keyword in ("clinic", "doctor", "hospital", "patient", "appointment", "medical")):
+        return "clinic"
+
+    return "generic"
+
+
+def build_dynamic_first_message(campaign: Campaign, lead: Lead):
+    name = clean_value(lead.contact_name) or "there"
+    organization = clean_value(lead.company_name) or "your organization"
+    offer = clean_value(campaign.offer)
+    goal_type = _campaign_goal_type(campaign)
+
+    if goal_type == "professor":
+        return (
+            f"Hello {name}, this is a brief call regarding research and project implementation assistance "
+            f"for {organization}. Is this a good time to speak for a minute?"
+        )
+
+    if goal_type == "restaurant":
+        return (
+            f"Hi {name}, this is a quick call about helping {organization} improve local reach, "
+            "Google reviews, and digital visibility. Is this a good time?"
+        )
+
+    if goal_type == "clinic":
+        return (
+            f"Hi {name}, this is a quick call about clinic management support around appointments, "
+            "patient records, and admin workflows. Is this a good time?"
+        )
+
+    if offer:
+        return f"Hi {name}, this is a quick call about {offer} for {organization}. Is this a good time?"
+
+    return f"Hi {name}, this is a brief outreach call for {organization}. Is this a good time?"
+
+
 def _build_script_prompt(context: str):
     return f"""
 Generate a short, professional manual/AI phone call script using only the context below.
@@ -361,6 +416,7 @@ def start_outbound_call(
         raise VapiServiceError("Phone number is required.")
 
     script_payload = generate_call_script(db, lead.id, campaign.id)
+    first_message = build_dynamic_first_message(campaign, lead)
     call_log = CallLog(
         lead_id=lead.id,
         campaign_id=campaign.id,
@@ -381,27 +437,42 @@ def start_outbound_call(
         "campaign_id": str(campaign.id),
         "app_call_log_id": str(call_log.id),
     }
+    variable_values = {
+        "lead_id": str(lead.id),
+        "campaign_id": str(campaign.id),
+        "app_call_log_id": str(call_log.id),
+        "lead_name": _lead_display_name(lead),
+        "lead_role": clean_value(lead.contact_role),
+        "lead_email": clean_value(lead.email),
+        "organization": clean_value(lead.company_name),
+        "campaign_name": clean_value(campaign.campaign_name),
+        "campaign_offer": clean_value(campaign.offer),
+        "campaign_industry": clean_value(campaign.industry),
+        "campaign_target_role": clean_value(campaign.target_role),
+        "call_goal": clean_value(script_payload.get("purpose")),
+        "research_summary": clean_value(getattr(lead, "research_summary", "")),
+        "first_message": first_message,
+        "lead_context": context,
+    }
     payload = {
         "assistantId": settings.VAPI_ASSISTANT_ID,
         "phoneNumberId": settings.VAPI_PHONE_NUMBER_ID,
         "customer": {"number": phone},
         "metadata": metadata,
         "assistantOverrides": {
-            "variableValues": {
-                "lead_id": str(lead.id),
-                "campaign_id": str(campaign.id),
-                "app_call_log_id": str(call_log.id),
-                "lead_name": _lead_display_name(lead),
-                "lead_role": clean_value(lead.contact_role),
-                "organization": clean_value(lead.company_name),
-                "campaign_offer": clean_value(campaign.offer),
-                "call_goal": clean_value(script_payload.get("purpose")),
-                "lead_context": context,
-            }
+            "firstMessage": first_message,
+            "variableValues": variable_values,
         },
     }
 
     try:
+        logger.info(
+            "Starting Vapi call assistant_id=%s lead_id=%s campaign_id=%s campaign_name=%s",
+            settings.VAPI_ASSISTANT_ID,
+            lead.id,
+            campaign.id,
+            clean_value(campaign.campaign_name),
+        )
         response = requests.post(
             f"{settings.VAPI_BASE_URL}/call",
             headers={
@@ -412,6 +483,27 @@ def start_outbound_call(
             timeout=VAPI_TIMEOUT_SECONDS,
         )
         response_payload = response.json() if response.content else {}
+
+        if response.status_code in {400, 422} and "firstMessage" in payload.get("assistantOverrides", {}):
+            fallback_payload = json.loads(json.dumps(payload))
+            fallback_payload.get("assistantOverrides", {}).pop("firstMessage", None)
+            logger.info(
+                "Retrying Vapi call without direct firstMessage override assistant_id=%s lead_id=%s campaign_id=%s campaign_name=%s",
+                settings.VAPI_ASSISTANT_ID,
+                lead.id,
+                campaign.id,
+                clean_value(campaign.campaign_name),
+            )
+            response = requests.post(
+                f"{settings.VAPI_BASE_URL}/call",
+                headers={
+                    "Authorization": f"Bearer {settings.VAPI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json=fallback_payload,
+                timeout=VAPI_TIMEOUT_SECONDS,
+            )
+            response_payload = response.json() if response.content else {}
 
         if response.status_code >= 400:
             raise VapiServiceError(_safe_error_message(response_payload or response.text))
@@ -426,6 +518,14 @@ def start_outbound_call(
         lead.last_called_at = utc_now()
         db.commit()
         db.refresh(call_log)
+        logger.info(
+            "Vapi call queued assistant_id=%s lead_id=%s campaign_id=%s campaign_name=%s provider_call_id=%s",
+            settings.VAPI_ASSISTANT_ID,
+            lead.id,
+            campaign.id,
+            clean_value(campaign.campaign_name),
+            provider_call_id,
+        )
     except Exception as exc:
         call_log.status = "failed"
         call_log.outcome = "failed"
@@ -435,6 +535,14 @@ def start_outbound_call(
         lead.last_call_outcome = "failed"
         lead.last_called_at = utc_now()
         db.commit()
+        logger.warning(
+            "Vapi call failed assistant_id=%s lead_id=%s campaign_id=%s campaign_name=%s error=%s",
+            settings.VAPI_ASSISTANT_ID,
+            lead.id,
+            campaign.id,
+            clean_value(campaign.campaign_name),
+            call_log.error_message,
+        )
         raise VapiServiceError(call_log.error_message) from exc
 
     return call_log
@@ -814,27 +922,36 @@ def _handle_single_tool_call(db: Session, name: str, args: dict, payload: dict):
     call = message.get("call") if isinstance(message.get("call"), dict) else {}
     metadata = call.get("metadata") if isinstance(call.get("metadata"), dict) else message.get("metadata") or {}
     lead_id = args.get("lead_id") or metadata.get("lead_id")
+    campaign_id = args.get("campaign_id") or metadata.get("campaign_id")
     provider_call_id = clean_value(args.get("provider_call_id") or call.get("id") or message.get("callId"))
     lead_id = int(lead_id) if clean_value(lead_id).isdigit() else None
+    campaign_id = int(campaign_id) if clean_value(campaign_id).isdigit() else None
 
     if name == "get_lead_context":
         if not lead_id:
             raise VapiServiceError("lead_id is required.")
-        context, lead, campaign = build_lead_call_context(db, lead_id, None)
+        context, lead, campaign = build_lead_call_context(db, lead_id, campaign_id)
         return {
             "status": "success",
             "lead": {
                 "id": lead.id,
                 "name": clean_value(lead.contact_name),
                 "role": clean_value(lead.contact_role),
+                "email": clean_value(lead.email),
+                "phone": clean_value(getattr(lead, "phone", "")),
                 "organization": clean_value(lead.company_name),
+                "research_summary": clean_value(getattr(lead, "research_summary", "")),
                 "do_not_call": bool(lead.do_not_call),
             },
             "campaign": {
                 "id": campaign.id,
+                "name": clean_value(campaign.campaign_name),
                 "offer": clean_value(campaign.offer),
+                "industry": clean_value(campaign.industry),
+                "location": clean_value(campaign.location),
                 "target_role": clean_value(campaign.target_role),
             },
+            "first_message": build_dynamic_first_message(campaign, lead),
             "context": context,
         }
 
