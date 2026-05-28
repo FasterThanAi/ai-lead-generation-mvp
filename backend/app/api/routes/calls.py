@@ -13,7 +13,7 @@ from app.schemas.call_schema import (
 from app.services.vapi_service import (
     VapiConfigurationError,
     VapiServiceError,
-    _create_followup_email_draft,
+    create_call_followup_email_draft,
     create_manual_call_log,
     generate_call_script,
     handle_tool_call,
@@ -289,23 +289,19 @@ def create_followup_from_call(call_log_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Call log must be linked to a lead and campaign.")
 
     try:
-        draft = _create_followup_email_draft(
-            db,
-            call_log.lead,
-            call_log.campaign,
-            call_log.summary or call_log.outcome or "Follow-up requested after call.",
-            call_log.next_action or "As discussed, I am sharing the requested details.",
-        )
-        call_log.next_action = call_log.next_action or "Follow-up email draft created."
+        draft = create_call_followup_email_draft(db, call_log)
         db.commit()
+        db.refresh(draft)
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail="Follow-up email draft could not be created.") from exc
 
     return {
         "status": "success",
-        "message": "Follow-up email draft created",
+        "message": "Follow-up draft created. It was not sent.",
         "email_draft_id": draft.id,
+        "campaign_id": draft.campaign_id,
+        "lead_id": draft.lead_id,
     }
 
 

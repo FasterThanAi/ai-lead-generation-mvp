@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { formatDateTimeIST } from "../utils/dateUtils";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
@@ -145,6 +145,7 @@ function Calls() {
   const [isStartingCall, setIsStartingCall] = useState(false);
   const [isSavingManualLog, setIsSavingManualLog] = useState(false);
   const [creatingFollowupId, setCreatingFollowupId] = useState(null);
+  const [createdFollowupDraft, setCreatedFollowupDraft] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -219,13 +220,11 @@ function Calls() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      if (selectedLead?.phone && !phoneNumber) {
-        setPhoneNumber(selectedLead.phone);
-      }
+      setPhoneNumber(selectedLead?.phone || "");
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [selectedLead, phoneNumber]);
+  }, [selectedLead]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -247,6 +246,7 @@ function Calls() {
     setIsGeneratingScript(true);
     setStatusMessage("");
     setErrorMessage("");
+    setCreatedFollowupDraft(null);
 
     try {
       const res = await api.post("/calls/generate-script", {
@@ -272,6 +272,7 @@ function Calls() {
     setIsStartingCall(true);
     setStatusMessage("");
     setErrorMessage("");
+    setCreatedFollowupDraft(null);
 
     try {
       const res = await api.post("/calls/start-vapi", {
@@ -300,6 +301,7 @@ function Calls() {
     setIsSavingManualLog(true);
     setStatusMessage("");
     setErrorMessage("");
+    setCreatedFollowupDraft(null);
 
     try {
       await api.post("/calls/manual-log", {
@@ -326,10 +328,16 @@ function Calls() {
     setCreatingFollowupId(callLog.id);
     setStatusMessage("");
     setErrorMessage("");
+    setCreatedFollowupDraft(null);
 
     try {
       const res = await api.post(`/calls/${callLog.id}/create-followup-email`);
-      setStatusMessage(`Follow-up email draft created. Draft ID: ${res.data.email_draft_id}.`);
+      setCreatedFollowupDraft({
+        id: res.data.email_draft_id,
+        campaignId: res.data.campaign_id || callLog.campaign_id,
+      });
+      setStatusMessage("Follow-up draft created.");
+      await loadCallLogs();
     } catch (err) {
       setErrorMessage(getFriendlyErrorMessage(err, "Follow-up email draft could not be created."));
       console.error(err);
@@ -373,6 +381,20 @@ function Calls() {
         {(statusMessage || errorMessage) && (
           <Card>
             {statusMessage && <p className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{statusMessage}</p>}
+            {createdFollowupDraft?.id && (
+              <div className="mt-3 flex flex-col gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-sm text-indigo-800 sm:flex-row sm:items-center sm:justify-between">
+                <span>Draft #{createdFollowupDraft.id} is ready for manual review. It was not sent.</span>
+                <Button
+                  as={Link}
+                  to={`/emails?campaign_id=${createdFollowupDraft.campaignId || ""}&draft_id=${createdFollowupDraft.id}`}
+                  size="sm"
+                  variant="indigo"
+                  className="w-full sm:w-auto"
+                >
+                  View in Emails
+                </Button>
+              </div>
+            )}
             {errorMessage && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">{errorMessage}</p>}
           </Card>
         )}
@@ -426,12 +448,20 @@ function Calls() {
                   className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
                   placeholder="+91..."
                 />
+                <span className="mt-1 block text-xs text-slate-500">
+                  {selectedLead?.phone ? "Prefilled from the selected lead." : "No lead phone found. Keep test number checked or add a number."}
+                </span>
               </label>
 
               <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-700">
                 <input type="checkbox" checked={useTestNumber} onChange={(e) => setUseTestNumber(e.target.checked)} className="h-4 w-4" />
                 Use test phone number
               </label>
+              {!useTestNumber && selectedLead?.phone && (
+                <p className="rounded-2xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800">
+                  Test number is off. Starting the call will use this lead phone number.
+                </p>
+              )}
 
               {useTestNumber && (
                 <label className="text-sm">

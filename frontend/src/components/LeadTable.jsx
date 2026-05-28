@@ -144,7 +144,7 @@ function LeadActions({
         variant="ghost"
         className="w-full"
       >
-        Manual Call Log
+        Open Calls / Actual Number
       </Button>
     </div>
   );
@@ -278,13 +278,23 @@ function LeadItem({
               rel="noreferrer"
               className="mt-2 block break-all text-xs font-medium text-blue-600 hover:text-blue-700"
             >
-              Discovery source
+              Source URL: {lead.source_url || lead.profile_url}
             </a>
+          )}
+          {isDiscoveredLead && (
+            <p className="mt-2 text-xs font-medium text-slate-500">
+              Discovery source: public website
+            </p>
           )}
         </InfoBlock>
 
         <InfoBlock label="Phone" className="xl:col-span-1">
           <p className="mt-2 break-words text-sm font-semibold text-slate-900">{displayValue(lead.phone)}</p>
+          {isDiscoveredLead && (
+            <p className={lead.phone ? "mt-2 text-xs font-medium text-emerald-700" : "mt-2 text-xs font-medium text-amber-700"}>
+              Phone extracted: {lead.phone ? "yes" : "no"}
+            </p>
+          )}
         </InfoBlock>
 
         <div className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 md:col-span-2 xl:col-span-2">

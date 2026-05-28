@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { formatDateTimeIST, getDateTimestampISTSafe } from "../utils/dateUtils";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
@@ -81,8 +82,10 @@ function isReplyClassified(draft) {
 }
 
 function Emails() {
+  const [searchParams] = useSearchParams();
   const [campaigns, setCampaigns] = useState([]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState("");
+  const [selectedCampaignId, setSelectedCampaignId] = useState(searchParams.get("campaign_id") || "");
+  const selectedDraftId = searchParams.get("draft_id") || "";
   const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(true);
   const [campaignsError, setCampaignsError] = useState("");
   const [drafts, setDrafts] = useState([]);
@@ -304,6 +307,23 @@ function Emails() {
     ]);
   };
 
+  useEffect(() => {
+    if (!selectedCampaignId) {
+      return;
+    }
+
+    const loadSelectedCampaignData = async () => {
+      await Promise.all([
+        fetchDrafts(selectedCampaignId),
+        fetchFollowUps(selectedCampaignId),
+        fetchResponseDrafts(selectedCampaignId),
+        fetchCampaignAnalytics(selectedCampaignId),
+      ]);
+    };
+
+    loadSelectedCampaignData();
+  }, [selectedCampaignId]);
+
   const handleCampaignChange = (e) => {
     const nextCampaignId = e.target.value;
 
@@ -330,7 +350,6 @@ function Emails() {
     setEditingDraftId(null);
     setEditingFollowUpId(null);
     setEditingResponseDraftId(null);
-    refreshCampaignData(nextCampaignId);
   };
 
   const toggleDraftExpanded = (draftId) => {
@@ -1492,9 +1511,17 @@ function Emails() {
                 const shouldCollapseDraft = String(draft.body || "").length > 220;
                 const isEditingDraft = editingDraftId === draft.id;
                 const canEditDraft = ["generated", "approved", "failed"].includes(draft.status);
+                const isCallFollowUp = draft.source_type === "call_follow_up" || draft.ai_model === "vapi-call-followup-template";
+                const isLinkedDraft = selectedDraftId && String(draft.id) === String(selectedDraftId);
 
                 return (
-                <div key={draft.id} className="rounded-3xl border border-slate-200 bg-white/85 p-4 shadow-sm sm:p-5">
+                <div
+                  key={draft.id}
+                  className={[
+                    "rounded-3xl border bg-white/85 p-4 shadow-sm sm:p-5",
+                    isLinkedDraft ? "border-indigo-300 ring-4 ring-indigo-100" : "border-slate-200",
+                  ].join(" ")}
+                >
                   <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <p className="text-sm text-slate-500">
@@ -1526,6 +1553,12 @@ function Emails() {
                           To: {draft.lead_email}
                         </p>
                       )}
+                      {isCallFollowUp && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Badge variant="asked_details">Call Follow-up</Badge>
+                          {draft.call_log_id && <Badge variant="neutral">Call #{draft.call_log_id}</Badge>}
+                        </div>
+                      )}
                       {draft.lead_ai_score !== null && draft.lead_ai_score !== undefined ? (
                         <p className="mt-2 text-sm font-medium text-indigo-700">
                           Final AI Score: {draft.lead_ai_score}
@@ -1541,7 +1574,10 @@ function Emails() {
                       )}
                     </div>
 
-                    <Badge variant={draft.status}>{draft.status}</Badge>
+                    <div className="flex flex-wrap gap-2 sm:justify-end">
+                      {isCallFollowUp && <Badge variant="asked_details">Call Follow-up</Badge>}
+                      <Badge variant={draft.status}>{draft.status}</Badge>
+                    </div>
                   </div>
 
                   <div className="mt-4 rounded-2xl bg-slate-50 p-4">

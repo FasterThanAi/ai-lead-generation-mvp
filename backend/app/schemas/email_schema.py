@@ -7,9 +7,11 @@ class EmailDraftResponse(BaseModel):
     id: int
     campaign_id: int
     lead_id: int
+    call_log_id: int | None = None
     subject: str
     body: str
     status: str
+    source_type: str | None = None
     ai_model: str | None = None
     sent_at: datetime | None = None
     send_error: str | None = None

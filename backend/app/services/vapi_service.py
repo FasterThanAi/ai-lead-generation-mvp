@@ -799,28 +799,136 @@ def _latest_call_log_for_tool(db: Session, lead_id: int | None = None, provider_
     return None
 
 
-def _create_followup_email_draft(db: Session, lead: Lead, campaign: Campaign, reason: str, suggested_message: str):
-    subject = f"Following up from our call with {clean_value(lead.company_name) or 'your team'}"[:255]
-    greeting = f"Hi {clean_value(lead.contact_name)}," if clean_value(lead.contact_name) else "Hi,"
+def _call_followup_subject(campaign: Campaign):
+    goal_type = _campaign_goal_type(campaign)
+
+    if goal_type == "professor":
+        return "Follow-up: Research and Project Implementation Support"
+    if goal_type == "restaurant":
+        return "Follow-up: Digital Marketing and Local Reach"
+    if goal_type == "clinic":
+        return "Follow-up: Clinic Management Support"
+
+    campaign_name = clean_value(campaign.campaign_name)
+    if campaign_name:
+        return f"Follow-up: {campaign_name}"[:255]
+
+    return "Follow-up from our call"
+
+
+def _call_followup_greeting(lead: Lead):
+    name = clean_value(lead.contact_name)
+    role = clean_value(lead.contact_role).lower()
+
+    if not name:
+        return "Hi,"
+
+    if "professor" in role or name.lower().startswith(("dr.", "prof.")):
+        return f"Dear {name},"
+
+    return f"Hi {name},"
+
+
+def _format_call_followup_body(
+    lead: Lead,
+    campaign: Campaign,
+    call_summary: str,
+    next_action: str,
+    requested_topic: str,
+):
+    greeting = _call_followup_greeting(lead)
     offer = clean_value(campaign.offer)
-    body = (
-        f"{greeting}\n\n"
-        "Thank you for your time on the call. "
-        f"{clean_value(suggested_message) or f'As discussed, I am sharing more details about {offer}.'}\n\n"
-        f"Context: {clean_value(reason) or 'Requested follow-up details after the call.'}\n\n"
-        "Please let me know if you would like me to share a short overview or set up the next step.\n\n"
-        "Regards,\nTeam"
+    organization = clean_value(lead.company_name)
+    role = clean_value(lead.contact_role)
+    topic = clean_value(requested_topic) or clean_value(call_summary) or clean_value(next_action)
+
+    intro_details = (
+        f"how we can support {organization} with {offer}"
+        if organization and offer
+        else f"how we can support you with {offer}"
+        if offer
+        else "the details we discussed"
     )
+
+    body_parts = [
+        greeting,
+        "",
+        f"Thank you for your time on the call. As discussed, I am sharing details about {intro_details}.",
+    ]
+
+    if role or organization:
+        context_parts = [part for part in [role, organization] if part]
+        body_parts.append(f"I have kept the context in mind for {' at '.join(context_parts)}.")
+
+    if call_summary:
+        body_parts.append(f"From the call, I understood: {clean_value(call_summary)}")
+
+    if topic and topic != clean_value(call_summary):
+        body_parts.append(f"Based on your requested topic, we can share more detail on {topic}.")
+
+    if next_action:
+        body_parts.append(f"Next step: {clean_value(next_action)}")
+
+    body_parts.extend([
+        "",
+        "Would it be convenient to continue over email or schedule a short discussion?",
+        "",
+        "Regards,",
+        "Team",
+    ])
+
+    return "\n\n".join(part for part in body_parts if part is not None).strip()
+
+
+def _create_followup_email_draft(
+    db: Session,
+    lead: Lead,
+    campaign: Campaign,
+    reason: str,
+    suggested_message: str,
+    call_log: CallLog | None = None,
+):
+    call_summary = clean_value(call_log.summary if call_log else "") or clean_value(reason)
+    next_action = clean_value(call_log.next_action if call_log else "") or clean_value(suggested_message)
+    requested_topic = clean_value(reason) or clean_value(suggested_message) or call_summary or next_action
+    subject = _call_followup_subject(campaign)[:255]
+    body = _format_call_followup_body(
+        lead,
+        campaign,
+        call_summary=call_summary,
+        next_action=next_action,
+        requested_topic=requested_topic,
+    )
+
     draft = EmailDraft(
         campaign_id=campaign.id,
         lead_id=lead.id,
+        call_log_id=call_log.id if call_log else None,
         subject=subject,
         body=body,
         status="generated",
+        source_type="call_follow_up",
         ai_model="vapi-call-followup-template",
     )
     db.add(draft)
     db.flush()
+    return draft
+
+
+def create_call_followup_email_draft(db: Session, call_log: CallLog):
+    if not call_log.lead or not call_log.campaign:
+        raise VapiServiceError("Call log must be linked to a lead and campaign.")
+
+    draft = _create_followup_email_draft(
+        db,
+        call_log.lead,
+        call_log.campaign,
+        call_log.summary or call_log.outcome or "Follow-up requested after call.",
+        call_log.next_action or "As discussed, I am sharing the requested details.",
+        call_log=call_log,
+    )
+    call_log.next_action = call_log.next_action or "Follow-up email draft created for review."
+    call_log.updated_at = utc_now()
     return draft
 
 
@@ -992,18 +1100,34 @@ def _handle_single_tool_call(db: Session, name: str, args: dict, payload: dict):
     if name == "create_followup_email_draft":
         if not lead or not campaign:
             raise VapiServiceError("Lead and campaign are required.")
-        draft = _create_followup_email_draft(
-            db,
-            lead,
-            campaign,
-            clean_value(args.get("reason")),
-            clean_value(args.get("suggested_message")),
-        )
-        if call_log:
-            call_log.next_action = call_log.next_action or "Follow-up email draft created."
-            call_log.updated_at = utc_now()
-        db.commit()
-        return {"status": "success", "email_draft_id": draft.id}
+        try:
+            draft = _create_followup_email_draft(
+                db,
+                lead,
+                campaign,
+                clean_value(args.get("reason")) or clean_value(call_log.summary if call_log else ""),
+                clean_value(args.get("suggested_message")) or clean_value(call_log.next_action if call_log else ""),
+                call_log=call_log,
+            )
+            if call_log:
+                call_log.next_action = call_log.next_action or "Follow-up email draft created for review."
+                call_log.updated_at = utc_now()
+            db.commit()
+            return {
+                "success": True,
+                "email_draft_id": draft.id,
+                "message": "Follow-up email draft created for review. It was not sent.",
+            }
+        except Exception as exc:
+            db.rollback()
+            if call_log:
+                call_log.error_message = _safe_error_message(exc)
+                call_log.updated_at = utc_now()
+                try:
+                    db.commit()
+                except SQLAlchemyError:
+                    db.rollback()
+            raise VapiServiceError("Follow-up email draft could not be created.") from exc
 
     if name == "mark_do_not_call":
         if not lead:

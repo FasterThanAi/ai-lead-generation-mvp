@@ -132,6 +132,9 @@ function ResultCard({ result, checked, onToggle }) {
         <div className="rounded-xl bg-slate-50 p-3">
           <p className="text-xs text-slate-500">Phone</p>
           <p className="mt-1 break-words text-sm font-semibold text-slate-900">{display(result.phone)}</p>
+          <p className={result.phone ? "mt-2 text-xs font-medium text-emerald-700" : "mt-2 text-xs font-medium text-amber-700"}>
+            Phone extracted: {result.phone ? "yes" : "no"}
+          </p>
         </div>
         <div className="rounded-xl bg-slate-50 p-3">
           <p className="text-xs text-slate-500">Type / Location</p>

@@ -23,9 +23,11 @@ def ensure_email_draft_columns(engine):
     datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
 
     required_columns = {
+        "call_log_id": "INTEGER",
         "sent_at": datetime_type,
         "send_error": "TEXT",
         "gmail_message_id": "VARCHAR(255)",
+        "source_type": "VARCHAR(100)",
         "reply_checked_at": datetime_type,
         "reply_message_id": "VARCHAR(255)",
         "reply_snippet": "TEXT",
@@ -52,8 +54,14 @@ def ensure_email_draft_columns(engine):
 
     with engine.begin() as connection:
         for column_name, column_type in missing_columns:
+            default_clause = " DEFAULT 'cold_email'" if column_name == "source_type" else ""
             connection.execute(
-                text(f"ALTER TABLE email_drafts ADD COLUMN {column_name} {column_type}")
+                text(f"ALTER TABLE email_drafts ADD COLUMN {column_name} {column_type}{default_clause}")
+            )
+
+        if "source_type" in existing_columns or any(column_name == "source_type" for column_name, _ in missing_columns):
+            connection.execute(
+                text("UPDATE email_drafts SET source_type = 'cold_email' WHERE source_type IS NULL")
             )
 
 

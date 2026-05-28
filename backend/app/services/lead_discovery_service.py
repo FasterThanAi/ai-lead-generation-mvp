@@ -290,25 +290,104 @@ def extract_phone_regex(text: str):
     if not text:
         return []
 
-    patterns = [
-        r"(?:\+91[\s-]?)?[6-9]\d{9}",
-        r"(?:\+91[\s-]?)?(?:0[\s-]?)?[1-9]\d{2,4}[\s-]?\d{6,8}",
-        r"\+\d{1,3}[\s-]?\d{6,14}",
-    ]
     phones = []
     seen = set()
 
-    for pattern in patterns:
-        for match in re.findall(pattern, text):
-            phone = re.sub(r"\s+", " ", clean_value(match)).strip(".,;:()[]{}<>\"'")
-            digits = re.sub(r"\D", "", phone)
-            if len(digits) < 8 or len(digits) > 15:
-                continue
-            if digits not in seen:
-                seen.add(digits)
-                phones.append(phone)
+    def add_phone(candidate):
+        phone = _normalize_extracted_phone(candidate)
+        if not phone:
+            return
+
+        key = _phone_key(phone)
+        if key and key not in seen:
+            seen.add(key)
+            phones.append(phone)
+
+    label_pattern = re.compile(
+        r"(?i)(?:mobile|mob\.?|phone|ph\.?|telephone|tel\.?|contact|office|cell)"
+        r"\s*(?:no\.?|number)?\s*[:\-]?\s*"
+        r"(\+?\d[\d\s()./-]{6,}\d(?:\s*(?:ext|extension)\.?\s*\d{1,5})?)"
+    )
+    general_patterns = [
+        r"\+91[\s().-]?[6-9]\d[\d\s().-]{8,12}",
+        r"\b0?[6-9]\d{9}\b",
+        r"\b0\d{2,4}[\s().-]?\d{6,8}\b",
+        r"\+91[\s().-]?[1-9]\d{1,4}[\s().-]?\d{6,8}\b",
+    ]
+
+    for match in label_pattern.findall(text):
+        add_phone(match)
+
+    for line in clean_value(text).splitlines():
+        line_text = clean_value(line)
+        if not line_text:
+            continue
+
+        has_label = re.search(r"(?i)\b(?:mobile|mob|phone|ph|telephone|tel|contact|office|cell)\b", line_text)
+        if not has_label and len(phones) >= 8:
+            break
+
+        for pattern in general_patterns:
+            for match in re.findall(pattern, line_text):
+                add_phone(match)
 
     return phones[:8]
+
+
+def _normalize_extracted_phone(candidate: str):
+    phone = re.sub(r"\s+", " ", clean_value(candidate)).strip(".,;:()[]{}<>\"'")
+
+    if not phone:
+        return ""
+
+    extension_match = re.search(r"(?i)\b(?:ext|extension)\.?\s*(\d{1,5})\b", phone)
+    extension = extension_match.group(1) if extension_match else ""
+    main_phone = re.sub(r"(?i)\b(?:ext|extension)\.?\s*\d{1,5}\b", "", phone)
+    digits = re.sub(r"\D", "", main_phone)
+    office_like = bool(
+        re.match(r"^\+?91[\s().-]?\d{2,4}[\s().-]+\d{6,8}$", main_phone.strip())
+        or re.match(r"^0\d{2,4}[\s().-]+\d{6,8}$", main_phone.strip())
+    )
+
+    if len(digits) < 8 or len(digits) > 15:
+        return ""
+
+    if len(set(digits)) <= 2:
+        return ""
+
+    if not office_like and digits.startswith("91") and len(digits) == 12 and digits[2] in "6789":
+        normalized = f"+91{digits[2:]}"
+    elif not office_like and len(digits) == 10 and digits[0] in "6789":
+        normalized = f"+91{digits}"
+    elif not office_like and len(digits) == 11 and digits.startswith("0") and digits[1] in "6789":
+        normalized = f"+91{digits[1:]}"
+    else:
+        normalized = re.sub(r"\s+", " ", main_phone).strip(" -./()")
+        if normalized.startswith("91") and not normalized.startswith("+"):
+            normalized = f"+{normalized}"
+
+    if extension:
+        normalized = f"{normalized} ext {extension}"
+
+    return normalized[:100]
+
+
+def _phone_key(value: str):
+    return re.sub(r"\D", "", clean_value(value))
+
+
+def _find_phone_near_text(text: str, marker: str):
+    lower_text = clean_value(text).lower()
+    marker_index = lower_text.find(clean_value(marker).lower())
+
+    if marker_index == -1:
+        return ""
+
+    start = max(0, marker_index - 700)
+    end = min(len(text), marker_index + len(marker) + 700)
+    nearby_phones = extract_phone_regex(text[start:end])
+
+    return nearby_phones[0] if nearby_phones else ""
 
 
 def extract_context_around_email(text: str, email: str):
@@ -516,10 +595,10 @@ def ai_structure_contacts(contexts, job: DiscoveryJob, campaign: Campaign | None
         for item in contexts
         if clean_value(item.get("email"))
     }
-    allowed_phones = {
-        clean_value(item.get("phone"))
+    allowed_phone_by_key = {
+        _phone_key(item.get("phone")): clean_value(item.get("phone"))
         for item in contexts
-        if clean_value(item.get("phone"))
+        if clean_value(item.get("phone")) and _phone_key(item.get("phone"))
     }
 
     if not settings.GEMINI_API_KEY:
@@ -545,9 +624,9 @@ def ai_structure_contacts(contexts, job: DiscoveryJob, campaign: Campaign | None
         if clean_value(item.get("email"))
     }
     fallback_by_phone = {
-        clean_value(item.get("phone")): item
+        _phone_key(item.get("phone")): item
         for item in _fallback_contacts(contexts, job)
-        if clean_value(item.get("phone"))
+        if clean_value(item.get("phone")) and _phone_key(item.get("phone"))
     }
 
     for item in parsed:
@@ -556,15 +635,18 @@ def ai_structure_contacts(contexts, job: DiscoveryJob, campaign: Campaign | None
 
         email = clean_value(item.get("email")).lower()
         phone = clean_value(item.get("phone"))
+        phone_key = _phone_key(phone)
 
         if email and email not in allowed_emails:
             email = ""
-        if phone and phone not in allowed_phones:
+        if phone and phone_key not in allowed_phone_by_key:
             phone = ""
+        elif phone:
+            phone = allowed_phone_by_key.get(phone_key) or phone
         if not email and not phone:
             continue
 
-        fallback = fallback_by_email.get(email) or fallback_by_phone.get(phone) or {}
+        fallback = fallback_by_email.get(email) or fallback_by_phone.get(_phone_key(phone)) or {}
         confidence = item.get("confidence")
         try:
             confidence = max(0, min(100, int(confidence)))
@@ -598,9 +680,10 @@ def _make_contexts_for_page(source_url: str, html: str, page_text: str):
     contexts = []
 
     for email in emails:
+        nearby_phone = _find_phone_near_text(page_text, email)
         contexts.append({
             "email": email,
-            "phone": phones[0] if phones else "",
+            "phone": nearby_phone or (phones[0] if phones else ""),
             "source_url": source_url,
             "organization": organization,
             "context": extract_context_around_email(page_text, email),
@@ -699,7 +782,7 @@ def run_discovery_job(db: Session, job_id: int):
 
             contexts = _make_contexts_for_page(result.get("url") or source_url, result.get("html", ""), page_text)
             if not contexts:
-                errors.append(f"{source_url}: No public email found")
+                errors.append(f"{source_url}: No public contact details found")
                 continue
 
             structured_contacts = ai_structure_contacts(contexts, job, job.campaign)
