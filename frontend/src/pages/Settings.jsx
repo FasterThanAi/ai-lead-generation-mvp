@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getHunterStatus } from "../api/hunter";
 import api from "../services/api";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
 import Badge from "../components/ui/Badge";
@@ -16,6 +17,9 @@ function Settings() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [showAuthorizationHint, setShowAuthorizationHint] = useState(false);
   const [statusError, setStatusError] = useState("");
+  const [hunterStatus, setHunterStatus] = useState(null);
+  const [isLoadingHunterStatus, setIsLoadingHunterStatus] = useState(true);
+  const [hunterStatusError, setHunterStatusError] = useState("");
 
   const fetchGmailStatus = async () => {
     setIsLoadingStatus(true);
@@ -37,6 +41,21 @@ function Settings() {
       console.error(err);
     } finally {
       setIsLoadingStatus(false);
+    }
+  };
+
+  const fetchHunterConnectionStatus = async () => {
+    setIsLoadingHunterStatus(true);
+    setHunterStatusError("");
+
+    try {
+      const status = await getHunterStatus();
+      setHunterStatus(status);
+    } catch (err) {
+      setHunterStatusError(getFriendlyErrorMessage(err, "Could not load Hunter.io status."));
+      console.error(err);
+    } finally {
+      setIsLoadingHunterStatus(false);
     }
   };
 
@@ -72,7 +91,29 @@ function Settings() {
       }
     };
 
+    const loadHunterStatus = async () => {
+      try {
+        const status = await getHunterStatus();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setHunterStatus(status);
+      } catch (err) {
+        if (isMounted) {
+          setHunterStatusError(getFriendlyErrorMessage(err, "Could not load Hunter.io status."));
+        }
+        console.error(err);
+      } finally {
+        if (isMounted) {
+          setIsLoadingHunterStatus(false);
+        }
+      }
+    };
+
     loadGmailStatus();
+    loadHunterStatus();
 
     return () => {
       isMounted = false;
@@ -205,6 +246,58 @@ function Settings() {
           {statusError && (
             <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {statusError}
+            </p>
+          )}
+        </Card>
+
+        <Card>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-xl font-semibold tracking-tight text-slate-950">Hunter.io Enrichment</h3>
+                {!isLoadingHunterStatus && hunterStatus && (
+                  <Badge variant={hunterStatus.configured ? "success" : "warning"}>
+                    {hunterStatus.configured ? "Configured" : "Not configured"}
+                  </Badge>
+                )}
+                {!isLoadingHunterStatus && hunterStatus?.is_test_key && (
+                  <Badge variant="warning">Test key</Badge>
+                )}
+              </div>
+              <p className="mt-2 text-sm text-slate-500">
+                Hunter can find professional emails from a lead website when public extraction does not find one.
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Bulk enrichment uses credits, so the Leads page caps each run.
+              </p>
+            </div>
+
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full sm:w-auto"
+              disabled={isLoadingHunterStatus}
+              onClick={fetchHunterConnectionStatus}
+            >
+              Refresh Status
+            </Button>
+          </div>
+
+          <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+            {isLoadingHunterStatus ? (
+              <p className="text-sm text-slate-600">Checking Hunter.io status...</p>
+            ) : hunterStatus ? (
+              <p className={hunterStatus.configured ? "text-sm font-semibold text-emerald-700" : "text-sm font-semibold text-amber-700"}>
+                {hunterStatus.message}
+              </p>
+            ) : (
+              <p className="text-sm text-slate-600">Hunter.io status unavailable.</p>
+            )}
+          </div>
+
+          {hunterStatusError && (
+            <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {hunterStatusError}
             </p>
           )}
         </Card>

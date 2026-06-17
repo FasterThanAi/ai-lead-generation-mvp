@@ -18,6 +18,7 @@ This is an AI-powered lead generation and cold email outreach MVP. It supports c
 - AI lead research and enrichment from public company website pages plus campaign/lead fields
 - Opportunity/Campaign Generator for turning rough outreach ideas into AI-generated campaign strategies
 - Lead Discovery for extracting public contacts from user-reviewed source URLs
+- Hunter.io enrichment for finding professional emails from lead websites
 - Vapi Calling Agent integration for selected-lead AI calls, call logs, outcomes, transcripts, and follow-up draft actions
 - Draft approve/reject workflow
 - Gmail OAuth connection
@@ -49,6 +50,7 @@ Backend:
 AI and email:
 - Gemini API
 - Gmail API OAuth
+- Hunter.io API for optional email enrichment
 - Vapi API for optional AI calling
 
 ## 4. Architecture
@@ -79,8 +81,9 @@ Main data flow:
 19. Users paste public source URLs into discovery jobs. The backend fetches only those reviewed URLs and extracts readable public contact details.
 20. Users approve, reject, and import selected discovered contacts into the existing Leads table.
 21. Imported discovery leads can be researched, scored, and used for manual email/call outreach preparation.
-22. Users can generate call scripts, start a selected Vapi AI call, receive Vapi webhooks/tool calls, and store call outcomes.
-23. Interested or details-requested calls can create follow-up email drafts, but nothing is sent automatically.
+22. Users can optionally enrich missing lead emails through Hunter.io when a lead has a website.
+23. Users can generate call scripts, start a selected Vapi AI call, receive Vapi webhooks/tool calls, and store call outcomes.
+24. Interested or details-requested calls can create follow-up email drafts, but nothing is sent automatically.
 
 ## 5. Week-wise Progress
 
@@ -265,6 +268,7 @@ GMAIL_CLIENT_SECRET=
 GMAIL_REDIRECT_URI=
 GMAIL_SENDER_EMAIL=
 GMAIL_DAILY_LIMIT=
+HUNTER_API_KEY=
 VAPI_ENABLED=
 VAPI_API_KEY=
 VAPI_ASSISTANT_ID=
@@ -306,22 +310,23 @@ Backend:
 11. Research leads when website/lead context is useful
 12. Score leads with AI
 13. Review top priority leads
-14. Generate a call script or save a manual call log when calling is part of the workflow
-15. If Vapi is configured, start an AI test call for one selected lead only
-16. Review call transcript, summary, outcome, next action, and optional follow-up draft
-17. Generate first email
-18. Approve and send first email
-19. Recipient replies
-20. Check replies
-21. Classify reply with AI
-22. Generate response draft using relevant company knowledge
-23. Review intent, priority, next action, suggested response direction, knowledge used, and draft response
-24. Approve response
-25. Send approved response
-26. If no reply, generate follow-up draft
-27. Approve follow-up
-28. Send follow-up
-29. Track follow-up status
+14. Use Hunter.io enrichment for website-based leads that still have no email, if Hunter is configured
+15. Generate a call script or save a manual call log when calling is part of the workflow
+16. If Vapi is configured, start an AI test call for one selected lead only
+17. Review call transcript, summary, outcome, next action, and optional follow-up draft
+18. Generate first email
+19. Approve and send first email
+20. Recipient replies
+21. Check replies
+22. Classify reply with AI
+23. Generate response draft using relevant company knowledge
+24. Review intent, priority, next action, suggested response direction, knowledge used, and draft response
+25. Approve response
+26. Send approved response
+27. If no reply, generate follow-up draft
+28. Approve follow-up
+29. Send follow-up
+30. Track follow-up status
 
 ## 10. Knowledge Document Upload
 
@@ -465,6 +470,8 @@ Current limitations:
 
 - Emails are not sent automatically.
 - AI scoring is a recommendation and should be reviewed before outreach.
+- Hunter.io enrichment is optional and requires explicit user action.
+- Hunter.io bulk enrichment is capped per request to reduce accidental credit usage.
 - Calls are not started automatically.
 - Bulk calling is not implemented.
 - Vapi calls require explicit user action on a selected lead.

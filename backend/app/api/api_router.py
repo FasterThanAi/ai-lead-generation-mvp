@@ -10,6 +10,7 @@ from app.api.routes import (
     followups,
     gmail,
     health,
+    hunter,
     knowledge,
     lead_scoring,
     leads,
@@ -34,6 +35,7 @@ api_router.include_router(ai.router)
 api_router.include_router(emails.router)
 api_router.include_router(followups.router)
 api_router.include_router(gmail.router)
+api_router.include_router(hunter.router)
 api_router.include_router(replies.router)
 api_router.include_router(reply_classification.router)
 api_router.include_router(reply_responses.router)

@@ -86,6 +86,7 @@ class Settings:
     GMAIL_REDIRECT_URI: str = os.getenv("GMAIL_REDIRECT_URI", "")
     GMAIL_SENDER_EMAIL: str = os.getenv("GMAIL_SENDER_EMAIL", "")
     GMAIL_DAILY_LIMIT: int = get_int_env("GMAIL_DAILY_LIMIT", 20)
+    HUNTER_API_KEY: str = os.getenv("HUNTER_API_KEY", "")
     VAPI_ENABLED: bool = get_bool_env("VAPI_ENABLED", False)
     VAPI_API_KEY: str = os.getenv("VAPI_API_KEY", "")
     VAPI_ASSISTANT_ID: str = os.getenv("VAPI_ASSISTANT_ID", "")

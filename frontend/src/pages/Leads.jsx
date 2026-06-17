@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { bulkEnrich, enrichLead } from "../api/hunter";
 import EmailExtraction from "../components/EmailExtraction";
 import LeadTable from "../components/LeadTable";
 import LeadUpload from "../components/LeadUpload";
@@ -22,6 +23,10 @@ function Leads() {
   const [extractingLeadId, setExtractingLeadId] = useState(null);
   const [leadExtractionMessage, setLeadExtractionMessage] = useState("");
   const [leadExtractionError, setLeadExtractionError] = useState("");
+  const [hunterMessage, setHunterMessage] = useState("");
+  const [hunterError, setHunterError] = useState("");
+  const [enrichingLeadId, setEnrichingLeadId] = useState(null);
+  const [isBulkEnriching, setIsBulkEnriching] = useState(false);
   const [isScoringCampaign, setIsScoringCampaign] = useState(false);
   const [scoringLeadId, setScoringLeadId] = useState(null);
   const [leadScoringMessage, setLeadScoringMessage] = useState("");
@@ -47,6 +52,11 @@ function Leads() {
 
   const emailsFoundCount = useMemo(
     () => leads.filter((lead) => lead.email || lead.status === "email_found").length,
+    [leads]
+  );
+
+  const hunterEligibleLeadCount = useMemo(
+    () => leads.filter((lead) => !lead.email && lead.website).length,
     [leads]
   );
 
@@ -144,6 +154,8 @@ function Leads() {
     setLeadsError("");
     setLeadExtractionMessage("");
     setLeadExtractionError("");
+    setHunterMessage("");
+    setHunterError("");
     setLeadScoringMessage("");
     setLeadScoringError("");
     setLeadResearchMessage("");
@@ -153,6 +165,69 @@ function Leads() {
     setCallScriptsByLead({});
     setPriorityFilter("All");
     setQualificationFilter("All");
+  };
+
+  const handleHunterEnrichLead = async (lead) => {
+    setEnrichingLeadId(lead.id);
+    setHunterMessage("");
+    setHunterError("");
+
+    try {
+      const result = await enrichLead(lead.id, {
+        mode: "domain",
+        minConfidence: 50,
+      });
+
+      if (result.updated) {
+        setHunterMessage(
+          `Hunter found and saved ${result.email} for ${lead.company_name}. Confidence: ${result.confidence ?? "N/A"}.`
+        );
+        refreshLeads();
+      } else {
+        setHunterMessage(result.message || "Hunter did not find a usable email for this lead.");
+      }
+    } catch (err) {
+      setHunterError(getFriendlyErrorMessage(err, "Hunter enrichment failed. Please check the API key and try again."));
+      console.error(err);
+    } finally {
+      setEnrichingLeadId(null);
+    }
+  };
+
+  const handleHunterBulkEnrich = async () => {
+    if (!selectedCampaignId) {
+      return;
+    }
+
+    const shouldContinue = window.confirm(
+      "Hunter bulk enrichment can use API credits for up to 20 leads. Continue?"
+    );
+
+    if (!shouldContinue) {
+      return;
+    }
+
+    setIsBulkEnriching(true);
+    setHunterMessage("");
+    setHunterError("");
+
+    try {
+      const result = await bulkEnrich(selectedCampaignId, {
+        mode: "domain",
+        limit: 20,
+        minConfidence: 50,
+      });
+
+      setHunterMessage(
+        `Hunter bulk enrichment completed. Found ${result.enriched ?? 0}, skipped ${result.skipped ?? 0}, failed ${result.failed ?? 0}.`
+      );
+      refreshLeads();
+    } catch (err) {
+      setHunterError(getFriendlyErrorMessage(err, "Hunter bulk enrichment failed. Please check the API key and try again."));
+      console.error(err);
+    } finally {
+      setIsBulkEnriching(false);
+    }
   };
 
   const handleExtractLeadEmail = async (leadId) => {
@@ -525,11 +600,43 @@ function Leads() {
           />
         </div>
 
-        {(leadExtractionMessage || leadExtractionError || leadScoringMessage || leadScoringError || leadResearchMessage || leadResearchError || callMessage || callError) && (
+        {selectedCampaign && (
+          <Card>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold tracking-tight text-slate-950">Hunter Email Enrichment</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Use Hunter.io for leads that have a website but no saved email.
+                </p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Eligible leads in this campaign: {hunterEligibleLeadCount}
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full lg:w-auto"
+                disabled={!selectedCampaignId || isBulkEnriching || hunterEligibleLeadCount === 0}
+                onClick={handleHunterBulkEnrich}
+              >
+                {isBulkEnriching ? "Searching Hunter..." : "Bulk Find Emails"}
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {(leadExtractionMessage || leadExtractionError || hunterMessage || hunterError || leadScoringMessage || leadScoringError || leadResearchMessage || leadResearchError || callMessage || callError) && (
           <Card>
             {callMessage && (
               <p className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-700">
                 {callMessage}
+              </p>
+            )}
+
+            {hunterMessage && (
+              <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700 first:mt-0">
+                {hunterMessage}
               </p>
             )}
 
@@ -554,6 +661,12 @@ function Leads() {
             {leadExtractionError && (
               <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">
                 {leadExtractionError}
+              </p>
+            )}
+
+            {hunterError && (
+              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">
+                {hunterError}
               </p>
             )}
 
@@ -584,6 +697,8 @@ function Leads() {
           hasSelectedCampaign={Boolean(selectedCampaignId)}
           onExtractEmail={handleExtractLeadEmail}
           extractingLeadId={extractingLeadId}
+          onHunterEnrichLead={handleHunterEnrichLead}
+          enrichingLeadId={enrichingLeadId}
           onScoreLead={handleScoreLead}
           scoringLeadId={scoringLeadId}
           onResearchLead={handleResearchLead}

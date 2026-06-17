@@ -77,6 +77,8 @@ function LeadActions({
   lead,
   onExtractEmail,
   extractingLeadId,
+  onHunterEnrichLead,
+  enrichingLeadId,
   onScoreLead,
   scoringLeadId,
   onResearchLead,
@@ -91,6 +93,7 @@ function LeadActions({
   const isResearched = lead.research_status === "researched";
   const doNotCall = Boolean(lead.do_not_call);
   const isStartingThisLead = startingCallLeadId === lead.id;
+  const canUseHunter = !lead.email && Boolean(lead.website);
 
   return (
     <div className="grid w-full grid-cols-1 gap-2">
@@ -114,6 +117,18 @@ function LeadActions({
       >
         {extractingLeadId === lead.id ? "Extracting..." : "Extract Email"}
       </Button>
+      {canUseHunter && (
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          className="w-full"
+          disabled={enrichingLeadId === lead.id}
+          onClick={() => onHunterEnrichLead?.(lead)}
+        >
+          {enrichingLeadId === lead.id ? "Searching Hunter..." : "Find via Hunter"}
+        </Button>
+      )}
       <Button
         type="button"
         size="sm"
@@ -175,6 +190,8 @@ function LeadItem({
   scoringLeadId,
   researchingLeadId,
   onExtractEmail,
+  onHunterEnrichLead,
+  enrichingLeadId,
   onScoreLead,
   onResearchLead,
   onGenerateCallScript,
@@ -260,6 +277,8 @@ function LeadItem({
           <LeadActions
             lead={lead}
             extractingLeadId={extractingLeadId}
+            onHunterEnrichLead={onHunterEnrichLead}
+            enrichingLeadId={enrichingLeadId}
             scoringLeadId={scoringLeadId}
             researchingLeadId={researchingLeadId}
             onExtractEmail={onExtractEmail}
@@ -424,6 +443,8 @@ function LeadTable({
   hasSelectedCampaign,
   onExtractEmail,
   extractingLeadId,
+  onHunterEnrichLead,
+  enrichingLeadId,
   onScoreLead,
   scoringLeadId,
   onResearchLead,
@@ -481,6 +502,8 @@ function LeadTable({
               scoringLeadId={scoringLeadId}
               researchingLeadId={researchingLeadId}
               onExtractEmail={onExtractEmail}
+              onHunterEnrichLead={onHunterEnrichLead}
+              enrichingLeadId={enrichingLeadId}
               onScoreLead={onScoreLead}
               onResearchLead={onResearchLead}
               onGenerateCallScript={onGenerateCallScript}
