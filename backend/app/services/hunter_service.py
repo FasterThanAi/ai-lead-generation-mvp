@@ -83,7 +83,18 @@ def _hunter_error_message(response: httpx.Response) -> str:
     return f"Hunter API error: {response.status_code}"
 
 
-async def domain_search(domain: str, limit: int = 10) -> dict:
+async def _hunter_get(endpoint: str, params: dict, client: httpx.AsyncClient | None = None):
+    timeout = max(1.0, float(settings.HUNTER_REQUEST_TIMEOUT or 8.0))
+    url = f"{HUNTER_BASE_URL}/{endpoint}"
+
+    if client is not None:
+        return await client.get(url, params=params, timeout=timeout)
+
+    async with httpx.AsyncClient(timeout=timeout) as temporary_client:
+        return await temporary_client.get(url, params=params)
+
+
+async def domain_search(domain: str, limit: int = 10, client: httpx.AsyncClient | None = None) -> dict:
     normalized_domain = normalize_domain(domain)
     if not normalized_domain:
         return {"domain": "", "organization": "", "pattern": "", "emails": [], "total": 0, "error": "No domain provided"}
@@ -104,9 +115,8 @@ async def domain_search(domain: str, limit: int = 10) -> dict:
     }
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{HUNTER_BASE_URL}/domain-search", params=params)
-            response.raise_for_status()
+        response = await _hunter_get("domain-search", params, client=client)
+        response.raise_for_status()
     except httpx.HTTPStatusError as exc:
         message = _hunter_error_message(exc.response)
         logger.warning("Hunter domain search HTTP error for %s: %s", normalized_domain, message)
@@ -128,7 +138,7 @@ async def domain_search(domain: str, limit: int = 10) -> dict:
     }
 
 
-async def email_finder(domain: str, first_name: str, last_name: str) -> dict:
+async def email_finder(domain: str, first_name: str, last_name: str, client: httpx.AsyncClient | None = None) -> dict:
     normalized_domain = normalize_domain(domain)
     first_name = str(first_name or "").strip()
     last_name = str(last_name or "").strip()
@@ -147,9 +157,8 @@ async def email_finder(domain: str, first_name: str, last_name: str) -> dict:
     }
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{HUNTER_BASE_URL}/email-finder", params=params)
-            response.raise_for_status()
+        response = await _hunter_get("email-finder", params, client=client)
+        response.raise_for_status()
     except httpx.HTTPStatusError as exc:
         message = _hunter_error_message(exc.response)
         logger.warning("Hunter email finder HTTP error for %s: %s", normalized_domain, message)
@@ -169,7 +178,7 @@ async def email_finder(domain: str, first_name: str, last_name: str) -> dict:
     }
 
 
-async def email_verifier(email: str) -> dict:
+async def email_verifier(email: str, client: httpx.AsyncClient | None = None) -> dict:
     email = str(email or "").strip()
     if not email:
         return {"result": "unknown", "score": 0, "deliverable": False, "error": "No email provided"}
@@ -183,9 +192,8 @@ async def email_verifier(email: str) -> dict:
     }
 
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.get(f"{HUNTER_BASE_URL}/email-verifier", params=params)
-            response.raise_for_status()
+        response = await _hunter_get("email-verifier", params, client=client)
+        response.raise_for_status()
     except httpx.HTTPStatusError as exc:
         message = _hunter_error_message(exc.response)
         logger.warning("Hunter email verifier HTTP error for %s: %s", email, message)

@@ -1,8 +1,13 @@
+import asyncio
+import time
+
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.database import get_db
 from app.db.models import Campaign, Lead
 from app.services import hunter_service
@@ -13,6 +18,8 @@ router = APIRouter(
 )
 
 VALID_ENRICH_MODES = {"domain", "finder"}
+HUNTER_BULK_LOCK = asyncio.Lock()
+HUNTER_BULK_STOP_AFTER_FAILURES = 3
 
 
 class DomainSearchRequest(BaseModel):
@@ -33,8 +40,9 @@ class EmailVerifyRequest(BaseModel):
 class BulkEnrichRequest(BaseModel):
     campaign_id: int
     mode: str = "domain"
-    limit: int = Field(default=20, ge=1, le=50)
+    limit: int = Field(default=10, ge=1, le=50)
     min_confidence: int = Field(default=50, ge=0, le=100)
+    lead_ids: list[int] | None = None
 
 
 def clean_text(value):
@@ -66,6 +74,14 @@ def append_source(existing_source, source_label):
 
 def lead_display_name(lead: Lead):
     return clean_text(lead.contact_name) or clean_text(lead.company_name) or f"Lead {lead.id}"
+
+
+def lead_snapshot_display_name(lead_data):
+    return (
+        clean_text(lead_data.get("contact_name"))
+        or clean_text(lead_data.get("company_name"))
+        or f"Lead {lead_data.get('id')}"
+    )
 
 
 def hunter_email_value(email_payload):
@@ -131,17 +147,24 @@ def apply_hunter_email_to_lead(lead: Lead, email_payload, source_label="Hunter")
     return email
 
 
-async def find_email_for_lead(lead: Lead, mode="domain", min_confidence=50, allow_fallback=False):
-    website = clean_text(lead.website)
+async def find_email_for_values(
+    website,
+    contact_name,
+    mode="domain",
+    min_confidence=50,
+    allow_fallback=False,
+    client: httpx.AsyncClient | None = None,
+):
+    website = clean_text(website)
     if not website:
         return None, "Lead has no website.", None
 
     if mode == "finder":
-        first_name, last_name = split_contact_name(lead.contact_name)
+        first_name, last_name = split_contact_name(contact_name)
         if not first_name or not last_name:
             return None, "Lead needs a first and last contact name for Hunter Email Finder.", None
 
-        result = await hunter_service.email_finder(website, first_name, last_name)
+        result = await hunter_service.email_finder(website, first_name, last_name, client=client)
         if result.get("error") and not result.get("email"):
             return None, result["error"], result
         if not result.get("email"):
@@ -154,7 +177,7 @@ async def find_email_for_lead(lead: Lead, mode="domain", min_confidence=50, allo
             "type": result.get("type"),
         }, None, result
 
-    result = await hunter_service.domain_search(website, limit=5)
+    result = await hunter_service.domain_search(website, limit=5, client=client)
     emails = result.get("emails") or []
     if result.get("error") and not emails:
         return None, result["error"], result
@@ -164,6 +187,57 @@ async def find_email_for_lead(lead: Lead, mode="domain", min_confidence=50, allo
         return None, "No email found via Hunter.", result
 
     return chosen, None, result
+
+
+async def find_email_for_lead(lead: Lead, mode="domain", min_confidence=50, allow_fallback=False):
+    return await find_email_for_values(
+        lead.website,
+        lead.contact_name,
+        mode=mode,
+        min_confidence=min_confidence,
+        allow_fallback=allow_fallback,
+    )
+
+
+def is_hunter_failure(error):
+    error_text = clean_text(error).lower()
+    if not error_text:
+        return False
+
+    failure_terms = [
+        "hunter api error",
+        "not configured",
+        "timed out",
+        "timeout",
+        "connect",
+        "network",
+        "rate limit",
+        "quota",
+    ]
+    return any(term in error_text for term in failure_terms)
+
+
+def mark_lead_status(db: Session, lead_id: int, status: str):
+    lead = db.get(Lead, lead_id)
+    if not lead or clean_text(lead.email):
+        return
+
+    lead.status = status
+    db.commit()
+
+
+def save_hunter_email_to_lead(db: Session, lead_id: int, chosen):
+    lead = db.get(Lead, lead_id)
+    if not lead:
+        return None, "Lead no longer exists."
+
+    if clean_text(lead.email):
+        return lead.email, "Lead already has an email."
+
+    saved_email = apply_hunter_email_to_lead(lead, chosen)
+    db.commit()
+
+    return saved_email, None
 
 
 @router.get("/status")
@@ -244,77 +318,192 @@ async def enrich_lead(
 
 @router.post("/bulk-enrich")
 async def bulk_enrich(payload: BulkEnrichRequest, db: Session = Depends(get_db)):
+    try:
+        await asyncio.wait_for(HUNTER_BULK_LOCK.acquire(), timeout=0.1)
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=409,
+            detail="Hunter bulk enrichment is already running. Run one batch at a time.",
+        )
+
+    try:
+        return await run_bulk_enrich(payload, db)
+    finally:
+        HUNTER_BULK_LOCK.release()
+
+
+async def run_bulk_enrich(payload: BulkEnrichRequest, db: Session):
     normalized_mode = normalize_mode(payload.mode)
     campaign = db.get(Campaign, payload.campaign_id)
 
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found.")
 
-    leads_missing_email = (
-        db.query(Lead)
+    effective_limit = min(
+        payload.limit,
+        max(1, settings.HUNTER_BULK_MAX_LEADS),
+    )
+
+    lead_query = (
+        db.query(
+            Lead.id,
+            Lead.website,
+            Lead.contact_name,
+            Lead.company_name,
+        )
         .filter(Lead.campaign_id == payload.campaign_id)
         .filter(or_(Lead.email.is_(None), Lead.email == ""))
         .filter(Lead.website.is_not(None), Lead.website != "")
+        .filter(or_(Lead.status.is_(None), Lead.status != "hunter_not_found"))
         .order_by(Lead.created_at.desc())
-        .limit(payload.limit)
-        .all()
     )
 
-    if not leads_missing_email:
+    if payload.lead_ids:
+        unique_lead_ids = list(dict.fromkeys(payload.lead_ids))
+        lead_query = lead_query.filter(Lead.id.in_(unique_lead_ids))
+        effective_limit = min(effective_limit, len(unique_lead_ids))
+
+    leads_missing_email = (
+        lead_query
+        .limit(effective_limit)
+        .all()
+    )
+    lead_snapshots = [
+        {
+            "id": lead.id,
+            "website": lead.website,
+            "contact_name": lead.contact_name,
+            "company_name": lead.company_name,
+        }
+        for lead in leads_missing_email
+    ]
+    db.commit()
+
+    if not lead_snapshots:
         return {
             "message": "No leads need Hunter enrichment.",
             "enriched": 0,
             "skipped": 0,
             "failed": 0,
+            "processed": 0,
+            "partial": False,
             "results": [],
         }
 
     enriched = 0
     skipped = 0
     failed = 0
+    processed = 0
+    partial = False
+    stop_reason = None
+    consecutive_failures = 0
     results = []
+    started_at = time.monotonic()
+    request_timeout = max(1.0, float(settings.HUNTER_REQUEST_TIMEOUT or 8.0))
 
-    for lead in leads_missing_email:
-        chosen, error, _raw_result = await find_email_for_lead(
-            lead,
-            mode=normalized_mode,
-            min_confidence=payload.min_confidence,
-            allow_fallback=False,
-        )
+    async with httpx.AsyncClient(timeout=request_timeout) as client:
+        for index, lead_data in enumerate(lead_snapshots):
+            if processed and time.monotonic() - started_at >= settings.HUNTER_BULK_MAX_SECONDS:
+                partial = True
+                stop_reason = "Hunter bulk enrichment stopped before the server request timeout."
+                break
 
-        if not chosen:
-            if error and "Hunter API error" in error:
+            chosen, error, _raw_result = await find_email_for_values(
+                lead_data["website"],
+                lead_data["contact_name"],
+                mode=normalized_mode,
+                min_confidence=payload.min_confidence,
+                allow_fallback=False,
+                client=client,
+            )
+
+            processed += 1
+
+            if not chosen:
+                if is_hunter_failure(error):
+                    failed += 1
+                    status = "error"
+                    consecutive_failures += 1
+                    lead_status = "hunter_error"
+                else:
+                    skipped += 1
+                    status = "not_found"
+                    consecutive_failures = 0
+                    lead_status = "hunter_not_found"
+
+                try:
+                    mark_lead_status(db, lead_data["id"], lead_status)
+                except Exception:
+                    db.rollback()
+
+                results.append({
+                    "lead_id": lead_data["id"],
+                    "name": lead_snapshot_display_name(lead_data),
+                    "status": status,
+                    "reason": error or "No email found via Hunter.",
+                })
+
+                if consecutive_failures >= HUNTER_BULK_STOP_AFTER_FAILURES:
+                    partial = True
+                    stop_reason = "Hunter returned repeated errors, so the batch was stopped early."
+                    break
+
+                if settings.HUNTER_BULK_DELAY_SECONDS > 0 and index < len(lead_snapshots) - 1:
+                    await asyncio.sleep(settings.HUNTER_BULK_DELAY_SECONDS)
+
+                continue
+
+            try:
+                saved_email, save_error = save_hunter_email_to_lead(db, lead_data["id"], chosen)
+            except Exception as exc:
+                db.rollback()
                 failed += 1
-                status = "error"
-            else:
+                consecutive_failures += 1
+                results.append({
+                    "lead_id": lead_data["id"],
+                    "name": lead_snapshot_display_name(lead_data),
+                    "status": "error",
+                    "reason": f"Failed to save Hunter email: {exc}",
+                })
+                continue
+
+            if save_error:
                 skipped += 1
-                status = "not_found"
+                consecutive_failures = 0
+                results.append({
+                    "lead_id": lead_data["id"],
+                    "name": lead_snapshot_display_name(lead_data),
+                    "status": "skipped",
+                    "reason": save_error,
+                })
+            else:
+                enriched += 1
+                consecutive_failures = 0
+                results.append({
+                    "lead_id": lead_data["id"],
+                    "name": lead_snapshot_display_name(lead_data),
+                    "status": "found",
+                    "email": saved_email,
+                    "confidence": hunter_email_score(chosen),
+                    "type": chosen.get("type"),
+                })
 
-            results.append({
-                "lead_id": lead.id,
-                "name": lead_display_name(lead),
-                "status": status,
-                "reason": error or "No email found via Hunter.",
-            })
-            continue
+            if settings.HUNTER_BULK_DELAY_SECONDS > 0 and index < len(lead_snapshots) - 1:
+                await asyncio.sleep(settings.HUNTER_BULK_DELAY_SECONDS)
 
-        saved_email = apply_hunter_email_to_lead(lead, chosen)
-        enriched += 1
-        results.append({
-            "lead_id": lead.id,
-            "name": lead_display_name(lead),
-            "status": "found",
-            "email": saved_email,
-            "confidence": hunter_email_score(chosen),
-            "type": chosen.get("type"),
-        })
-
-    db.commit()
+    message = "Hunter bulk enrichment completed."
+    if partial:
+        message = stop_reason or "Hunter bulk enrichment partially completed."
 
     return {
-        "message": "Hunter bulk enrichment completed.",
+        "message": message,
         "enriched": enriched,
         "skipped": skipped,
         "failed": failed,
+        "processed": processed,
+        "requested_limit": payload.limit,
+        "effective_limit": effective_limit,
+        "partial": partial,
+        "remaining_in_batch": max(0, len(lead_snapshots) - processed),
         "results": results,
     }
