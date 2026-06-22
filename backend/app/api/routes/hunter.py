@@ -319,7 +319,7 @@ async def enrich_lead(
 @router.post("/bulk-enrich")
 async def bulk_enrich(payload: BulkEnrichRequest, db: Session = Depends(get_db)):
     try:
-        await asyncio.wait_for(HUNTER_BULK_LOCK.acquire(), timeout=0.1)
+        await asyncio.wait_for(HUNTER_BULK_LOCK.acquire(), timeout=30.0)
     except asyncio.TimeoutError:
         raise HTTPException(
             status_code=409,
