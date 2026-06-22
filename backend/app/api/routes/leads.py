@@ -2,6 +2,7 @@ import csv
 import io
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.database import get_db
@@ -140,16 +141,46 @@ def create_lead(lead: LeadCreate, db: Session = Depends(get_db)):
             detail="company_name is required"
         )
 
+    # Check for duplicate by website (normalized)
+    website = clean_optional(lead.website)
+    if website:
+        existing = db.query(Lead).filter(
+            Lead.campaign_id == lead.campaign_id,
+            Lead.website == website.lower()
+        ).first()
+        if existing:
+            return {
+                "status": "skipped",
+                "message": "Lead already exists",
+                "lead_id": existing.id,
+                "skipped": True
+            }
+
+    # Check for duplicate by phone (if no website)
+    phone = clean_optional(getattr(lead, "phone", None))
+    if phone and not website:
+        existing = db.query(Lead).filter(
+            Lead.campaign_id == lead.campaign_id,
+            Lead.phone == phone
+        ).first()
+        if existing:
+            return {
+                "status": "skipped",
+                "message": "Lead already exists",
+                "lead_id": existing.id,
+                "skipped": True
+            }
+
     new_lead = Lead(
         campaign_id=lead.campaign_id,
         company_name=company_name,
-        website=clean_optional(lead.website),
+        website=website,
         industry=clean_optional(lead.industry),
         location=clean_optional(lead.location),
         contact_name=clean_optional(lead.contact_name),
         contact_role=clean_optional(lead.contact_role),
         email=clean_optional(lead.email),
-        phone=clean_optional(getattr(lead, "phone", None)),
+        phone=phone,
         source_url=clean_optional(getattr(lead, "source_url", None)),
         profile_url=clean_optional(getattr(lead, "profile_url", None)),
         source=clean_optional(lead.source) or "Manual",
@@ -191,6 +222,55 @@ def get_campaign_leads(campaign_id: int, db: Session = Depends(get_db)):
         "status": "success",
         "data": [serialize_lead(lead) for lead in leads],
     }
+
+
+@router.get("/campaign/{campaign_id}/export-csv")
+def export_leads_csv(campaign_id: int, db: Session = Depends(get_db)):
+    get_campaign_or_404(campaign_id, db)
+    
+    leads = (
+        db.query(Lead)
+        .filter(Lead.campaign_id == campaign_id)
+        .order_by(Lead.created_at.desc())
+        .all()
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header
+    writer.writerow([
+        "company_name", "website", "email", "phone",
+        "contact_name", "contact_role", "location", "industry",
+        "source", "status", "ai_score", "ai_priority", "created_at"
+    ])
+
+    # Rows
+    for lead in leads:
+        writer.writerow([
+            lead.company_name or "",
+            lead.website or "",
+            lead.email or "",
+            lead.phone or "",
+            lead.contact_name or "",
+            lead.contact_role or "",
+            lead.location or "",
+            lead.industry or "",
+            lead.source or "",
+            lead.status or "",
+            lead.ai_score or "",
+            lead.ai_priority or "",
+            lead.created_at or ""
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=campaign_{campaign_id}_leads.csv"
+        }
+    )
 
 
 @router.get("/{lead_id}/research")

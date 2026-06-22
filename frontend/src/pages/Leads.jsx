@@ -626,6 +626,30 @@ function Leads() {
           </Card>
         )}
 
+        {selectedCampaign && (
+          <Card>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold tracking-tight text-slate-950">Export Leads</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Download all leads from this campaign as a CSV file.
+                </p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Total leads: {leads.length}
+                </p>
+              </div>
+
+              <a
+                href={`${import.meta.env.VITE_API_BASE_URL}/leads/campaign/${selectedCampaignId}/export-csv`}
+                download
+                className="w-full rounded-lg bg-green-600 px-4 py-2 text-center text-white hover:bg-green-700 disabled:bg-gray-400 lg:w-auto"
+              >
+                ⬇ Download Leads CSV
+              </a>
+            </div>
+          </Card>
+        )}
+
         {(leadExtractionMessage || leadExtractionError || hunterMessage || hunterError || leadScoringMessage || leadScoringError || leadResearchMessage || leadResearchError || callMessage || callError) && (
           <Card>
             {callMessage && (
