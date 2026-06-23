@@ -207,6 +207,8 @@ function LeadItem({
   onExtractEmail,
   onHunterEnrichLead,
   enrichingLeadId,
+  onApolloEnrichLead,
+  apolloEnrichingLeadId,
   onScoreLead,
   onResearchLead,
   onGenerateCallScript,
@@ -523,6 +525,8 @@ function LeadTable({
               onExtractEmail={onExtractEmail}
               onHunterEnrichLead={onHunterEnrichLead}
               enrichingLeadId={enrichingLeadId}
+              onApolloEnrichLead={onApolloEnrichLead}
+              apolloEnrichingLeadId={apolloEnrichingLeadId}
               onScoreLead={onScoreLead}
               onResearchLead={onResearchLead}
               onGenerateCallScript={onGenerateCallScript}
