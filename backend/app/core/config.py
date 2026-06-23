@@ -95,6 +95,7 @@ class Settings:
     HUNTER_BULK_MAX_LEADS: int = get_int_env("HUNTER_BULK_MAX_LEADS", 10)
     HUNTER_BULK_MAX_SECONDS: float = get_float_env("HUNTER_BULK_MAX_SECONDS", 45.0)
     HUNTER_BULK_DELAY_SECONDS: float = get_float_env("HUNTER_BULK_DELAY_SECONDS", 0.25)
+    APOLLO_API_KEY: str = os.getenv("APOLLO_API_KEY", "")
     VAPI_ENABLED: bool = get_bool_env("VAPI_ENABLED", False)
     VAPI_API_KEY: str = os.getenv("VAPI_API_KEY", "")
     VAPI_ASSISTANT_ID: str = os.getenv("VAPI_ASSISTANT_ID", "")

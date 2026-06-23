@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from app.api.routes import (
     ai,
     analytics,
+    apollo,
     campaigns,
     calls,
     dashboard,
@@ -36,6 +37,7 @@ api_router.include_router(emails.router)
 api_router.include_router(followups.router)
 api_router.include_router(gmail.router)
 api_router.include_router(hunter.router)
+api_router.include_router(apollo.router)
 api_router.include_router(replies.router)
 api_router.include_router(reply_classification.router)
 api_router.include_router(reply_responses.router)
