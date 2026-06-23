@@ -8,12 +8,12 @@ from sqlalchemy.orm import Session, joinedload
 from app.db.database import get_db
 from app.db.models import Campaign, Lead
 from app.schemas.lead_schema import LeadCreate
+from app.services.email_guesser_service import find_email_for_website
 from app.services.lead_research_service import (
     LeadResearchError,
     research_lead,
     serialize_research_result,
 )
-from app.services.scraper_service import find_emails_from_website
 
 router = APIRouter(
     prefix="/leads",
@@ -27,6 +27,22 @@ def clean_optional(value):
 
     value = str(value).strip()
     return value or None
+
+
+def append_source(existing_source, source_label):
+    existing = clean_optional(existing_source)
+    label = clean_optional(source_label)
+
+    if not label:
+        return existing
+
+    if not existing:
+        return label
+
+    if label.lower() in existing.lower():
+        return existing
+
+    return f"{existing}; {label}"
 
 
 def get_campaign_or_404(campaign_id: int, db: Session):
@@ -113,6 +129,7 @@ def serialize_lead(lead: Lead):
 def apply_extraction_result_to_lead(lead: Lead, extraction_result: dict):
     found_emails = extraction_result.get("emails", [])
     scraper_error = extraction_result.get("error")
+    source_label = clean_optional(extraction_result.get("source"))
     saved_email = lead.email
 
     if found_emails:
@@ -120,6 +137,7 @@ def apply_extraction_result_to_lead(lead: Lead, extraction_result: dict):
             lead.email = found_emails[0]
 
         lead.status = "email_found"
+        lead.source = append_source(lead.source, source_label)
         saved_email = lead.email
     elif scraper_error:
         lead.status = "extraction_failed"
@@ -399,7 +417,7 @@ def extract_email_for_lead(lead_id: int, db: Session = Depends(get_db)):
             detail="Lead website is missing"
         )
 
-    extraction_result = find_emails_from_website(lead.website)
+    extraction_result = find_email_for_website(lead.website, lead.contact_name)
     saved_email = apply_extraction_result_to_lead(lead, extraction_result)
 
     db.commit()
@@ -412,6 +430,9 @@ def extract_email_for_lead(lead_id: int, db: Session = Depends(get_db)):
         "found_emails": extraction_result.get("emails", []),
         "saved_email": saved_email,
         "pages_checked": extraction_result.get("pages_checked", []),
+        "source": extraction_result.get("source"),
+        "method": extraction_result.get("method"),
+        "verification": extraction_result.get("verification"),
         "lead_status": lead.status,
         "error": extraction_result.get("error")
     }
@@ -456,6 +477,7 @@ def extract_emails_for_campaign(campaign_id: int, db: Session = Depends(get_db))
         saved_email = lead.email
         pages_checked = []
         extraction_error = None
+        extraction_result = None
 
         if not website:
             lead.status = "website_missing"
@@ -465,7 +487,7 @@ def extract_emails_for_campaign(campaign_id: int, db: Session = Depends(get_db))
             summary["email_found"] += 1
         else:
             try:
-                extraction_result = find_emails_from_website(website)
+                extraction_result = find_email_for_website(website, lead.contact_name)
                 found_emails = extraction_result.get("emails", [])
                 pages_checked = extraction_result.get("pages_checked", [])
                 extraction_error = extraction_result.get("error")
@@ -484,6 +506,9 @@ def extract_emails_for_campaign(campaign_id: int, db: Session = Depends(get_db))
             "saved_email": saved_email,
             "status": lead.status,
             "pages_checked": pages_checked,
+            "source": extraction_result.get("source") if extraction_result else None,
+            "method": extraction_result.get("method") if extraction_result else None,
+            "verification": extraction_result.get("verification") if extraction_result else None,
             "error": extraction_error,
         })
 
