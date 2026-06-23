@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { bulkEnrich, enrichLead } from "../api/hunter";
+import { bulkEnrich as apolloBulkEnrich, enrichLead as apolloEnrichLead } from "../api/apollo";
 import EmailExtraction from "../components/EmailExtraction";
 import LeadTable from "../components/LeadTable";
 import LeadUpload from "../components/LeadUpload";
@@ -27,6 +28,10 @@ function Leads() {
   const [hunterError, setHunterError] = useState("");
   const [enrichingLeadId, setEnrichingLeadId] = useState(null);
   const [isBulkEnriching, setIsBulkEnriching] = useState(false);
+  const [apolloMessage, setApolloMessage] = useState("");
+  const [apolloError, setApolloError] = useState("");
+  const [apolloEnrichingLeadId, setApolloEnrichingLeadId] = useState(null);
+  const [isApolloBulkEnriching, setIsApolloBulkEnriching] = useState(false);
   const [isScoringCampaign, setIsScoringCampaign] = useState(false);
   const [scoringLeadId, setScoringLeadId] = useState(null);
   const [leadScoringMessage, setLeadScoringMessage] = useState("");
@@ -156,6 +161,8 @@ function Leads() {
     setLeadExtractionError("");
     setHunterMessage("");
     setHunterError("");
+    setApolloMessage("");
+    setApolloError("");
     setLeadScoringMessage("");
     setLeadScoringError("");
     setLeadResearchMessage("");
@@ -227,6 +234,62 @@ function Leads() {
       console.error(err);
     } finally {
       setIsBulkEnriching(false);
+    }
+  };
+
+  const handleApolloEnrichLead = async (lead) => {
+    setApolloEnrichingLeadId(lead.id);
+    setApolloMessage("");
+    setApolloError("");
+
+    try {
+      const result = await apolloEnrichLead(lead.id);
+
+      if (result.updated) {
+        setApolloMessage(
+          `Apollo found and saved ${result.email} for ${lead.company_name}. Name: ${result.name || "N/A"}, Title: ${result.title || "N/A"}.`
+        );
+        refreshLeads();
+      } else {
+        setApolloMessage(result.message || "Apollo did not find an email for this lead.");
+      }
+    } catch (err) {
+      setApolloError(getFriendlyErrorMessage(err, "Apollo enrichment failed. Please check the API key and try again."));
+      console.error(err);
+    } finally {
+      setApolloEnrichingLeadId(null);
+    }
+  };
+
+  const handleApolloBulkEnrich = async () => {
+    if (!selectedCampaignId) {
+      return;
+    }
+
+    const shouldContinue = window.confirm(
+      "Apollo bulk enrichment can find emails for up to 20 leads. Continue?"
+    );
+
+    if (!shouldContinue) {
+      return;
+    }
+
+    setIsApolloBulkEnriching(true);
+    setApolloMessage("");
+    setApolloError("");
+
+    try {
+      const result = await apolloBulkEnrich(selectedCampaignId, 20);
+
+      setApolloMessage(
+        `Apollo bulk enrichment completed. Found ${result.enriched ?? 0}, skipped ${result.skipped ?? 0}.`
+      );
+      refreshLeads();
+    } catch (err) {
+      setApolloError(getFriendlyErrorMessage(err, "Apollo bulk enrichment failed. Please check the API key and try again."));
+      console.error(err);
+    } finally {
+      setIsApolloBulkEnriching(false);
     }
   };
 
@@ -630,6 +693,32 @@ function Leads() {
           <Card>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
+                <h2 className="text-xl font-semibold tracking-tight text-slate-950">Apollo Email Enrichment</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Use Apollo.io to find verified emails and contact details from company databases.
+                </p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Eligible leads in this campaign: {hunterEligibleLeadCount}
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full lg:w-auto"
+                disabled={!selectedCampaignId || isApolloBulkEnriching || hunterEligibleLeadCount === 0}
+                onClick={handleApolloBulkEnrich}
+              >
+                {isApolloBulkEnriching ? "Searching Apollo..." : "Bulk Search Apollo"}
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {selectedCampaign && (
+          <Card>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
                 <h2 className="text-xl font-semibold tracking-tight text-slate-950">Export Leads</h2>
                 <p className="mt-1 text-sm text-slate-500">
                   Download all leads from this campaign as a CSV file.
@@ -650,7 +739,7 @@ function Leads() {
           </Card>
         )}
 
-        {(leadExtractionMessage || leadExtractionError || hunterMessage || hunterError || leadScoringMessage || leadScoringError || leadResearchMessage || leadResearchError || callMessage || callError) && (
+        {(leadExtractionMessage || leadExtractionError || hunterMessage || hunterError || apolloMessage || apolloError || leadScoringMessage || leadScoringError || leadResearchMessage || leadResearchError || callMessage || callError) && (
           <Card>
             {callMessage && (
               <p className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-700">
@@ -661,6 +750,12 @@ function Leads() {
             {hunterMessage && (
               <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700 first:mt-0">
                 {hunterMessage}
+              </p>
+            )}
+
+            {apolloMessage && (
+              <p className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 first:mt-0">
+                {apolloMessage}
               </p>
             )}
 
@@ -694,6 +789,12 @@ function Leads() {
               </p>
             )}
 
+            {apolloError && (
+              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">
+                {apolloError}
+              </p>
+            )}
+
             {leadScoringError && (
               <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">
                 {leadScoringError}
@@ -723,6 +824,8 @@ function Leads() {
           extractingLeadId={extractingLeadId}
           onHunterEnrichLead={handleHunterEnrichLead}
           enrichingLeadId={enrichingLeadId}
+          onApolloEnrichLead={handleApolloEnrichLead}
+          apolloEnrichingLeadId={apolloEnrichingLeadId}
           onScoreLead={handleScoreLead}
           scoringLeadId={scoringLeadId}
           onResearchLead={handleResearchLead}

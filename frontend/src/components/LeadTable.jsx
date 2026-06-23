@@ -79,6 +79,8 @@ function LeadActions({
   extractingLeadId,
   onHunterEnrichLead,
   enrichingLeadId,
+  onApolloEnrichLead,
+  apolloEnrichingLeadId,
   onScoreLead,
   scoringLeadId,
   onResearchLead,
@@ -94,6 +96,7 @@ function LeadActions({
   const doNotCall = Boolean(lead.do_not_call);
   const isStartingThisLead = startingCallLeadId === lead.id;
   const canUseHunter = !lead.email && Boolean(lead.website);
+  const canUseApollo = !lead.email && Boolean(lead.website);
 
   return (
     <div className="grid w-full grid-cols-1 gap-2">
@@ -127,6 +130,18 @@ function LeadActions({
           onClick={() => onHunterEnrichLead?.(lead)}
         >
           {enrichingLeadId === lead.id ? "Searching Hunter..." : "Find via Hunter"}
+        </Button>
+      )}
+      {canUseApollo && (
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          className="w-full"
+          disabled={apolloEnrichingLeadId === lead.id}
+          onClick={() => onApolloEnrichLead?.(lead)}
+        >
+          {apolloEnrichingLeadId === lead.id ? "Searching Apollo..." : "Find via Apollo"}
         </Button>
       )}
       <Button
@@ -279,6 +294,8 @@ function LeadItem({
             extractingLeadId={extractingLeadId}
             onHunterEnrichLead={onHunterEnrichLead}
             enrichingLeadId={enrichingLeadId}
+            onApolloEnrichLead={onApolloEnrichLead}
+            apolloEnrichingLeadId={apolloEnrichingLeadId}
             scoringLeadId={scoringLeadId}
             researchingLeadId={researchingLeadId}
             onExtractEmail={onExtractEmail}
@@ -445,6 +462,8 @@ function LeadTable({
   extractingLeadId,
   onHunterEnrichLead,
   enrichingLeadId,
+  onApolloEnrichLead,
+  apolloEnrichingLeadId,
   onScoreLead,
   scoringLeadId,
   onResearchLead,
