@@ -10,6 +10,7 @@ from app.db.database_utils import (
     ensure_call_columns,
     ensure_discovery_columns,
     ensure_email_draft_columns,
+    ensure_email_extraction_job_columns,
     ensure_knowledge_document_columns,
     ensure_lead_ai_scoring_columns,
     ensure_lead_call_columns,
@@ -26,6 +27,7 @@ from app.db.models import (  # noqa: F401
     DiscoveredLead,
     DiscoveryJob,
     EmailDraft,
+    EmailExtractionJob,
     FollowUpDraft,
     GmailOAuthState,
     GmailToken,
@@ -38,6 +40,7 @@ from app.db.models import (  # noqa: F401
 # Import models above so Base.metadata includes all MVP tables before create_all.
 Base.metadata.create_all(bind=engine)
 ensure_email_draft_columns(engine)
+ensure_email_extraction_job_columns(engine)
 ensure_lead_ai_scoring_columns(engine)
 ensure_lead_research_columns(engine)
 ensure_lead_discovery_source_columns(engine)

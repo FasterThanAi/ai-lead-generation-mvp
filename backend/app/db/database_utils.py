@@ -8,6 +8,81 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
+def ensure_email_extraction_job_columns(engine):
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+    dialect_name = engine.dialect.name
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+    id_type = "SERIAL PRIMARY KEY" if dialect_name == "postgresql" else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    current_timestamp = "NOW()" if dialect_name == "postgresql" else "CURRENT_TIMESTAMP"
+
+    required_columns = {
+        "id": "INTEGER",
+        "campaign_id": "INTEGER",
+        "status": "VARCHAR(50)",
+        "total_leads": "INTEGER",
+        "processed": "INTEGER",
+        "found": "INTEGER",
+        "skipped": "INTEGER",
+        "failed": "INTEGER",
+        "started_at": datetime_type,
+        "finished_at": datetime_type,
+        "error": "TEXT",
+    }
+
+    if "email_extraction_jobs" not in table_names:
+        with engine.begin() as connection:
+            connection.execute(
+                text(f"""
+                    CREATE TABLE IF NOT EXISTS email_extraction_jobs (
+                        id {id_type},
+                        campaign_id INTEGER NOT NULL,
+                        status VARCHAR(50) DEFAULT 'pending' NOT NULL,
+                        total_leads INTEGER DEFAULT 0 NOT NULL,
+                        processed INTEGER DEFAULT 0 NOT NULL,
+                        found INTEGER DEFAULT 0 NOT NULL,
+                        skipped INTEGER DEFAULT 0 NOT NULL,
+                        failed INTEGER DEFAULT 0 NOT NULL,
+                        started_at {datetime_type} DEFAULT {current_timestamp},
+                        finished_at {datetime_type},
+                        error TEXT
+                    )
+                """)
+            )
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_email_extraction_jobs_campaign_id ON email_extraction_jobs (campaign_id)")
+            )
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("email_extraction_jobs")
+    }
+    missing_columns = [
+        (column_name, column_type)
+        for column_name, column_type in required_columns.items()
+        if column_name not in existing_columns and column_name != "id"
+    ]
+
+    if not missing_columns:
+        return
+
+    with engine.begin() as connection:
+        for column_name, column_type in missing_columns:
+            default_clause = ""
+            if column_name == "status":
+                default_clause = " DEFAULT 'pending'"
+            if column_name in {"total_leads", "processed", "found", "skipped", "failed"}:
+                default_clause = " DEFAULT 0"
+            connection.execute(
+                text(f"ALTER TABLE email_extraction_jobs ADD COLUMN {column_name} {column_type}{default_clause}")
+            )
+
+        connection.execute(text("UPDATE email_extraction_jobs SET status = 'pending' WHERE status IS NULL"))
+        for column_name in ("total_leads", "processed", "found", "skipped", "failed"):
+            connection.execute(text(f"UPDATE email_extraction_jobs SET {column_name} = 0 WHERE {column_name} IS NULL"))
+
+
 def ensure_email_draft_columns(engine):
     inspector = inspect(engine)
 

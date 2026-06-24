@@ -1,12 +1,16 @@
 import csv
 import io
+import logging
+import time
+from datetime import timedelta, timezone
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
-from app.db.database import get_db
-from app.db.models import Campaign, Lead
+from app.db.database import SessionLocal, get_db
+from app.db.models import Campaign, EmailExtractionJob, Lead
 from app.schemas.lead_schema import LeadCreate
 from app.services.email_guesser_service import find_email_for_website
 from app.services.lead_research_service import (
@@ -14,11 +18,16 @@ from app.services.lead_research_service import (
     research_lead,
     serialize_research_result,
 )
+from app.utils.time_utils import utc_now
 
 router = APIRouter(
     prefix="/leads",
     tags=["Leads"]
 )
+
+logger = logging.getLogger(__name__)
+RUNNING_EXTRACTION_STATUSES = {"pending", "running"}
+STALE_EXTRACTION_JOB_AGE = timedelta(hours=1)
 
 
 def clean_optional(value):
@@ -147,6 +156,145 @@ def apply_extraction_result_to_lead(lead: Lead, extraction_result: dict):
     return saved_email
 
 
+def lead_needs_email_filters(campaign_id: int):
+    return (
+        Lead.campaign_id == campaign_id,
+        or_(Lead.email.is_(None), Lead.email == ""),
+        Lead.website.is_not(None),
+        Lead.website != "",
+    )
+
+
+def serialize_extraction_job(job: EmailExtractionJob):
+    total = job.total_leads or 0
+    processed = job.processed or 0
+    percentage = round((processed / total) * 100) if total else 0
+
+    return {
+        "job_id": job.id,
+        "campaign_id": job.campaign_id,
+        "status": job.status,
+        "total": total,
+        "total_leads": total,
+        "processed": processed,
+        "found": job.found or 0,
+        "skipped": job.skipped or 0,
+        "failed": job.failed or 0,
+        "percentage": min(100, percentage),
+        "remaining": max(total - processed, 0),
+        "started_at": job.started_at,
+        "finished_at": job.finished_at,
+        "error": job.error,
+    }
+
+
+def get_extraction_job_or_404(job_id: int, db: Session):
+    job = db.get(EmailExtractionJob, job_id)
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Email extraction job not found")
+
+    return job
+
+
+def mark_stale_extraction_jobs_failed(db: Session, campaign_id: int):
+    cutoff = utc_now() - STALE_EXTRACTION_JOB_AGE
+    jobs = (
+        db.query(EmailExtractionJob)
+        .filter(
+            EmailExtractionJob.campaign_id == campaign_id,
+            EmailExtractionJob.status.in_(RUNNING_EXTRACTION_STATUSES),
+        )
+        .all()
+    )
+    changed = False
+
+    for job in jobs:
+        started_at = job.started_at
+        if started_at and started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=timezone.utc)
+
+        if not started_at or started_at < cutoff:
+            job.status = "failed"
+            job.finished_at = utc_now()
+            job.error = job.error or "Email extraction stopped before completing. Start a new extraction job."
+            changed = True
+
+    if changed:
+        db.commit()
+
+
+def update_job_counts_for_lead(job: EmailExtractionJob, lead: Lead):
+    if lead.status == "email_found" and clean_optional(lead.email):
+        job.found = (job.found or 0) + 1
+    elif lead.status == "extraction_failed":
+        job.failed = (job.failed or 0) + 1
+    else:
+        job.skipped = (job.skipped or 0) + 1
+
+
+def _run_extraction_job(job_id: int, campaign_id: int, limit: int):
+    db = SessionLocal()
+    job = None
+
+    try:
+        job = db.get(EmailExtractionJob, job_id)
+        if not job:
+            logger.warning("Email extraction job %s disappeared before it could start.", job_id)
+            return
+
+        job.status = "running"
+        db.commit()
+
+        leads = (
+            db.query(Lead)
+            .filter(*lead_needs_email_filters(campaign_id))
+            .order_by(Lead.created_at.desc(), Lead.id.desc())
+            .limit(limit)
+            .all()
+        )
+
+        job.total_leads = len(leads)
+        db.commit()
+
+        if not leads:
+            job.status = "completed"
+            job.finished_at = utc_now()
+            db.commit()
+            return
+
+        for lead in leads:
+            try:
+                time.sleep(1)
+                extraction_result = find_email_for_website(lead.website, lead.contact_name)
+                apply_extraction_result_to_lead(lead, extraction_result)
+                update_job_counts_for_lead(job, lead)
+            except Exception as exc:
+                logger.exception("Email extraction failed for lead %s in job %s", lead.id, job_id)
+                lead.status = "extraction_failed"
+                job.failed = (job.failed or 0) + 1
+                if not job.error:
+                    job.error = str(exc)
+            finally:
+                job.processed = (job.processed or 0) + 1
+                db.commit()
+
+        job.status = "completed"
+        job.finished_at = utc_now()
+        db.commit()
+    except Exception as exc:
+        logger.exception("Email extraction job %s failed", job_id)
+        db.rollback()
+
+        if job:
+            job.status = "failed"
+            job.error = str(exc)
+            job.finished_at = utc_now()
+            db.commit()
+    finally:
+        db.close()
+
+
 @router.post("/create")
 def create_lead(lead: LeadCreate, db: Session = Depends(get_db)):
     get_campaign_or_404(lead.campaign_id, db)
@@ -239,6 +387,129 @@ def get_campaign_leads(campaign_id: int, db: Session = Depends(get_db)):
     return {
         "status": "success",
         "data": [serialize_lead(lead) for lead in leads],
+    }
+
+
+@router.post("/campaign/{campaign_id}/extract-emails-async")
+def extract_emails_async(
+    campaign_id: int,
+    background_tasks: BackgroundTasks,
+    limit: int = Query(default=100, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    get_campaign_or_404(campaign_id, db)
+    mark_stale_extraction_jobs_failed(db, campaign_id)
+
+    running_job = (
+        db.query(EmailExtractionJob)
+        .filter(
+            EmailExtractionJob.campaign_id == campaign_id,
+            EmailExtractionJob.status.in_(RUNNING_EXTRACTION_STATUSES),
+        )
+        .order_by(EmailExtractionJob.started_at.desc(), EmailExtractionJob.id.desc())
+        .first()
+    )
+
+    if running_job:
+        return {
+            "status": running_job.status,
+            "message": "Email extraction is already running for this campaign.",
+            "poll_url": f"/api/leads/extraction-job/{running_job.id}",
+            **serialize_extraction_job(running_job),
+        }
+
+    total = db.query(Lead).filter(*lead_needs_email_filters(campaign_id)).count()
+
+    if total == 0:
+        return {
+            "job_id": None,
+            "campaign_id": campaign_id,
+            "message": "No leads need email extraction.",
+            "total": 0,
+            "total_leads": 0,
+            "processed": 0,
+            "found": 0,
+            "skipped": 0,
+            "failed": 0,
+            "percentage": 100,
+            "remaining": 0,
+            "status": "nothing_to_do",
+        }
+
+    actual_limit = min(limit, total)
+    job = EmailExtractionJob(
+        campaign_id=campaign_id,
+        status="running",
+        total_leads=actual_limit,
+        processed=0,
+        found=0,
+        skipped=0,
+        failed=0,
+        error=None,
+    )
+
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    background_tasks.add_task(
+        _run_extraction_job,
+        job_id=job.id,
+        campaign_id=campaign_id,
+        limit=actual_limit,
+    )
+
+    return {
+        "status": "running",
+        "message": f"Email extraction started for {actual_limit} leads.",
+        "poll_url": f"/api/leads/extraction-job/{job.id}",
+        **serialize_extraction_job(job),
+    }
+
+
+@router.get("/extraction-job/{job_id}")
+def get_extraction_job(job_id: int, db: Session = Depends(get_db)):
+    job = get_extraction_job_or_404(job_id, db)
+    return serialize_extraction_job(job)
+
+
+@router.get("/campaign/{campaign_id}/extraction-status")
+def get_campaign_extraction_status(campaign_id: int, db: Session = Depends(get_db)):
+    get_campaign_or_404(campaign_id, db)
+    mark_stale_extraction_jobs_failed(db, campaign_id)
+
+    total = db.query(Lead).filter(Lead.campaign_id == campaign_id).count()
+    with_email = (
+        db.query(Lead)
+        .filter(
+            Lead.campaign_id == campaign_id,
+            Lead.email.is_not(None),
+            Lead.email != "",
+        )
+        .count()
+    )
+    eligible_without_email = db.query(Lead).filter(*lead_needs_email_filters(campaign_id)).count()
+    without_email = max(total - with_email, 0)
+
+    running_job = (
+        db.query(EmailExtractionJob)
+        .filter(
+            EmailExtractionJob.campaign_id == campaign_id,
+            EmailExtractionJob.status.in_(RUNNING_EXTRACTION_STATUSES),
+        )
+        .order_by(EmailExtractionJob.started_at.desc(), EmailExtractionJob.id.desc())
+        .first()
+    )
+
+    return {
+        "campaign_id": campaign_id,
+        "total_leads": total,
+        "with_email": with_email,
+        "without_email": without_email,
+        "eligible_without_email": eligible_without_email,
+        "coverage_percent": round((with_email / total * 100) if total > 0 else 0),
+        "running_job_id": running_job.id if running_job else None,
+        "running_job": serialize_extraction_job(running_job) if running_job else None,
     }
 
 

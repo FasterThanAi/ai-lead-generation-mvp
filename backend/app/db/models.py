@@ -25,6 +25,7 @@ class Campaign(Base):
     discovered_leads = relationship("DiscoveredLead", back_populates="campaign")
     call_logs = relationship("CallLog", back_populates="campaign")
     call_scripts = relationship("CallScript", back_populates="campaign")
+    email_extraction_jobs = relationship("EmailExtractionJob", back_populates="campaign", cascade="all, delete-orphan")
 
 
 class Opportunity(Base):
@@ -186,6 +187,24 @@ class Lead(Base):
     reply_response_drafts = relationship("ReplyResponseDraft", back_populates="lead", cascade="all, delete-orphan")
     call_logs = relationship("CallLog", back_populates="lead")
     call_scripts = relationship("CallScript", back_populates="lead")
+
+
+class EmailExtractionJob(Base):
+    __tablename__ = "email_extraction_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
+    status = Column(String(50), default="pending", nullable=False)
+    total_leads = Column(Integer, default=0, nullable=False)
+    processed = Column(Integer, default=0, nullable=False)
+    found = Column(Integer, default=0, nullable=False)
+    skipped = Column(Integer, default=0, nullable=False)
+    failed = Column(Integer, default=0, nullable=False)
+    started_at = Column(DateTime, default=utc_now)
+    finished_at = Column(DateTime, nullable=True)
+    error = Column(Text, nullable=True)
+
+    campaign = relationship("Campaign", back_populates="email_extraction_jobs")
 
 
 class CallLog(Base):
