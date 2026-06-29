@@ -13,6 +13,7 @@ from app.api.routes import (
     health,
     hunter,
     knowledge,
+    lead_agent,
     lead_scoring,
     leads,
     opportunities,
@@ -28,6 +29,7 @@ api_router.include_router(dashboard.router)
 api_router.include_router(campaigns.router)
 api_router.include_router(calls.router)
 api_router.include_router(leads.router)
+api_router.include_router(lead_agent.router)
 api_router.include_router(lead_scoring.router)
 api_router.include_router(opportunities.router)
 api_router.include_router(discovery.router)
