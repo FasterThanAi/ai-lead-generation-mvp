@@ -22,6 +22,8 @@ router = APIRouter(
 class LeadAgentStartRequest(BaseModel):
     campaign_id: int
     target_leads: int = Field(default=100, ge=1, le=500)
+    max_results: int | None = Field(default=None, ge=1, le=500)
+    queries_per_day: int = Field(default=1, ge=1, le=3)
     sectors: list[str] | None = None
     cities: list[str] | None = None
     notes: str | None = None
@@ -134,6 +136,31 @@ def _generate_cities(campaign: Campaign) -> list[str]:
     return deduped[:10]
 
 
+def _generate_search_queries(campaign: Campaign, sectors: list[str], cities: list[str], queries_per_day: int) -> list[str]:
+    role = _clean_text(campaign.target_role) or "Founder OR CTO OR Operations"
+    generated_queries = []
+
+    for city in cities:
+        for sector in sectors:
+            generated_queries.extend([
+                f'"{city}" "{sector}" "startup" "contact"',
+                f'"{city}" "{sector}" "{role}" "email"',
+                f'site:.in "{city}" "{sector}" "contact"',
+            ])
+
+    deduped = []
+    seen = set()
+
+    for query in generated_queries:
+        key = query.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(query)
+
+    return deduped[: max(1, queries_per_day) * 5]
+
+
 def _trigger_n8n(payload: dict):
     webhook_url = os.getenv("N8N_WEBHOOK_URL", "").strip()
 
@@ -177,6 +204,8 @@ def start_lead_agent(
 
     sectors = payload.sectors or _generate_sectors(campaign)
     cities = payload.cities or _generate_cities(campaign)
+    max_results = payload.max_results or payload.target_leads
+    search_queries = _generate_search_queries(campaign, sectors, cities, payload.queries_per_day)
 
     n8n_payload = {
         "campaign_id": campaign.id,
@@ -185,9 +214,12 @@ def start_lead_agent(
         "location": campaign.location,
         "target_role": campaign.target_role,
         "offer": campaign.offer,
-        "target_leads": payload.target_leads,
+        "target_leads": max_results,
+        "max_results": max_results,
+        "queries_per_day": payload.queries_per_day,
         "sectors": sectors,
         "cities": cities,
+        "search_queries": search_queries,
         "notes": payload.notes,
     }
 
@@ -197,9 +229,12 @@ def start_lead_agent(
         "status": "started",
         "message": "Lead Agent started. n8n will continue the workflow in the background.",
         "campaign_id": campaign.id,
-        "target_leads": payload.target_leads,
+        "target_leads": max_results,
+        "max_results": max_results,
+        "queries_per_day": payload.queries_per_day,
         "sectors": sectors,
         "cities": cities,
+        "search_queries": search_queries,
     }
 
 

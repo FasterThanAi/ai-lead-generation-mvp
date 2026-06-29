@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { bulkEnrich, enrichLead } from "../api/hunter";
 import { bulkEnrich as apolloBulkEnrich, enrichLead as apolloEnrichLead } from "../api/apollo";
 import EmailExtraction from "../components/EmailExtraction";
+import LeadAgentLauncher from "../components/LeadAgentLauncher";
 import LeadTable from "../components/LeadTable";
 import LeadUpload from "../components/LeadUpload";
 import api from "../services/api";
@@ -548,6 +549,13 @@ function Leads() {
               </div>
             </div>
           </Card>
+        )}
+
+        {selectedCampaign && (
+          <LeadAgentLauncher
+            campaign={selectedCampaign}
+            onLeadsFound={refreshLeads}
+          />
         )}
 
         {selectedCampaign && (
