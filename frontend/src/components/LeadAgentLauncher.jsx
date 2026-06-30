@@ -47,8 +47,9 @@ function LeadAgentLauncher({ campaign, onLeadsFound }) {
 
   const targetIndustry = campaign?.target_industry || campaign?.industry || "N/A";
   const targetLocation = campaign?.target_location || campaign?.location || "N/A";
-  const estimatedQueries = queriesPerDay * 5;
-  const estimatedCostLabel = "₹0 app cost";
+  const estimatedQueries = queriesPerDay;
+  const estimatedLeads = maxResults * queriesPerDay;
+  const estimatedApifyCost = ((maxResults * queriesPerDay) * 0.004).toFixed(2);
   const previewQueries = useMemo(
     () => buildPreviewQueries(campaign, estimatedQueries),
     [campaign, estimatedQueries]
@@ -193,7 +194,7 @@ function LeadAgentLauncher({ campaign, onLeadsFound }) {
       <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
           <p className="text-xs text-blue-700">Estimated leads</p>
-          <p className="mt-1 text-2xl font-semibold text-blue-950">Up to {maxResults}</p>
+          <p className="mt-1 text-2xl font-semibold text-blue-950">Up to {estimatedLeads}</p>
         </div>
         <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
           <p className="text-xs text-indigo-700">Search queries</p>
@@ -201,7 +202,12 @@ function LeadAgentLauncher({ campaign, onLeadsFound }) {
         </div>
         <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
           <p className="text-xs text-emerald-700">Estimated cost</p>
-          <p className="mt-1 text-2xl font-semibold text-emerald-950">{estimatedCostLabel}</p>
+          <p className="mt-1 text-2xl font-semibold text-emerald-950">
+            ~${estimatedApifyCost} Apify cost
+          </p>
+          <p className="mt-1 text-xs text-emerald-700">
+            Charged to your Apify account ($0.004 per lead)
+          </p>
         </div>
       </div>
 
@@ -232,6 +238,11 @@ function LeadAgentLauncher({ campaign, onLeadsFound }) {
         <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
           <p className="font-semibold text-emerald-900">Lead Agent started successfully.</p>
           <p className="mt-1 text-sm text-emerald-800">Leads will appear in 3-5 minutes.</p>
+          {success.ai_generated !== undefined && (
+            <p className="mt-1 text-xs text-emerald-700">
+              {success.ai_generated ? "Queries generated with Gemini." : "Queries generated from custom sectors."}
+            </p>
+          )}
 
           <div className="mt-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Search queries</p>

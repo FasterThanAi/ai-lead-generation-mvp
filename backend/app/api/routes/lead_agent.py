@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from typing import Any
@@ -26,6 +27,8 @@ class LeadAgentStartRequest(BaseModel):
     queries_per_day: int = Field(default=1, ge=1, le=3)
     sectors: list[str] | None = None
     cities: list[str] | None = None
+    custom_sectors: list[str] | None = None
+    custom_cities: list[str] | None = None
     notes: str | None = None
 
 
@@ -161,6 +164,107 @@ def _generate_search_queries(campaign: Campaign, sectors: list[str], cities: lis
     return deduped[: max(1, queries_per_day) * 5]
 
 
+def _fallback_search_queries(industry: str, location: str, queries_count: int = 3) -> list[str]:
+    city = _clean_text(location).split(",", 1)[0].strip() or "India"
+    clean_industry = _clean_text(industry) or "business"
+    base_terms = [
+        clean_industry,
+        f"{clean_industry} company",
+        f"{clean_industry} startup",
+    ]
+
+    return [
+        f"{base_terms[index % len(base_terms)]} {city}"
+        for index in range(max(1, queries_count))
+    ]
+
+
+async def _generate_search_queries_with_ai(
+    campaign_name: str,
+    industry: str,
+    location: str,
+    target_role: str,
+    offer: str,
+    queries_count: int = 3,
+) -> list[str]:
+    """
+    Uses Gemini to generate smart Google Maps search queries based on campaign details.
+    Falls back to basic generation if Gemini fails or is unavailable.
+    """
+    gemini_api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
+
+    if not gemini_api_key:
+        logger.warning("GEMINI_API_KEY not set. Using fallback Lead Agent search queries.")
+        return _fallback_search_queries(industry, location, queries_count)
+
+    prompt = f"""
+You are an expert lead generation specialist who finds business leads on Google Maps.
+
+Generate exactly {queries_count} Google Maps search queries to find potential business leads for this campaign:
+
+Campaign: {campaign_name}
+Industry: {industry}
+Location: {location}
+Target Role: {target_role}
+What we offer: {offer}
+
+Rules:
+- Each query must be 3-6 words maximum.
+- Format: "business type city" or "industry area city".
+- Use different variations to find diverse leads.
+- Queries must target businesses that would benefit from: {offer}
+- All queries must be in or near: {location}
+- Use specific neighborhoods, areas, or city names from {location}.
+- Do not repeat the same business type.
+- Make queries realistic Google Maps searches.
+
+Return only a valid JSON array of {queries_count} strings.
+No explanation, no markdown, no code blocks.
+Example output: ["software startup Hyderabad", "IT company Gachibowli", "tech firm HITEC City"]
+""".strip()
+
+    try:
+        from google import genai
+
+        client = genai.Client(api_key=gemini_api_key)
+        response = client.models.generate_content(
+            model=gemini_model,
+            contents=prompt,
+        )
+        text = _clean_text(getattr(response, "text", ""))
+        text = text.replace("```json", "").replace("```", "").strip()
+        queries = json.loads(text)
+
+        if not isinstance(queries, list):
+            raise ValueError("Gemini returned a non-list response.")
+
+        cleaned_queries = []
+        seen = set()
+
+        for query in queries:
+            cleaned_query = _clean_text(query)
+            key = cleaned_query.lower()
+
+            if not cleaned_query or key in seen:
+                continue
+
+            seen.add(key)
+            cleaned_queries.append(cleaned_query)
+
+        if not cleaned_queries:
+            raise ValueError("Gemini returned an empty query list.")
+
+        logger.info("Gemini generated Lead Agent search queries: %s", cleaned_queries[:queries_count])
+        return cleaned_queries[:queries_count]
+    except json.JSONDecodeError as exc:
+        logger.error("Gemini returned invalid Lead Agent query JSON: %s", exc)
+    except Exception as exc:
+        logger.error("Gemini Lead Agent query generation failed: %s", exc)
+
+    return _fallback_search_queries(industry, location, queries_count)
+
+
 def _trigger_n8n(payload: dict):
     webhook_url = os.getenv("N8N_WEBHOOK_URL", "").strip()
 
@@ -184,7 +288,7 @@ def _trigger_n8n(payload: dict):
 
 
 @router.post("/start")
-def start_lead_agent(
+async def start_lead_agent(
     payload: LeadAgentStartRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
@@ -202,10 +306,30 @@ def start_lead_agent(
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found.")
 
-    sectors = payload.sectors or _generate_sectors(campaign)
-    cities = payload.cities or _generate_cities(campaign)
     max_results = payload.max_results or payload.target_leads
-    search_queries = _generate_search_queries(campaign, sectors, cities, payload.queries_per_day)
+    custom_sectors = payload.custom_sectors or payload.sectors
+    custom_cities = payload.custom_cities or payload.cities
+    city = (custom_cities or _split_terms(campaign.location) or [campaign.location or "India"])[0]
+
+    if custom_sectors:
+        search_queries = [
+            f"{_clean_text(sector)} {_clean_text(city)}".strip()
+            for sector in custom_sectors[:payload.queries_per_day]
+            if _clean_text(sector)
+        ] or _fallback_search_queries(campaign.industry, campaign.location, payload.queries_per_day)
+        ai_generated = False
+    else:
+        search_queries = await _generate_search_queries_with_ai(
+            campaign_name=campaign.campaign_name,
+            industry=campaign.industry,
+            location=campaign.location,
+            target_role=campaign.target_role or "",
+            offer=campaign.offer or "",
+            queries_count=payload.queries_per_day,
+        )
+        ai_generated = True
+
+    total_target = max_results * len(search_queries)
 
     n8n_payload = {
         "campaign_id": campaign.id,
@@ -216,25 +340,32 @@ def start_lead_agent(
         "offer": campaign.offer,
         "target_leads": max_results,
         "max_results": max_results,
+        "max_results_per_search": max_results,
+        "total_target": total_target,
         "queries_per_day": payload.queries_per_day,
-        "sectors": sectors,
-        "cities": cities,
+        "sectors": custom_sectors or [],
+        "cities": custom_cities or [city],
         "search_queries": search_queries,
+        "searches": search_queries,
+        "ai_generated": ai_generated,
         "notes": payload.notes,
     }
 
     background_tasks.add_task(_trigger_n8n, n8n_payload)
 
     return {
-        "status": "started",
-        "message": "Lead Agent started. n8n will continue the workflow in the background.",
+        "status": "running",
+        "message": "Lead Agent started successfully",
         "campaign_id": campaign.id,
+        "campaign_name": campaign.campaign_name,
         "target_leads": max_results,
         "max_results": max_results,
+        "max_results_per_search": max_results,
+        "total_target": total_target,
         "queries_per_day": payload.queries_per_day,
-        "sectors": sectors,
-        "cities": cities,
         "search_queries": search_queries,
+        "searches": search_queries,
+        "ai_generated": ai_generated,
     }
 
 
