@@ -165,20 +165,6 @@ def _generate_search_queries(campaign: Campaign, sectors: list[str], cities: lis
 
 
 def _fallback_search_queries(industry: str, location: str, queries_count: int = 3) -> list[str]:
-<<<<<<< HEAD
-    city = _clean_text(location).split(",", 1)[0].strip() or "India"
-    clean_industry = _clean_text(industry) or "business"
-    base_terms = [
-        clean_industry,
-        f"{clean_industry} company",
-        f"{clean_industry} startup",
-    ]
-
-    return [
-        f"{base_terms[index % len(base_terms)]} {city}"
-        for index in range(max(1, queries_count))
-    ]
-=======
     places = _split_terms(location) or ["India"]
     clean_industry = _clean_text(industry) or "business"
     industry_lower = clean_industry.lower()
@@ -240,7 +226,6 @@ def _ensure_query_count(
             break
 
     return cleaned_queries
->>>>>>> 22730c5 (feat: enhance fallback search query generation and ensure query count validation)
 
 
 async def _generate_search_queries_with_ai(
@@ -263,15 +248,9 @@ async def _generate_search_queries_with_ai(
         return _fallback_search_queries(industry, location, queries_count)
 
     prompt = f"""
-<<<<<<< HEAD
-You are an expert lead generation specialist who finds business leads on Google Maps.
-
-Generate exactly {queries_count} Google Maps search queries to find potential business leads for this campaign:
-=======
 You are a senior B2B lead generation researcher building Google Maps searches.
 
 Generate exactly {queries_count} Google Maps search queries for finding companies that match this campaign:
->>>>>>> 22730c5 (feat: enhance fallback search query generation and ensure query count validation)
 
 Campaign: {campaign_name}
 Industry: {industry}
@@ -280,20 +259,6 @@ Target Role: {target_role}
 What we offer: {offer}
 
 Rules:
-<<<<<<< HEAD
-- Each query must be 3-6 words maximum.
-- Format: "business type city" or "industry area city".
-- Use different variations to find diverse leads.
-- Queries must target businesses that would benefit from: {offer}
-- All queries must be in or near: {location}
-- Use specific neighborhoods, areas, or city names from {location}.
-- Do not repeat the same business type.
-- Make queries realistic Google Maps searches.
-
-Return only a valid JSON array of {queries_count} strings.
-No explanation, no markdown, no code blocks.
-Example output: ["software startup Hyderabad", "IT company Gachibowli", "tech firm HITEC City"]
-=======
 - Each query must be a realistic Google Maps search, not a Google web search.
 - Use 3-7 words per query.
 - Format each query as: business category + area/city.
@@ -308,7 +273,6 @@ Example output: ["software startup Hyderabad", "IT company Gachibowli", "tech fi
 Return only a valid JSON array of {queries_count} strings.
 No explanation, no markdown, no code blocks.
 Example output: ["manufacturing company Nagpur", "industrial automation Hingna", "fabrication company Butibori"]
->>>>>>> 22730c5 (feat: enhance fallback search query generation and ensure query count validation)
 """.strip()
 
     try:
@@ -339,13 +303,6 @@ Example output: ["manufacturing company Nagpur", "industrial automation Hingna",
             seen.add(key)
             cleaned_queries.append(cleaned_query)
 
-<<<<<<< HEAD
-        if not cleaned_queries:
-            raise ValueError("Gemini returned an empty query list.")
-
-        logger.info("Gemini generated Lead Agent search queries: %s", cleaned_queries[:queries_count])
-        return cleaned_queries[:queries_count]
-=======
         cleaned_queries = _ensure_query_count(cleaned_queries, industry, location, queries_count)
 
         if not cleaned_queries:
@@ -353,17 +310,12 @@ Example output: ["manufacturing company Nagpur", "industrial automation Hingna",
 
         logger.info("Gemini generated Lead Agent search queries: %s", cleaned_queries)
         return cleaned_queries
->>>>>>> 22730c5 (feat: enhance fallback search query generation and ensure query count validation)
     except json.JSONDecodeError as exc:
         logger.error("Gemini returned invalid Lead Agent query JSON: %s", exc)
     except Exception as exc:
         logger.error("Gemini Lead Agent query generation failed: %s", exc)
 
-<<<<<<< HEAD
-    return _fallback_search_queries(industry, location, queries_count)
-=======
     return _ensure_query_count([], industry, location, queries_count)
->>>>>>> 22730c5 (feat: enhance fallback search query generation and ensure query count validation)
 
 
 def _trigger_n8n(payload: dict):
