@@ -165,6 +165,7 @@ def _generate_search_queries(campaign: Campaign, sectors: list[str], cities: lis
 
 
 def _fallback_search_queries(industry: str, location: str, queries_count: int = 3) -> list[str]:
+<<<<<<< HEAD
     city = _clean_text(location).split(",", 1)[0].strip() or "India"
     clean_industry = _clean_text(industry) or "business"
     base_terms = [
@@ -177,6 +178,69 @@ def _fallback_search_queries(industry: str, location: str, queries_count: int = 
         f"{base_terms[index % len(base_terms)]} {city}"
         for index in range(max(1, queries_count))
     ]
+=======
+    places = _split_terms(location) or ["India"]
+    clean_industry = _clean_text(industry) or "business"
+    industry_lower = clean_industry.lower()
+
+    if "mechanical" in industry_lower or "manufacturing" in industry_lower:
+        business_types = [
+            "manufacturing company",
+            "industrial automation company",
+            "mechanical engineering company",
+            "machine parts manufacturer",
+            "fabrication company",
+        ]
+    elif "college" in industry_lower or "education" in industry_lower:
+        business_types = [
+            "engineering college",
+            "technology institute",
+            "polytechnic college",
+            "university engineering department",
+        ]
+    else:
+        business_types = [
+            clean_industry,
+            f"{clean_industry} company",
+            f"{clean_industry} business",
+        ]
+
+    queries = []
+
+    for index in range(max(1, queries_count)):
+        business_type = business_types[index % len(business_types)]
+        place = places[index % len(places)]
+        queries.append(f"{business_type} {place}")
+
+    return queries
+
+
+def _ensure_query_count(
+    queries: list[str],
+    industry: str,
+    location: str,
+    queries_count: int,
+) -> list[str]:
+    expected_count = max(1, queries_count)
+    fallback_queries = _fallback_search_queries(industry, location, expected_count)
+    cleaned_queries = []
+    seen = set()
+
+    for query in [*queries, *fallback_queries]:
+        cleaned_query = _clean_text(query)
+        key = cleaned_query.lower()
+
+        if not cleaned_query or key in seen:
+            continue
+
+        seen.add(key)
+        cleaned_queries.append(cleaned_query)
+
+        if len(cleaned_queries) == expected_count:
+            break
+
+    return cleaned_queries
+>>>>>>> 22730c5 (feat: enhance fallback search query generation and ensure query count validation)
 
 
 async def _generate_search_queries_with_ai(
@@ -199,9 +263,15 @@ async def _generate_search_queries_with_ai(
         return _fallback_search_queries(industry, location, queries_count)
 
     prompt = f"""
+<<<<<<< HEAD
 You are an expert lead generation specialist who finds business leads on Google Maps.
 
 Generate exactly {queries_count} Google Maps search queries to find potential business leads for this campaign:
+=======
+You are a senior B2B lead generation researcher building Google Maps searches.
+
+Generate exactly {queries_count} Google Maps search queries for finding companies that match this campaign:
+>>>>>>> 22730c5 (feat: enhance fallback search query generation and ensure query count validation)
 
 Campaign: {campaign_name}
 Industry: {industry}
@@ -210,6 +280,7 @@ Target Role: {target_role}
 What we offer: {offer}
 
 Rules:
+<<<<<<< HEAD
 - Each query must be 3-6 words maximum.
 - Format: "business type city" or "industry area city".
 - Use different variations to find diverse leads.
@@ -222,6 +293,22 @@ Rules:
 Return only a valid JSON array of {queries_count} strings.
 No explanation, no markdown, no code blocks.
 Example output: ["software startup Hyderabad", "IT company Gachibowli", "tech firm HITEC City"]
+=======
+- Each query must be a realistic Google Maps search, not a Google web search.
+- Use 3-7 words per query.
+- Format each query as: business category + area/city.
+- Use buyer/company categories, not people, jobs, blogs, PDFs, or generic keywords.
+- Use the target role only to understand the buyer; do not put role titles in the query unless it is naturally part of the business category.
+- All queries must be in or near this location: {location}.
+- Prefer specific areas, industrial zones, neighborhoods, or nearby cities from the location.
+- Avoid duplicates and avoid tiny wording changes of the same query.
+- Do not include quotes, boolean operators, "site:", "email", "contact", "near me", or punctuation.
+- Optimize for companies likely to benefit from: {offer}
+
+Return only a valid JSON array of {queries_count} strings.
+No explanation, no markdown, no code blocks.
+Example output: ["manufacturing company Nagpur", "industrial automation Hingna", "fabrication company Butibori"]
+>>>>>>> 22730c5 (feat: enhance fallback search query generation and ensure query count validation)
 """.strip()
 
     try:
@@ -252,17 +339,31 @@ Example output: ["software startup Hyderabad", "IT company Gachibowli", "tech fi
             seen.add(key)
             cleaned_queries.append(cleaned_query)
 
+<<<<<<< HEAD
         if not cleaned_queries:
             raise ValueError("Gemini returned an empty query list.")
 
         logger.info("Gemini generated Lead Agent search queries: %s", cleaned_queries[:queries_count])
         return cleaned_queries[:queries_count]
+=======
+        cleaned_queries = _ensure_query_count(cleaned_queries, industry, location, queries_count)
+
+        if not cleaned_queries:
+            raise ValueError("Gemini returned an empty query list.")
+
+        logger.info("Gemini generated Lead Agent search queries: %s", cleaned_queries)
+        return cleaned_queries
+>>>>>>> 22730c5 (feat: enhance fallback search query generation and ensure query count validation)
     except json.JSONDecodeError as exc:
         logger.error("Gemini returned invalid Lead Agent query JSON: %s", exc)
     except Exception as exc:
         logger.error("Gemini Lead Agent query generation failed: %s", exc)
 
+<<<<<<< HEAD
     return _fallback_search_queries(industry, location, queries_count)
+=======
+    return _ensure_query_count([], industry, location, queries_count)
+>>>>>>> 22730c5 (feat: enhance fallback search query generation and ensure query count validation)
 
 
 def _trigger_n8n(payload: dict):
