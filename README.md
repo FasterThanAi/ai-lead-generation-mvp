@@ -18,6 +18,9 @@ This is an AI-powered lead generation and cold email outreach MVP. It supports c
 - AI lead research and enrichment from public company website pages plus campaign/lead fields
 - Opportunity/Campaign Generator for turning rough outreach ideas into AI-generated campaign strategies
 - Lead Discovery for extracting public contacts from user-reviewed source URLs
+- Lead Agent automation that triggers an n8n workflow for Google Maps/Apify lead sourcing
+- Gemini-generated Google Maps search queries based on campaign industry, location, role, and offer
+- Async campaign email extraction with public website scraping and pattern-based fallback
 - Hunter.io enrichment for finding professional emails from lead websites
 - Vapi Calling Agent integration for selected-lead AI calls, call logs, outcomes, transcripts, and follow-up draft actions
 - Draft approve/reject workflow
@@ -53,6 +56,10 @@ AI and email:
 - Hunter.io API for optional email enrichment
 - Vapi API for optional AI calling
 
+Automation:
+- n8n for the external Lead Agent workflow
+- Apify/Google Maps scraper inside n8n for business place discovery
+
 ## 4. Architecture
 
 The frontend is a Vite React app deployed on Vercel. It calls the FastAPI backend through `VITE_API_BASE_URL`.
@@ -61,29 +68,31 @@ The backend is deployed on Render and stores application data in Supabase Postgr
 
 Main data flow:
 1. Campaigns are created in the app.
-2. Leads are uploaded from CSV and linked to campaigns.
-3. Website extraction searches public pages for lead emails.
-4. Gemini scores leads and explains priority, fit, outreach angle, pain point, and CTA.
-5. Gemini generates cold email drafts with relevant company knowledge when available.
-6. Users approve or reject drafts.
-7. Gmail OAuth enables sending approved drafts only.
-8. Users manually check sent emails for replies and review campaign analytics.
-9. Gemini classifies replies by intent, sentiment, priority, summary, and suggested next action.
-10. Gemini drafts a safe response for classified replies using relevant company knowledge when available.
-11. Users approve, reject, or send approved response drafts manually.
-12. If there is no reply, users generate, approve, and send follow-up drafts manually.
-13. The Knowledge page stores company-specific facts for the first simple RAG layer. This does not train an LLM.
-14. Users can upload PDF, DOCX, TXT, or Markdown knowledge documents. The backend extracts text, splits it into chunks, and stores each chunk as searchable company knowledge.
-15. When semantic RAG is enabled, knowledge entries are embedded on the backend and searched through Supabase/PostgreSQL `pgvector`, with keyword fallback if semantic search is unavailable.
-16. Users can research leads before scoring or email generation. The backend checks a small number of public website pages, combines that with campaign/lead data, and stores a concise enrichment profile.
-17. Users can create an opportunity from a rough idea, generate an AI campaign strategy, and convert the reviewed strategy into a campaign.
-18. Opportunities can create lead discovery jobs with suggested target type, department, role, and manual search queries.
-19. Users paste public source URLs into discovery jobs. The backend fetches only those reviewed URLs and extracts readable public contact details.
-20. Users approve, reject, and import selected discovered contacts into the existing Leads table.
-21. Imported discovery leads can be researched, scored, and used for manual email/call outreach preparation.
-22. Users can optionally enrich missing lead emails through Hunter.io when a lead has a website.
-23. Users can generate call scripts, start a selected Vapi AI call, receive Vapi webhooks/tool calls, and store call outcomes.
-24. Interested or details-requested calls can create follow-up email drafts, but nothing is sent automatically.
+2. Leads can come from CSV upload, manual Lead Discovery, or the automated Lead Agent.
+3. Lead Agent uses campaign context to generate Google Maps search queries with Gemini, then triggers n8n through `N8N_WEBHOOK_URL`.
+4. n8n runs Apify/Google Maps searches, normalizes places into lead records, and saves them to the selected campaign through `POST /api/leads/create`.
+5. Async website extraction searches public lead websites for visible emails and falls back to common business email patterns when useful.
+6. Gemini can research leads, score them, and explain priority, fit, outreach angle, pain point, and CTA.
+7. Gemini generates cold email drafts with relevant company knowledge when available.
+8. Users approve or reject drafts.
+9. Gmail OAuth enables sending approved drafts only.
+10. Users manually check sent emails for replies and review campaign analytics.
+11. Gemini classifies replies by intent, sentiment, priority, summary, and suggested next action.
+12. Gemini drafts a safe response for classified replies using relevant company knowledge when available.
+13. Users approve, reject, or send approved response drafts manually.
+14. If there is no reply, users generate, approve, and send follow-up drafts manually.
+15. The Knowledge page stores company-specific facts for the first simple RAG layer. This does not train an LLM.
+16. Users can upload PDF, DOCX, TXT, or Markdown knowledge documents. The backend extracts text, splits it into chunks, and stores each chunk as searchable company knowledge.
+17. When semantic RAG is enabled, knowledge entries are embedded on the backend and searched through Supabase/PostgreSQL `pgvector`, with keyword fallback if semantic search is unavailable.
+18. Users can research leads before scoring or email generation. The backend checks a small number of public website pages, combines that with campaign/lead data, and stores a concise enrichment profile.
+19. Users can create an opportunity from a rough idea, generate an AI campaign strategy, and convert the reviewed strategy into a campaign.
+20. Opportunities can create lead discovery jobs with suggested target type, department, role, and manual search queries.
+21. Users paste public source URLs into discovery jobs. The backend fetches only those reviewed URLs and extracts readable public contact details.
+22. Users approve, reject, and import selected discovered contacts into the existing Leads table.
+23. Imported discovery leads can be researched, scored, and used for manual email/call outreach preparation.
+24. Users can optionally enrich missing lead emails through Hunter.io when a lead has a website.
+25. Users can generate call scripts, start a selected Vapi AI call, receive Vapi webhooks/tool calls, and store call outcomes.
+26. Interested or details-requested calls can create follow-up email drafts, but nothing is sent automatically.
 
 ## 5. Week-wise Progress
 
@@ -214,6 +223,15 @@ Phase 3:
 - Works generically for professors, colleges, SMEs, startups, restaurants, clinics, retail shops, SaaS, manufacturing, and service businesses
 - LinkedIn scraping is not automated; use manual search or user-provided URLs only
 
+Lead Agent Automation:
+- Campaign Leads page includes a Lead Agent launcher for selected campaigns
+- Backend `POST /api/lead-agent/start` generates Gemini search queries and triggers n8n
+- Backend `GET /api/lead-agent/status/{campaign_id}` reports current campaign lead/email counts
+- n8n workflow runs Google Maps/Apify searches, creates leads, starts async email extraction, then can research and score leads
+- Search query count and max results are controlled from the website
+- Campaign ids are passed dynamically from the website to n8n so leads save into the selected campaign
+- Email extraction can replace Hunter in the automated workflow when free public website/pattern extraction is preferred
+
 Vapi Calling Agent:
 - Calls page for configuration status, script generation, selected-lead AI calls, manual call logs, and call history
 - Backend-only Vapi API calls through `POST /api/calls/start-vapi`
@@ -262,6 +280,7 @@ BACKEND_HOST=
 BACKEND_PORT=
 GEMINI_API_KEY=
 GEMINI_MODEL=
+N8N_WEBHOOK_URL=
 EMBEDDING_MODEL=
 EMBEDDING_DIMENSION=
 ENABLE_SEMANTIC_RAG=
@@ -302,41 +321,217 @@ Backend:
 - Set all backend environment variables in Render.
 - Point `DATABASE_URL` to Supabase PostgreSQL.
 - Configure Gmail OAuth redirect URI to match the deployed backend callback.
+- Set `N8N_WEBHOOK_URL` to the n8n production webhook URL, for example `https://your-n8n-host/webhook/lead-agent-start`. Do not use the `/webhook-test/...` URL for production website runs.
+
+n8n:
+- Keep Apify credentials and workflow-specific API tokens inside n8n, not the frontend.
+- The production workflow must be active before the backend can trigger it through `N8N_WEBHOOK_URL`.
 
 ## 9. Demo Flow
 
 1. Create an opportunity from a rough outreach idea
 2. Generate and review the AI strategy
 3. Convert the strategy into a campaign
-4. Create a lead discovery job from the strategy, or create one manually
-5. Generate manual search queries, collect public source URLs, paste them into Lead Discovery, and run discovery
-6. Review discovered contacts, approve selected contacts, and import them into Leads
-7. Add company knowledge such as product details, pricing notes, FAQs, and demo scripts
-8. Upload sample knowledge documents from `sample-data/knowledge-documents/`
-9. Generate missing embeddings from the Knowledge page when semantic RAG is enabled
-10. Upload leads CSV if you are using file-based lead sourcing instead of discovery
-11. Research leads when website/lead context is useful
-12. Score leads with AI
-13. Review top priority leads
-14. Use Hunter.io enrichment for website-based leads that still have no email, if Hunter is configured
-15. Generate a call script or save a manual call log when calling is part of the workflow
-16. If Vapi is configured, start an AI test call for one selected lead only
-17. Review call transcript, summary, outcome, next action, and optional follow-up draft
-18. Generate first email
-19. Approve and send first email
-20. Recipient replies
-21. Check replies
-22. Classify reply with AI
-23. Generate response draft using relevant company knowledge
-24. Review intent, priority, next action, suggested response direction, knowledge used, and draft response
-25. Approve response
-26. Send approved response
-27. If no reply, generate follow-up draft
-28. Approve follow-up
-29. Send follow-up
-30. Track follow-up status
+4. Choose one lead sourcing path:
+   - Lead Agent: open the campaign Leads page, choose max results and query count, then click `Find Leads Now`.
+   - Lead Discovery: create a discovery job, collect public source URLs, paste them into Lead Discovery, and run discovery.
+   - CSV: upload a known lead list.
+5. For Lead Agent, confirm n8n creates leads under the selected campaign id and not a hardcoded campaign id.
+6. Review discovered/imported/generated leads in the Leads page.
+7. Run async Email Extraction for leads that have websites but no email.
+8. Research leads when website/lead context is useful.
+9. Score leads with AI.
+10. Review top priority leads.
+11. Use Hunter.io enrichment for website-based leads that still have no email, if Hunter is configured and you want paid enrichment.
+12. Add company knowledge such as product details, pricing notes, FAQs, and demo scripts.
+13. Upload sample knowledge documents from `sample-data/knowledge-documents/`.
+14. Generate missing embeddings from the Knowledge page when semantic RAG is enabled.
+15. Generate a call script or save a manual call log when calling is part of the workflow.
+16. If Vapi is configured, start an AI test call for one selected lead only.
+17. Review call transcript, summary, outcome, next action, and optional follow-up draft.
+18. Generate first email.
+19. Approve and send first email.
+20. Recipient replies.
+21. Check replies.
+22. Classify reply with AI.
+23. Generate response draft using relevant company knowledge.
+24. Review intent, priority, next action, suggested response direction, knowledge used, and draft response.
+25. Approve response.
+26. Send approved response.
+27. If no reply, generate follow-up draft.
+28. Approve follow-up.
+29. Send follow-up.
+30. Track follow-up status.
 
-## 10. Knowledge Document Upload
+## 10. Lead Agent And n8n Workflow
+
+Lead Agent is the automated sourcing path for creating campaign leads from Google Maps-style searches. The website does not scrape Google Maps itself. The website calls the backend, the backend generates search queries and triggers n8n, and n8n runs the external scraping/automation steps.
+
+Plain-English explanation for demos:
+
+> A user creates a campaign with an industry, location, target role, and offer. When they click `Find Leads Now`, the backend asks Gemini to create targeted Google Maps search phrases for that campaign. The backend sends those searches to n8n. n8n runs Apify/Google Maps searches, cleans the returned places, saves them as leads in the selected campaign, starts email extraction for leads with websites, then optionally researches and scores those leads. Emails and outreach are still manual-control: nothing is sent automatically.
+
+Website flow:
+1. User opens a campaign on the Leads page.
+2. `LeadAgentLauncher` reads the selected campaign id, industry, location, role, and offer.
+3. User selects `max_results` (`25`, `50`, `100`, or `200`) and `queries_per_day` (`1`, `2`, or `3`).
+4. Frontend calls `POST /api/lead-agent/start`.
+5. Frontend polls `GET /api/lead-agent/status/{campaign_id}` every 10 seconds to show new lead counts.
+
+Backend flow:
+1. `/api/lead-agent/start` loads the campaign from the database.
+2. Gemini uses `GEMINI_API_KEY` and campaign context to generate exactly the requested number of Google Maps search queries.
+3. The prompt asks for realistic business-category plus area/city searches, not web-search syntax. It avoids `site:`, `email`, `contact`, quote operators, and role-title searches.
+4. If Gemini fails or returns duplicate/fewer queries, fallback query generation fills the missing queries.
+5. Backend sends a payload to `N8N_WEBHOOK_URL` in a background task.
+
+Payload sent to n8n includes:
+```json
+{
+  "campaign_id": 20,
+  "campaign_name": "Nagpur Mechanical & Industrial Startup Outreach",
+  "industry": "Manufacturing",
+  "location": "Nagpur, Hingna MIDC, Butibori MIDC, MIHAN, Kalmeshwar, Wardha Road, Maharashtra",
+  "target_role": "Founder / Operations Head / CTO / HR",
+  "offer": "AI training and automation upskilling platform...",
+  "max_results_per_search": 100,
+  "queries_per_day": 3,
+  "search_queries": [
+    "manufacturing company Nagpur",
+    "industrial automation Hingna",
+    "fabrication company Butibori"
+  ]
+}
+```
+
+n8n workflow structure:
+1. `Webhook`: receives the backend payload. Use the production URL in `N8N_WEBHOOK_URL`.
+2. `Code`: converts `search_queries` into one item per search query. It must pass through `campaign_id`, `max_results`, campaign fields, and the search query.
+3. `HTTP Request`: calls Apify/Google Maps scraper for each search query.
+4. `Wait`: gives the scraper time to finish.
+5. `HTTP Request1`: fetches Apify dataset/results.
+6. `Code1`: normalizes and filters Apify places into lead objects. It must keep the dynamic `campaign_id` from the webhook or first `Code` node.
+7. `HTTP Request2`: creates each lead with `POST /api/leads/create`.
+8. `Code2`: collapses many created-lead responses into one campaign-level item.
+9. `HTTP Request3`: starts async email extraction once for the campaign.
+10. `Wait`: waits 3 to 5 minutes because email extraction runs in the backend background.
+11. `HTTP Request4`: researches a small batch of unresearched leads.
+12. `HTTP Request5`: scores a small batch of unscored leads.
+
+Node responsibility summary:
+
+| Node | Responsibility | Key input | Key output |
+| --- | --- | --- | --- |
+| `Webhook` | Entry point from backend | Lead Agent payload | Campaign/search context |
+| `Code` | Expands Gemini queries | `search_queries`, `campaign_id`, `max_results` | One item per query |
+| `HTTP Request` | Starts Apify/Google Maps search | `search_query`, `max_results` | Apify run or dataset reference |
+| `Wait` | Gives scraper time to complete | Apify run context | Same context after delay |
+| `HTTP Request1` | Fetches Apify results | Dataset/run reference | Raw place results |
+| `Code1` | Cleans, dedupes, filters, maps fields | Raw places plus campaign context | Lead-create payloads |
+| `HTTP Request2` | Saves leads in app database | Lead payloads | `lead_id` responses |
+| `Code2` | Collapses many leads into one campaign item | Created lead responses | One campaign-level item |
+| `HTTP Request3` | Starts async email extraction | `campaign_id`, `limit` | Extraction `job_id` |
+| `Wait` after extraction | Lets background email extraction run | Extraction job response | Delayed campaign context |
+| `HTTP Request4` | Runs website research | `campaign_id` | Research summary updates |
+| `HTTP Request5` | Runs AI scoring | `campaign_id` | Score/priority updates |
+
+Required n8n dynamic rules:
+- Never hardcode `campaign_id`; use the id sent by the website/backend.
+- Campaign-level endpoints must run once per campaign, not once per lead.
+- Use expression mode for URLs that contain `campaign_id`; otherwise n8n may send literal `{{ ... }}` text and FastAPI will reject it as a non-integer.
+- `HTTP Request3`, `HTTP Request4`, and `HTTP Request5` should use dynamic URLs and usually have request body disabled.
+
+Recommended `Code2` node after lead creation:
+```js
+const campaignId = Number($("Code1").first().json.campaign_id);
+
+if (!campaignId) {
+  throw new Error("Missing campaign_id for email extraction");
+}
+
+return [{
+  json: {
+    campaign_id: campaignId,
+    limit: 100
+  }
+}];
+```
+
+Recommended `HTTP Request3` email extraction node:
+- Method: `POST`
+- URL expression:
+```js
+{{ "https://ai-lead-generation-mvp.onrender.com/api/leads/campaign/" + Number($json.campaign_id) + "/extract-emails-async?limit=" + Number($json.limit) }}
+```
+- Send Body: off
+
+Expected response:
+```json
+{
+  "status": "running",
+  "message": "Email extraction started for 28 leads.",
+  "job_id": 123,
+  "campaign_id": 20
+}
+```
+
+Email extraction behavior:
+- Endpoint: `POST /api/leads/campaign/{campaign_id}/extract-emails-async?limit=100`
+- Only leads with a website and no saved email are eligible.
+- The job runs in the background to avoid Render request timeouts.
+- It first scrapes public website pages for visible emails.
+- If no visible email is found, it tries common business patterns such as `info@domain.com`, `contact@domain.com`, `hello@domain.com`, `sales@domain.com`, and `hr@domain.com`.
+- The frontend Email Extraction card polls the job every 3 seconds when started from the UI.
+- In n8n, add a wait after starting extraction before research/scoring.
+
+Recommended `HTTP Request4` research node:
+- Method: `POST`
+- URL expression:
+```js
+{{ "https://ai-lead-generation-mvp.onrender.com/api/campaigns/" + Number($json.campaign_id) + "/research-leads?limit=5" }}
+```
+- Send Body: off
+
+Recommended `HTTP Request5` scoring node:
+- Method: `POST`
+- URL expression:
+```js
+{{ "https://ai-lead-generation-mvp.onrender.com/api/lead-scoring/score-campaign/" + Number($json.campaign_id) + "?limit=10" }}
+```
+- Send Body: off
+
+Lead Agent quantity rules:
+- `queries_per_day` is the number of search phrases generated for one run.
+- `max_results` is the target number of Google Maps results per query.
+- Estimated leads are `queries_per_day * max_results`.
+- Actual saved leads can be lower because Google Maps may return fewer places, Apify can return duplicates, and `Code1` filters empty names, duplicate websites/names, missing website/phone, and wrong-location results.
+
+Common n8n errors:
+- `Input should be a valid integer`: the URL probably sent literal `{{ $json.campaign_id }}` text. Switch the URL field to expression mode and concatenate the URL.
+- `Hunter bulk enrichment is already running`: a campaign-level Hunter node ran once per lead. Collapse items to one campaign item first, or use the async Email Extraction endpoint instead.
+- `Campaign with id ... was not found`: n8n sent the wrong/hardcoded campaign id.
+- No emails found after extraction: leads may be missing websites, websites may hide emails, or guessed patterns could not be verified.
+- Leads appear in the wrong campaign: a Code node or HTTP body still has a hardcoded campaign id.
+
+Manual Lead Agent test:
+1. Create or open a campaign.
+2. Select `max_results=25` and `queries_per_day=1` for a small test.
+3. Click `Find Leads Now`.
+4. Confirm n8n `Webhook` receives the selected `campaign_id`.
+5. Confirm `Code1` outputs lead objects with the same `campaign_id`.
+6. Confirm `HTTP Request2` creates leads successfully.
+7. Confirm `Code2` outputs exactly one item with `campaign_id` and `limit`.
+8. Confirm `HTTP Request3` returns `status="running"` and a `job_id`.
+9. Wait for email extraction, then run research and scoring.
+10. Refresh the Leads page and confirm leads, emails, research status, and scores are attached to the selected campaign.
+
+Current limitations:
+- Lead Agent depends on the external n8n workflow and Apify availability.
+- Google Maps/Apify output quality varies by query and region.
+- Email extraction finds public or pattern-based business emails; it does not guarantee personal emails.
+- Research and scoring are intentionally batched to avoid long requests and excessive AI usage.
+
+## 11. Knowledge Document Upload
 
 The Knowledge page supports uploading PDF, DOCX, TXT, and Markdown files up to 5 MB. The backend extracts readable text with `pypdf` for PDF files and `python-docx` for DOCX files. Plain text and Markdown files are read directly with UTF-8 fallback handling.
 
@@ -344,7 +539,7 @@ Uploaded text is sanitized, split into manageable chunks of roughly 2,000 to 2,5
 
 AI email generation, follow-up generation, and response draft generation all use the same RAG search path. When uploaded document chunks match the outreach or reply context, they are included in the AI prompt with source information such as document filename and chunk number.
 
-## 11. Semantic RAG
+## 12. Semantic RAG
 
 Week 13 adds embeddings for company knowledge. The backend uses Gemini embeddings through `EMBEDDING_MODEL` and stores vectors in Supabase/PostgreSQL with `pgvector` when the extension and permissions are available.
 
@@ -362,7 +557,7 @@ Suggested sample knowledge entry:
 
 Current limitation: semantic quality depends on the embedding model, chunk quality, and how specific the company knowledge is. Keyword fallback remains available for all environments.
 
-## 12. Lead Research
+## 13. Lead Research
 
 Week 14 adds AI lead research and enrichment. Research uses only the lead's website, existing lead CSV/manual fields, and the selected campaign details. It does not use paid third-party enrichment APIs.
 
@@ -383,7 +578,7 @@ Manual test flow:
 
 Current limitation: research is lightweight website research only. It does not crawl recursively and does not use external paid enrichment APIs.
 
-## 13. Opportunity And Lead Discovery
+## 14. Opportunity And Lead Discovery
 
 Phase 3 adds an Opportunities page. A user enters a rough goal such as professor outreach, restaurant marketing, clinic software, cybersecurity audit outreach, college project assistance, SME outreach, or startup sales. Gemini turns that rough idea into a practical campaign strategy.
 
@@ -423,7 +618,7 @@ Manual test examples:
 - Manual URL discovery for public faculty, department, company, restaurant, clinic, or startup pages.
 - Fake/unavailable URLs should fail cleanly with a friendly warning and zero imported leads.
 
-## 14. Vapi Calling Agent
+## 15. Vapi Calling Agent
 
 The Calls module adds optional AI calling through Vapi. The frontend never calls Vapi directly. It calls the FastAPI backend, and the backend uses `VAPI_API_KEY` server-side.
 
@@ -474,7 +669,7 @@ Current limitations:
 - Use a test number first.
 - Follow-up emails are drafts only and require manual approval before sending.
 
-## 15. Safety Notes
+## 16. Safety Notes
 
 - Emails are not sent automatically.
 - AI scoring is a recommendation and should be reviewed before outreach.
@@ -490,6 +685,8 @@ Current limitations:
 - Follow-ups are never sent automatically.
 - Discovered contacts are not imported automatically.
 - Discovery uses public URLs selected by the user; it does not scrape search result pages or LinkedIn automatically.
+- Lead Agent uses an external n8n/Apify workflow and should be run with conservative query/result limits.
+- n8n workflow credentials and Apify tokens stay outside the frontend and should not be committed.
 - Only approved follow-ups can be sent.
 - Follow-ups are limited to 2 per original email.
 - Gmail sending is limited.
@@ -503,7 +700,7 @@ Current limitations:
 - Sample CSV files use placeholder data only.
 - Sample knowledge documents use placeholder data only.
 
-## 16. Future Improvements
+## 17. Future Improvements
 
 - Google Search lead discovery
 - Authentication
