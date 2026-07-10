@@ -1,12 +1,14 @@
 @import "tailwindcss";
+@config "../tailwind.config.js";
 
 body {
   margin: 0;
   min-width: 0;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at top left, rgba(219, 234, 254, 0.72), transparent 32rem),
-    linear-gradient(135deg, #f8fafc 0%, #eef2ff 48%, #f8fafc 100%);
+    radial-gradient(circle at 12% 8%, rgba(40, 120, 255, 0.16), transparent 30rem),
+    radial-gradient(circle at 88% 10%, rgba(16, 185, 129, 0.11), transparent 26rem),
+    linear-gradient(135deg, #f8fafc 0%, #eef6ff 48%, #f8fafc 100%);
   color: #0f172a;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;

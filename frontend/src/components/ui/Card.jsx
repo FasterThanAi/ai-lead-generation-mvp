@@ -2,7 +2,7 @@ function Card({ children, className = "", padded = true }) {
   return (
     <section
       className={[
-        "rounded-3xl border border-white/70 bg-white/80 shadow-sm shadow-slate-200/70 backdrop-blur",
+        "rounded-panel border border-white/80 bg-white/85 shadow-soft backdrop-blur transition duration-300",
         padded ? "p-5 sm:p-6" : "",
         className,
       ].join(" ")}
