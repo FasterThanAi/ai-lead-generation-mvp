@@ -1,5 +1,7 @@
 # AI Lead Generation MVP
 
+For web-team integration notes, screenshot requirements, AI architecture, LLM workflow, and roadmap, see [`docs/team-handover-current-mvp.md`](docs/team-handover-current-mvp.md).
+
 ## 1. Project Overview
 
 This is an AI-powered lead generation and cold email outreach MVP. It supports campaign creation, lead upload, public email extraction, AI lead scoring, AI-generated email drafts, Gmail OAuth connection, sending approved drafts, manual reply checks, AI reply classification, AI response drafts, company knowledge retrieval, campaign analytics, and safe follow-up drafts.
@@ -488,9 +490,20 @@ Recommended `HTTP Request4` research node:
 - Method: `POST`
 - URL expression:
 ```js
-{{ "https://ai-lead-generation-mvp.onrender.com/api/campaigns/" + Number($json.campaign_id) + "/research-leads?limit=5" }}
+{{ "https://ai-lead-generation-mvp.onrender.com/api/campaigns/" + Number($json.campaign_id) + "/research-leads-async?limit=100" }}
 ```
 - Send Body: off
+- This starts background AI research and returns immediately with a `job_id`.
+- Poll `GET /api/campaigns/research-job/{job_id}` or wait before scoring.
+- Keep `limit` around `50-100` for normal runs. The backend allows up to `500`, but larger batches consume more Gemini calls and take longer.
+
+Lead research behavior:
+- Endpoint: `POST /api/campaigns/{campaign_id}/research-leads-async?limit=100`
+- Poll endpoint: `GET /api/campaigns/research-job/{job_id}`
+- Only leads with `research_status` of `not_researched` or `failed` are selected.
+- Each lead can fetch public website pages and call Gemini for business summary, pain points, use case fit, outreach angle, confidence, and source notes.
+- The worker commits progress after each lead and pauses between leads to reduce API failures.
+- The older `POST /api/campaigns/{campaign_id}/research-leads?limit=5` endpoint still exists for small manual tests and is capped to 10 leads.
 
 Recommended `HTTP Request5` scoring node:
 - Method: `POST`
