@@ -1,10 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+import logging
+import time
+from datetime import timedelta, timezone
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from app.db.database import get_db
-from app.db.models import Campaign, Lead
+from app.db.database import SessionLocal, get_db
+from app.db.models import Campaign, Lead, LeadScoringJob
 from app.services.lead_scoring_service import score_lead_safely, score_lead_with_ai
+from app.utils.time_utils import utc_now
 
 router = APIRouter(
     prefix="/lead-scoring",
@@ -13,6 +18,13 @@ router = APIRouter(
 
 DEFAULT_SCORE_LIMIT = 5
 MAX_SCORE_LIMIT = 10
+DEFAULT_ASYNC_SCORE_LIMIT = 10
+MAX_ASYNC_SCORE_LIMIT = 100
+RUNNING_SCORING_STATUSES = {"pending", "running"}
+STALE_SCORING_JOB_AGE = timedelta(hours=2)
+SCORING_JOB_DELAY_SECONDS = 1
+
+logger = logging.getLogger(__name__)
 
 
 def get_campaign_or_404(campaign_id: int, db: Session):
@@ -122,6 +134,146 @@ def count_rows(db: Session, model, *filters):
     return query.scalar() or 0
 
 
+def serialize_scoring_job(job: LeadScoringJob):
+    total = job.total_leads or 0
+    processed = job.processed or 0
+    percentage = round((processed / total) * 100) if total else 0
+
+    return {
+        "job_id": job.id,
+        "campaign_id": job.campaign_id,
+        "status": job.status,
+        "total": total,
+        "total_leads": total,
+        "processed": processed,
+        "scored": job.scored or 0,
+        "skipped": job.skipped or 0,
+        "failed": job.failed or 0,
+        "percentage": min(100, percentage),
+        "remaining": max(total - processed, 0),
+        "started_at": job.started_at,
+        "finished_at": job.finished_at,
+        "error": job.error,
+        "force": bool(job.force),
+    }
+
+
+def get_scoring_job_or_404(job_id: int, db: Session):
+    job = db.get(LeadScoringJob, job_id)
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Lead scoring job not found")
+
+    return job
+
+
+def mark_stale_scoring_jobs_failed(db: Session, campaign_id: int):
+    cutoff = utc_now() - STALE_SCORING_JOB_AGE
+    jobs = (
+        db.query(LeadScoringJob)
+        .filter(
+            LeadScoringJob.campaign_id == campaign_id,
+            LeadScoringJob.status.in_(RUNNING_SCORING_STATUSES),
+        )
+        .all()
+    )
+    changed = False
+
+    for job in jobs:
+        started_at = job.started_at
+        if started_at and started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=timezone.utc)
+
+        if not started_at or started_at < cutoff:
+            job.status = "failed"
+            job.finished_at = utc_now()
+            job.error = job.error or "Lead scoring stopped before completing. Start a new scoring job."
+            changed = True
+
+    if changed:
+        db.commit()
+
+
+def build_scoring_query(db: Session, campaign_id: int, force: bool):
+    query = (
+        db.query(Lead)
+        .filter(Lead.campaign_id == campaign_id)
+        .order_by(Lead.created_at.desc(), Lead.id.desc())
+    )
+
+    if not force:
+        query = query.filter(Lead.ai_score.is_(None))
+
+    return query
+
+
+def _run_scoring_job(job_id: int, campaign_id: int, limit: int, force: bool):
+    db = SessionLocal()
+    job = None
+
+    try:
+        job = db.get(LeadScoringJob, job_id)
+        if not job:
+            logger.warning("Lead scoring job %s disappeared before it could start.", job_id)
+            return
+
+        campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+        if not campaign:
+            job.status = "failed"
+            job.error = f"Campaign with id {campaign_id} was not found"
+            job.finished_at = utc_now()
+            db.commit()
+            return
+
+        job.status = "running"
+        db.commit()
+
+        leads = build_scoring_query(db, campaign_id, force).limit(limit).all()
+        job.total_leads = len(leads)
+        db.commit()
+
+        if not leads:
+            job.status = "completed"
+            job.finished_at = utc_now()
+            db.commit()
+            return
+
+        for lead in leads:
+            try:
+                result = score_lead_safely(db, lead, campaign, force=force)
+
+                if result.get("failed"):
+                    job.failed = (job.failed or 0) + 1
+                elif result.get("created"):
+                    job.scored = (job.scored or 0) + 1
+                else:
+                    job.skipped = (job.skipped or 0) + 1
+            except Exception as exc:
+                logger.exception("Lead scoring failed for lead %s in job %s", lead.id, job_id)
+                job.failed = (job.failed or 0) + 1
+                if not job.error:
+                    job.error = str(exc)
+            finally:
+                job.processed = (job.processed or 0) + 1
+                db.commit()
+                time.sleep(SCORING_JOB_DELAY_SECONDS)
+
+        job.status = "completed"
+        job.finished_at = utc_now()
+        db.commit()
+    except Exception as exc:
+        logger.exception("Lead scoring job %s failed", job_id)
+        db.rollback()
+
+        if job:
+            job.status = "failed"
+            job.error = str(exc)
+            job.finished_at = utc_now()
+            db.commit()
+    finally:
+        db.close()
+
+
 @router.post("/score/{lead_id}")
 def score_one_lead(
     lead_id: int,
@@ -143,6 +295,98 @@ def score_one_lead(
         "status": "success",
         "message": "Lead scored successfully",
         "data": result["data"],
+    }
+
+
+@router.post("/score-campaign-async/{campaign_id}")
+def score_campaign_leads_async(
+    campaign_id: int,
+    background_tasks: BackgroundTasks,
+    limit: int = Query(DEFAULT_ASYNC_SCORE_LIMIT, ge=1, le=MAX_ASYNC_SCORE_LIMIT),
+    force: bool = Query(False),
+    db: Session = Depends(get_db),
+):
+    get_campaign_or_404(campaign_id, db)
+    mark_stale_scoring_jobs_failed(db, campaign_id)
+
+    running_job = (
+        db.query(LeadScoringJob)
+        .filter(
+            LeadScoringJob.campaign_id == campaign_id,
+            LeadScoringJob.status.in_(RUNNING_SCORING_STATUSES),
+        )
+        .order_by(LeadScoringJob.started_at.desc(), LeadScoringJob.id.desc())
+        .first()
+    )
+
+    if running_job:
+        return {
+            "status": running_job.status,
+            "message": "Lead scoring is already running for this campaign.",
+            "poll_url": f"/api/lead-scoring/scoring-job/{running_job.id}",
+            **serialize_scoring_job(running_job),
+        }
+
+    total = build_scoring_query(db, campaign_id, force).count()
+
+    if total == 0:
+        return {
+            "job_id": None,
+            "campaign_id": campaign_id,
+            "message": "No leads need scoring." if not force else "This campaign has no leads to score.",
+            "total": 0,
+            "total_leads": 0,
+            "processed": 0,
+            "scored": 0,
+            "skipped": 0,
+            "failed": 0,
+            "percentage": 100,
+            "remaining": 0,
+            "remaining_unscored": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_score.is_(None)),
+            "status": "nothing_to_do",
+            "force": force,
+        }
+
+    actual_limit = min(limit, total)
+    job = LeadScoringJob(
+        campaign_id=campaign_id,
+        status="running",
+        total_leads=actual_limit,
+        processed=0,
+        scored=0,
+        skipped=0,
+        failed=0,
+        error=None,
+        force=force,
+    )
+
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    background_tasks.add_task(
+        _run_scoring_job,
+        job_id=job.id,
+        campaign_id=campaign_id,
+        limit=actual_limit,
+        force=force,
+    )
+
+    return {
+        "status": "running",
+        "message": f"Lead scoring started for {actual_limit} leads.",
+        "poll_url": f"/api/lead-scoring/scoring-job/{job.id}",
+        "remaining_unscored": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_score.is_(None)),
+        **serialize_scoring_job(job),
+    }
+
+
+@router.get("/scoring-job/{job_id}")
+def get_scoring_job(job_id: int, db: Session = Depends(get_db)):
+    job = get_scoring_job_or_404(job_id, db)
+    return {
+        **serialize_scoring_job(job),
+        "remaining_unscored": count_rows(db, Lead, Lead.campaign_id == job.campaign_id, Lead.ai_score.is_(None)),
     }
 
 

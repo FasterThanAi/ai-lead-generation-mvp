@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { bulkEnrich, enrichLead } from "../api/hunter";
 import { bulkEnrich as apolloBulkEnrich, enrichLead as apolloEnrichLead } from "../api/apollo";
@@ -34,6 +34,8 @@ function Leads() {
   const [apolloEnrichingLeadId, setApolloEnrichingLeadId] = useState(null);
   const [isApolloBulkEnriching, setIsApolloBulkEnriching] = useState(false);
   const [isScoringCampaign, setIsScoringCampaign] = useState(false);
+  const [scoringJob, setScoringJob] = useState(null);
+  const [scoreLimit, setScoreLimit] = useState(10);
   const [scoringLeadId, setScoringLeadId] = useState(null);
   const [leadScoringMessage, setLeadScoringMessage] = useState("");
   const [leadScoringError, setLeadScoringError] = useState("");
@@ -41,6 +43,8 @@ function Leads() {
   const [leadResearchError, setLeadResearchError] = useState("");
   const [researchingLeadId, setResearchingLeadId] = useState(null);
   const [isResearchingCampaign, setIsResearchingCampaign] = useState(false);
+  const [researchJob, setResearchJob] = useState(null);
+  const [researchLimit, setResearchLimit] = useState(10);
   const [generatingCallScriptLeadId, setGeneratingCallScriptLeadId] = useState(null);
   const [startingCallLeadId, setStartingCallLeadId] = useState(null);
   const [startingCallMode, setStartingCallMode] = useState(null);
@@ -50,6 +54,13 @@ function Leads() {
   const [priorityFilter, setPriorityFilter] = useState("All");
   const [qualificationFilter, setQualificationFilter] = useState("All");
   const [sortByScore, setSortByScore] = useState(true);
+  const scoringPollRef = useRef(null);
+  const researchPollRef = useRef(null);
+
+  const isScoringJobRunning = scoringJob?.status === "pending" || scoringJob?.status === "running";
+  const isResearchJobRunning = researchJob?.status === "pending" || researchJob?.status === "running";
+  const scoringProgress = scoringJob?.percentage ?? 0;
+  const researchProgress = researchJob?.percentage ?? 0;
 
   const selectedCampaign = useMemo(
     () => campaigns.find((campaign) => String(campaign.id) === String(selectedCampaignId)),
@@ -152,8 +163,105 @@ function Leads() {
     setRefreshKey((currentKey) => currentKey + 1);
   };
 
+  function stopScoringPolling() {
+    if (scoringPollRef.current) {
+      clearInterval(scoringPollRef.current);
+      scoringPollRef.current = null;
+    }
+  }
+
+  function stopResearchPolling() {
+    if (researchPollRef.current) {
+      clearInterval(researchPollRef.current);
+      researchPollRef.current = null;
+    }
+  }
+
+  function handleCompletedScoringJob(nextJob) {
+    stopScoringPolling();
+    refreshLeads();
+
+    if (nextJob.status === "failed") {
+      setLeadScoringError(nextJob.error || "AI lead scoring failed. Please check backend logs.");
+      return;
+    }
+
+    setLeadScoringMessage(
+      `Scoring completed. Scored ${nextJob.scored ?? 0}, skipped ${nextJob.skipped ?? 0}, failed ${nextJob.failed ?? 0}. Processed ${nextJob.processed ?? 0}/${nextJob.total ?? 0} leads. Remaining unscored: ${nextJob.remaining_unscored ?? 0}.`
+    );
+  }
+
+  function startScoringPolling(jobId) {
+    stopScoringPolling();
+
+    const pollJob = async () => {
+      try {
+        const res = await api.get(`/lead-scoring/scoring-job/${jobId}`);
+        const nextJob = res.data;
+        setScoringJob(nextJob);
+
+        if (nextJob.status === "completed" || nextJob.status === "failed") {
+          handleCompletedScoringJob(nextJob);
+        }
+      } catch (err) {
+        stopScoringPolling();
+        setLeadScoringError(getFriendlyErrorMessage(err, "Could not load AI scoring progress."));
+        console.error(err);
+      }
+    };
+
+    pollJob();
+    scoringPollRef.current = setInterval(pollJob, 3000);
+  }
+
+  function handleCompletedResearchJob(nextJob) {
+    stopResearchPolling();
+    refreshLeads();
+
+    if (nextJob.status === "failed") {
+      setLeadResearchError(nextJob.error || "Campaign lead research failed. Please check backend logs.");
+      return;
+    }
+
+    setLeadResearchMessage(
+      `Research completed. Researched ${nextJob.researched ?? 0}, skipped ${nextJob.skipped ?? 0}, failed ${nextJob.failed ?? 0}. Processed ${nextJob.processed ?? 0}/${nextJob.total ?? 0} leads.`
+    );
+  }
+
+  function startResearchPolling(jobId) {
+    stopResearchPolling();
+
+    const pollJob = async () => {
+      try {
+        const res = await api.get(`/campaigns/research-job/${jobId}`);
+        const nextJob = res.data;
+        setResearchJob(nextJob);
+
+        if (nextJob.status === "completed" || nextJob.status === "failed") {
+          handleCompletedResearchJob(nextJob);
+        }
+      } catch (err) {
+        stopResearchPolling();
+        setLeadResearchError(getFriendlyErrorMessage(err, "Could not load lead research progress."));
+        console.error(err);
+      }
+    };
+
+    pollJob();
+    researchPollRef.current = setInterval(pollJob, 3000);
+  }
+
+  useEffect(() => {
+    return () => {
+      stopScoringPolling();
+      stopResearchPolling();
+    };
+  }, []);
+
   const handleCampaignChange = (e) => {
     const nextCampaignId = e.target.value;
+    stopScoringPolling();
+    stopResearchPolling();
     setSelectedCampaignId(nextCampaignId);
     setSearchParams(nextCampaignId ? { campaign_id: nextCampaignId } : {});
     setLeads([]);
@@ -166,8 +274,10 @@ function Leads() {
     setApolloError("");
     setLeadScoringMessage("");
     setLeadScoringError("");
+    setScoringJob(null);
     setLeadResearchMessage("");
     setLeadResearchError("");
+    setResearchJob(null);
     setCallMessage("");
     setCallError("");
     setCallScriptsByLead({});
@@ -324,15 +434,26 @@ function Leads() {
     }
 
     setIsScoringCampaign(true);
+    setScoringJob(null);
     setLeadScoringMessage("");
     setLeadScoringError("");
 
     try {
-      const res = await api.post(`/lead-scoring/score-campaign/${selectedCampaignId}?limit=5`);
-      setLeadScoringMessage(
-        `Scored ${res.data.scored ?? 0} leads, skipped ${res.data.skipped ?? 0}, failed ${res.data.failed ?? 0}. Remaining unscored: ${res.data.remaining_unscored ?? 0}.`
-      );
-      refreshLeads();
+      const res = await api.post(`/lead-scoring/score-campaign-async/${selectedCampaignId}`, null, {
+        params: {
+          limit: scoreLimit,
+        },
+      });
+
+      if (res.data.status === "nothing_to_do") {
+        setScoringJob(null);
+        setLeadScoringMessage(res.data.message || "No leads need scoring.");
+        refreshLeads();
+        return;
+      }
+
+      setScoringJob(res.data);
+      startScoringPolling(res.data.job_id);
     } catch (err) {
       setLeadScoringError(getFriendlyErrorMessage(err, "AI lead scoring failed. Please try again.", "lead-scoring"));
       console.error(err);
@@ -390,19 +511,26 @@ function Leads() {
     }
 
     setIsResearchingCampaign(true);
+    setResearchJob(null);
     setLeadResearchMessage("");
     setLeadResearchError("");
 
     try {
-      const res = await api.post(`/campaigns/${selectedCampaignId}/research-leads`, null, {
+      const res = await api.post(`/campaigns/${selectedCampaignId}/research-leads-async`, null, {
         params: {
-          limit: 5,
+          limit: researchLimit,
         },
       });
-      setLeadResearchMessage(
-        `Research processed ${res.data.processed ?? 0} leads. Researched ${res.data.researched ?? 0}, failed ${res.data.failed ?? 0}. Remaining: ${res.data.remaining ?? 0}.`
-      );
-      refreshLeads();
+
+      if (res.data.status === "nothing_to_do") {
+        setResearchJob(null);
+        setLeadResearchMessage(res.data.message || "No leads need research.");
+        refreshLeads();
+        return;
+      }
+
+      setResearchJob(res.data);
+      startResearchPolling(res.data.job_id);
     } catch (err) {
       setLeadResearchError(getFriendlyErrorMessage(err, "Campaign lead research failed. Please try again."));
       console.error(err);
@@ -564,7 +692,7 @@ function Leads() {
               <div>
                 <h2 className="text-xl font-semibold tracking-tight text-slate-950">AI Lead Scoring</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  AI scoring is a recommendation. Review before contacting leads.
+                  AI scoring runs in the background, one lead at a time, to stay gentle on Gemini quota.
                 </p>
                 <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-gray-600 md:grid-cols-3">
                   <p className="rounded border bg-green-50 p-3">
@@ -579,16 +707,59 @@ function Leads() {
                 </div>
               </div>
 
-              <Button
-                type="button"
-                variant="indigo"
-                className="w-full lg:w-auto"
-                disabled={!selectedCampaignId || isScoringCampaign || leads.length === 0}
-                onClick={handleScoreCampaignLeads}
-              >
-                {isScoringCampaign ? "Scoring leads..." : "Score Leads with AI"}
-              </Button>
+              <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                <label className="text-sm">
+                  <span className="mb-1 block font-medium text-slate-700">Batch size</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={scoreLimit}
+                    onChange={(e) => setScoreLimit(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
+                    className="min-h-10 w-full rounded-xl border border-slate-200 bg-white/80 px-3 text-sm text-slate-800 shadow-sm outline-none focus:ring-4 focus:ring-slate-100 sm:w-28"
+                  />
+                </label>
+                <Button
+                  type="button"
+                  variant="indigo"
+                  className="w-full self-end lg:w-auto"
+                  disabled={!selectedCampaignId || isScoringCampaign || isScoringJobRunning || leads.length === 0}
+                  onClick={handleScoreCampaignLeads}
+                >
+                  {isScoringCampaign
+                    ? "Starting scoring..."
+                    : isScoringJobRunning
+                    ? `Scoring... ${scoringProgress}%`
+                    : "Score Leads with AI"}
+                </Button>
+              </div>
             </div>
+
+            {isScoringJobRunning && (
+              <div className="mt-5 rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
+                <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-indigo-800">
+                  <span>Scoring {scoringJob.processed ?? 0}/{scoringJob.total ?? 0} leads</span>
+                  <span>{scoringProgress}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-white">
+                  <div
+                    className="h-full rounded-full bg-indigo-600 transition-all duration-500"
+                    style={{ width: `${scoringProgress}%` }}
+                  />
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                  <span className="rounded border border-emerald-100 bg-white/80 px-2 py-1 text-emerald-700">
+                    Scored: {scoringJob.scored ?? 0}
+                  </span>
+                  <span className="rounded border border-slate-100 bg-white/80 px-2 py-1 text-slate-600">
+                    Skipped: {scoringJob.skipped ?? 0}
+                  </span>
+                  <span className="rounded border border-red-100 bg-white/80 px-2 py-1 text-red-600">
+                    Failed: {scoringJob.failed ?? 0}
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
               <label className="text-sm">
@@ -642,20 +813,63 @@ function Leads() {
                   Research uses a lead website plus campaign context before scoring or drafting.
                 </p>
                 <p className="mt-2 text-xs text-slate-500">
-                  Processes up to 5 leads per click and fetches only a few public pages per lead.
+                  Runs in the background and fetches only a few public pages per lead.
                 </p>
               </div>
 
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full lg:w-auto"
-                disabled={!selectedCampaignId || isResearchingCampaign || leads.length === 0}
-                onClick={handleResearchCampaignLeads}
-              >
-                {isResearchingCampaign ? "Researching leads..." : "Research Unresearched Leads"}
-              </Button>
+              <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                <label className="text-sm">
+                  <span className="mb-1 block font-medium text-slate-700">Batch size</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="500"
+                    value={researchLimit}
+                    onChange={(e) => setResearchLimit(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
+                    className="min-h-10 w-full rounded-xl border border-slate-200 bg-white/80 px-3 text-sm text-slate-800 shadow-sm outline-none focus:ring-4 focus:ring-slate-100 sm:w-28"
+                  />
+                </label>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full self-end lg:w-auto"
+                  disabled={!selectedCampaignId || isResearchingCampaign || isResearchJobRunning || leads.length === 0}
+                  onClick={handleResearchCampaignLeads}
+                >
+                  {isResearchingCampaign
+                    ? "Starting research..."
+                    : isResearchJobRunning
+                    ? `Researching... ${researchProgress}%`
+                    : "Research Unresearched Leads"}
+                </Button>
+              </div>
             </div>
+
+            {isResearchJobRunning && (
+              <div className="mt-5 rounded-2xl border border-sky-100 bg-sky-50 p-4">
+                <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-sky-800">
+                  <span>Researching {researchJob.processed ?? 0}/{researchJob.total ?? 0} leads</span>
+                  <span>{researchProgress}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-white">
+                  <div
+                    className="h-full rounded-full bg-sky-600 transition-all duration-500"
+                    style={{ width: `${researchProgress}%` }}
+                  />
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                  <span className="rounded border border-emerald-100 bg-white/80 px-2 py-1 text-emerald-700">
+                    Researched: {researchJob.researched ?? 0}
+                  </span>
+                  <span className="rounded border border-slate-100 bg-white/80 px-2 py-1 text-slate-600">
+                    Skipped: {researchJob.skipped ?? 0}
+                  </span>
+                  <span className="rounded border border-red-100 bg-white/80 px-2 py-1 text-red-600">
+                    Failed: {researchJob.failed ?? 0}
+                  </span>
+                </div>
+              </div>
+            )}
           </Card>
         )}
 
