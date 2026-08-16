@@ -1,4 +1,5 @@
 import os
+import numpy 
 
 import uvicorn
 from app.core.config import settings
