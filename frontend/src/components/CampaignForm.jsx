@@ -3,7 +3,14 @@ import api from "../services/api";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
 import Button from "./ui/Button";
 import Card from "./ui/Card";
-
+function CampaignForm({ onCampaignCreated }) {
+  const [formData, setFormData] = useState({
+    campaign_name: "",
+    industry: "",
+    location: "",
+    target_role: "",
+    offer: "",
+  });
 
 
   const [message, setMessage] = useState("");
