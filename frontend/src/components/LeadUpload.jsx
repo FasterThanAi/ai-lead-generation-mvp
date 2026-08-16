@@ -59,27 +59,27 @@ function LeadUpload({ campaignId, onUploadComplete }) {
   return (
     <Card>
       <div className="mb-4">
-        <h2 className="text-xl font-semibold tracking-tight text-slate-950">Upload Leads CSV</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <h2 className="text-xl font-semibold tracking-tight text-ink">Upload Leads CSV</h2>
+        <p className="mt-1 text-sm text-muted">
           Upload leads for the selected campaign.
         </p>
       </div>
 
       {message && (
-        <p className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+        <p className="mb-4 rounded-lg border border-success-soft bg-success-soft p-3 text-sm text-success">
           {message}
         </p>
       )}
 
       {error && (
-        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p className="mb-4 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
           {error}
         </p>
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 lg:flex-row lg:items-end">
         <div className="flex-1">
-          <label className="mb-2 block text-sm font-medium text-slate-700">
+          <label className="mb-2 block text-sm font-medium text-ink-2">
             CSV File
           </label>
           <input
@@ -87,7 +87,7 @@ function LeadUpload({ campaignId, onUploadComplete }) {
             type="file"
             accept=".csv,text/csv"
             onChange={handleFileChange}
-            className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white/80 p-3 text-sm shadow-sm file:mr-3 file:rounded-xl file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-700"
+            className="min-h-12 w-full rounded-2xl border line-1 surface-2 p-3 text-sm elev-1 file:mr-3 file:rounded-xl file:border-0 file:surface-sunk file:px-3 file:py-2 file:text-sm file:font-semibold file:text-ink-2"
             disabled={!campaignId || isUploading}
           />
         </div>
@@ -102,7 +102,7 @@ function LeadUpload({ campaignId, onUploadComplete }) {
       </form>
 
       {!campaignId && (
-        <p className="mt-3 text-sm text-gray-500">
+        <p className="mt-3 text-sm text-muted">
           Select a campaign above to enable CSV upload.
         </p>
       )}

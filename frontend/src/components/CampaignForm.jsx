@@ -52,18 +52,18 @@ function CampaignForm({ onCampaignCreated }) {
   return (
     <Card>
       <div className="mb-5">
-        <h2 className="text-xl font-semibold tracking-tight text-slate-950">Create Campaign</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <h2 className="text-xl font-semibold tracking-tight text-ink">Create Campaign</h2>
+        <p className="mt-1 text-sm text-muted">
           Define the audience and offer before uploading leads.
         </p>
       </div>
 
       {message && (
-        <p className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p>
+        <p className="mb-4 rounded-2xl border border-success-soft bg-success-soft p-3 text-sm text-success">{message}</p>
       )}
 
       {error && (
-        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p className="mb-4 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
           {error}
         </p>
       )}
@@ -81,7 +81,7 @@ function CampaignForm({ onCampaignCreated }) {
             value={formData[name]}
             onChange={handleChange}
             placeholder={placeholder}
-            className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white/80 px-4 text-sm shadow-sm outline-none transition focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+            className="field"
             required
           />
         ))}
@@ -91,7 +91,7 @@ function CampaignForm({ onCampaignCreated }) {
           value={formData.offer}
           onChange={handleChange}
           placeholder="What are you offering?"
-          className="min-h-32 w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm shadow-sm outline-none transition focus:border-slate-300 focus:ring-4 focus:ring-slate-100 md:col-span-2"
+          className="field min-h-32 md:col-span-2"
           rows="4"
           required
         />

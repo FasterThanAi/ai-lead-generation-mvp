@@ -596,14 +596,14 @@ function Leads() {
       <div className="space-y-6">
         <Card>
           <div className="mb-4">
-            <h2 className="text-xl font-semibold tracking-tight text-slate-950">Select Campaign</h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <h2 className="text-xl font-semibold tracking-tight text-ink">Select Campaign</h2>
+            <p className="mt-1 text-sm text-muted">
               Leads will be saved under the campaign you choose here.
             </p>
           </div>
 
           {campaignsError && (
-            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <p className="mb-4 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
               {campaignsError}
             </p>
           )}
@@ -611,7 +611,7 @@ function Leads() {
           <select
             value={selectedCampaignId}
             onChange={handleCampaignChange}
-            className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white/80 px-4 text-sm text-slate-800 shadow-sm outline-none transition focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+            className="field"
             disabled={isLoadingCampaigns || campaigns.length === 0}
           >
             <option value="">
@@ -625,7 +625,7 @@ function Leads() {
           </select>
 
           {!isLoadingCampaigns && !campaignsError && campaigns.length === 0 && (
-            <p className="mt-3 text-sm text-gray-500">
+            <p className="mt-3 text-sm text-muted">
               Create your first campaign to start lead outreach.
             </p>
           )}
@@ -634,46 +634,46 @@ function Leads() {
         {selectedCampaign && (
           <Card>
             <div className="mb-4">
-              <h2 className="text-xl font-semibold tracking-tight text-slate-950">Campaign Summary</h2>
-              <p className="mt-1 text-sm text-slate-500">{selectedCampaign.campaign_name}</p>
+              <h2 className="text-xl font-semibold tracking-tight text-ink">Campaign Summary</h2>
+              <p className="mt-1 text-sm text-muted">{selectedCampaign.campaign_name}</p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs text-slate-500">Industry</p>
-                <p className="mt-1 break-words font-medium text-slate-900">{selectedCampaign.industry || "N/A"}</p>
+              <div className="rounded-2xl border line-1 surface-sunk p-4">
+                <p className="text-xs text-muted">Industry</p>
+                <p className="mt-1 break-words font-medium text-ink">{selectedCampaign.industry || "N/A"}</p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs text-slate-500">Location</p>
-                <p className="mt-1 break-words font-medium text-slate-900">{selectedCampaign.location || "N/A"}</p>
+              <div className="rounded-2xl border line-1 surface-sunk p-4">
+                <p className="text-xs text-muted">Location</p>
+                <p className="mt-1 break-words font-medium text-ink">{selectedCampaign.location || "N/A"}</p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs text-slate-500">Target Role</p>
-                <p className="mt-1 break-words font-medium text-slate-900">{selectedCampaign.target_role || "N/A"}</p>
+              <div className="rounded-2xl border line-1 surface-sunk p-4">
+                <p className="text-xs text-muted">Target Role</p>
+                <p className="mt-1 break-words font-medium text-ink">{selectedCampaign.target_role || "N/A"}</p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2 xl:col-span-3">
-                <p className="text-xs text-slate-500">Offer</p>
-                <p className="mt-1 break-words text-sm leading-6 text-slate-900">{selectedCampaign.offer || "N/A"}</p>
+              <div className="rounded-2xl border line-1 surface-sunk p-4 sm:col-span-2 xl:col-span-3">
+                <p className="text-xs text-muted">Offer</p>
+                <p className="mt-1 break-words text-sm leading-6 text-ink">{selectedCampaign.offer || "N/A"}</p>
               </div>
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                <p className="text-xs text-blue-700">Lead Count</p>
-                <p className="mt-1 text-2xl font-semibold text-blue-900">{leads.length}</p>
+              <div className="rounded-2xl border border-info-soft bg-info-soft p-4">
+                <p className="text-xs text-info">Lead Count</p>
+                <p className="mt-1 text-2xl font-semibold text-info">{leads.length}</p>
               </div>
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-                <p className="text-xs text-green-700">Emails Found</p>
-                <p className="mt-1 text-2xl font-semibold text-green-900">{emailsFoundCount}</p>
+              <div className="rounded-2xl border border-success-soft bg-success-soft p-4">
+                <p className="text-xs text-success">Emails Found</p>
+                <p className="mt-1 text-2xl font-semibold text-success">{emailsFoundCount}</p>
               </div>
-              <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
-                <p className="text-xs text-indigo-700">AI Scored</p>
-                <p className="mt-1 text-2xl font-semibold text-indigo-900">{scoredLeadCount}</p>
+              <div className="rounded-2xl border border-violet-soft bg-violet-soft p-4">
+                <p className="text-xs text-violet">AI Scored</p>
+                <p className="mt-1 text-2xl font-semibold text-violet">{scoredLeadCount}</p>
               </div>
-              <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
-                <p className="text-xs text-sky-700">AI Researched</p>
-                <p className="mt-1 text-2xl font-semibold text-sky-900">{researchedLeadCount}</p>
+              <div className="rounded-2xl border border-info-soft bg-info-soft p-4">
+                <p className="text-xs text-info">AI Researched</p>
+                <p className="mt-1 text-2xl font-semibold text-info">{researchedLeadCount}</p>
               </div>
-              <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4">
-                <p className="text-xs text-violet-700">Avg Research Confidence</p>
-                <p className="mt-1 text-2xl font-semibold text-violet-900">{averageResearchConfidence.toFixed(1)}</p>
+              <div className="rounded-2xl border border-violet-soft bg-violet-soft p-4">
+                <p className="text-xs text-violet">Avg Research Confidence</p>
+                <p className="mt-1 text-2xl font-semibold text-violet">{averageResearchConfidence.toFixed(1)}</p>
               </div>
             </div>
           </Card>
@@ -690,33 +690,33 @@ function Leads() {
           <Card>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <h2 className="text-xl font-semibold tracking-tight text-slate-950">AI Lead Scoring</h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <h2 className="text-xl font-semibold tracking-tight text-ink">AI Lead Scoring</h2>
+                <p className="mt-1 text-sm text-muted">
                   AI scoring runs in the background, one lead at a time, to stay gentle on Gemini quota.
                 </p>
-                <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-gray-600 md:grid-cols-3">
-                  <p className="rounded border bg-green-50 p-3">
-                    <span className="font-semibold text-green-800">Fit Score</span> = company and campaign match.
+                <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-ink-2 md:grid-cols-3">
+                  <p className="rounded border bg-success-soft p-3">
+                    <span className="font-semibold text-success">Fit Score</span> = company and campaign match.
                   </p>
-                  <p className="rounded border bg-yellow-50 p-3">
-                    <span className="font-semibold text-yellow-800">Contact Confidence</span> = quality of contact details.
+                  <p className="rounded border bg-warn-soft p-3">
+                    <span className="font-semibold text-warn">Contact Confidence</span> = quality of contact details.
                   </p>
-                  <p className="rounded border bg-indigo-50 p-3">
-                    <span className="font-semibold text-indigo-800">Final AI Score</span> = outreach readiness.
+                  <p className="rounded border bg-violet-soft p-3">
+                    <span className="font-semibold text-violet">Final AI Score</span> = outreach readiness.
                   </p>
                 </div>
               </div>
 
               <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
                 <label className="text-sm">
-                  <span className="mb-1 block font-medium text-slate-700">Batch size</span>
+                  <span className="mb-1 block font-medium text-ink-2">Batch size</span>
                   <input
                     type="number"
                     min="1"
                     max="100"
                     value={scoreLimit}
                     onChange={(e) => setScoreLimit(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
-                    className="min-h-10 w-full rounded-xl border border-slate-200 bg-white/80 px-3 text-sm text-slate-800 shadow-sm outline-none focus:ring-4 focus:ring-slate-100 sm:w-28"
+                    className="field sm:w-28"
                   />
                 </label>
                 <Button
@@ -736,25 +736,25 @@ function Leads() {
             </div>
 
             {isScoringJobRunning && (
-              <div className="mt-5 rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
-                <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-indigo-800">
+              <div className="mt-5 rounded-2xl border border-violet-soft bg-violet-soft p-4">
+                <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-violet">
                   <span>Scoring {scoringJob.processed ?? 0}/{scoringJob.total ?? 0} leads</span>
                   <span>{scoringProgress}%</span>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-white">
+                <div className="h-2 w-full overflow-hidden rounded-full surface-2">
                   <div
-                    className="h-full rounded-full bg-indigo-600 transition-all duration-500"
+                    className="h-full rounded-full bg-violet-solid transition-all duration-500"
                     style={{ width: `${scoringProgress}%` }}
                   />
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                  <span className="rounded border border-emerald-100 bg-white/80 px-2 py-1 text-emerald-700">
+                  <span className="rounded border border-success-soft surface-2 px-2 py-1 text-success">
                     Scored: {scoringJob.scored ?? 0}
                   </span>
-                  <span className="rounded border border-slate-100 bg-white/80 px-2 py-1 text-slate-600">
+                  <span className="rounded border line-1 surface-2 px-2 py-1 text-ink-2">
                     Skipped: {scoringJob.skipped ?? 0}
                   </span>
-                  <span className="rounded border border-red-100 bg-white/80 px-2 py-1 text-red-600">
+                  <span className="rounded border border-danger-soft surface-2 px-2 py-1 text-danger">
                     Failed: {scoringJob.failed ?? 0}
                   </span>
                 </div>
@@ -763,11 +763,11 @@ function Leads() {
 
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
               <label className="text-sm">
-                <span className="mb-1 block font-medium text-gray-700">Priority</span>
+                <span className="mb-1 block font-medium text-ink-2">Priority</span>
                 <select
                   value={priorityFilter}
                   onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm text-slate-800 shadow-sm outline-none focus:ring-4 focus:ring-slate-100"
+                  className="field"
                 >
                   <option>All</option>
                   <option>High</option>
@@ -777,11 +777,11 @@ function Leads() {
               </label>
 
               <label className="text-sm">
-                <span className="mb-1 block font-medium text-gray-700">Qualification</span>
+                <span className="mb-1 block font-medium text-ink-2">Qualification</span>
                 <select
                   value={qualificationFilter}
                   onChange={(e) => setQualificationFilter(e.target.value)}
-                  className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm text-slate-800 shadow-sm outline-none focus:ring-4 focus:ring-slate-100"
+                  className="field"
                 >
                   <option>All</option>
                   <option>Hot</option>
@@ -791,7 +791,7 @@ function Leads() {
                 </select>
               </label>
 
-              <label className="flex min-h-11 items-center gap-2 self-end rounded-2xl border border-slate-200 bg-white/70 px-3 text-sm font-medium text-slate-700">
+              <label className="flex min-h-11 items-center gap-2 self-end rounded-2xl border line-1 surface-2 px-3 text-sm font-medium text-ink-2">
                 <input
                   type="checkbox"
                   checked={sortByScore}
@@ -808,25 +808,25 @@ function Leads() {
           <Card>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <h2 className="text-xl font-semibold tracking-tight text-slate-950">AI Lead Research</h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <h2 className="text-xl font-semibold tracking-tight text-ink">AI Lead Research</h2>
+                <p className="mt-1 text-sm text-muted">
                   Research uses a lead website plus campaign context before scoring or drafting.
                 </p>
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-muted">
                   Runs in the background and fetches only a few public pages per lead.
                 </p>
               </div>
 
               <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
                 <label className="text-sm">
-                  <span className="mb-1 block font-medium text-slate-700">Batch size</span>
+                  <span className="mb-1 block font-medium text-ink-2">Batch size</span>
                   <input
                     type="number"
                     min="1"
                     max="500"
                     value={researchLimit}
                     onChange={(e) => setResearchLimit(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
-                    className="min-h-10 w-full rounded-xl border border-slate-200 bg-white/80 px-3 text-sm text-slate-800 shadow-sm outline-none focus:ring-4 focus:ring-slate-100 sm:w-28"
+                    className="field sm:w-28"
                   />
                 </label>
                 <Button
@@ -846,25 +846,25 @@ function Leads() {
             </div>
 
             {isResearchJobRunning && (
-              <div className="mt-5 rounded-2xl border border-sky-100 bg-sky-50 p-4">
-                <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-sky-800">
+              <div className="mt-5 rounded-2xl border border-info-soft bg-info-soft p-4">
+                <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-info">
                   <span>Researching {researchJob.processed ?? 0}/{researchJob.total ?? 0} leads</span>
                   <span>{researchProgress}%</span>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-white">
+                <div className="h-2 w-full overflow-hidden rounded-full surface-2">
                   <div
-                    className="h-full rounded-full bg-sky-600 transition-all duration-500"
+                    className="h-full rounded-full bg-info-solid transition-all duration-500"
                     style={{ width: `${researchProgress}%` }}
                   />
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                  <span className="rounded border border-emerald-100 bg-white/80 px-2 py-1 text-emerald-700">
+                  <span className="rounded border border-success-soft surface-2 px-2 py-1 text-success">
                     Researched: {researchJob.researched ?? 0}
                   </span>
-                  <span className="rounded border border-slate-100 bg-white/80 px-2 py-1 text-slate-600">
+                  <span className="rounded border line-1 surface-2 px-2 py-1 text-ink-2">
                     Skipped: {researchJob.skipped ?? 0}
                   </span>
-                  <span className="rounded border border-red-100 bg-white/80 px-2 py-1 text-red-600">
+                  <span className="rounded border border-danger-soft surface-2 px-2 py-1 text-danger">
                     Failed: {researchJob.failed ?? 0}
                   </span>
                 </div>
@@ -889,11 +889,11 @@ function Leads() {
           <Card>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <h2 className="text-xl font-semibold tracking-tight text-slate-950">Hunter Email Enrichment</h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <h2 className="text-xl font-semibold tracking-tight text-ink">Hunter Email Enrichment</h2>
+                <p className="mt-1 text-sm text-muted">
                   Use Hunter.io for leads that have a website but no saved email.
                 </p>
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-muted">
                   Eligible leads in this campaign: {hunterEligibleLeadCount}
                 </p>
               </div>
@@ -915,11 +915,11 @@ function Leads() {
           <Card>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <h2 className="text-xl font-semibold tracking-tight text-slate-950">Apollo Email Enrichment</h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <h2 className="text-xl font-semibold tracking-tight text-ink">Apollo Email Enrichment</h2>
+                <p className="mt-1 text-sm text-muted">
                   Use Apollo.io to find verified emails and contact details from company databases.
                 </p>
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-muted">
                   Eligible leads in this campaign: {hunterEligibleLeadCount}
                 </p>
               </div>
@@ -941,11 +941,11 @@ function Leads() {
           <Card>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <h2 className="text-xl font-semibold tracking-tight text-slate-950">Export Leads</h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <h2 className="text-xl font-semibold tracking-tight text-ink">Export Leads</h2>
+                <p className="mt-1 text-sm text-muted">
                   Download all leads from this campaign as a CSV file.
                 </p>
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-muted">
                   Total leads: {leads.length}
                 </p>
               </div>
@@ -953,7 +953,7 @@ function Leads() {
               <a
                 href={`${import.meta.env.VITE_API_BASE_URL}/leads/campaign/${selectedCampaignId}/export-csv`}
                 download
-                className="w-full rounded-lg bg-green-600 px-4 py-2 text-center text-white hover:bg-green-700 disabled:bg-gray-400 lg:w-auto"
+                className="w-full rounded-lg bg-success-solid px-4 py-2 text-center text-white hover:opacity-90 disabled:surface-3 lg:w-auto"
               >
                 ⬇ Download Leads CSV
               </a>
@@ -964,73 +964,73 @@ function Leads() {
         {(leadExtractionMessage || leadExtractionError || hunterMessage || hunterError || apolloMessage || apolloError || leadScoringMessage || leadScoringError || leadResearchMessage || leadResearchError || callMessage || callError) && (
           <Card>
             {callMessage && (
-              <p className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-700">
+              <p className="rounded-lg border border-violet-soft bg-violet-soft p-3 text-sm text-violet">
                 {callMessage}
               </p>
             )}
 
             {hunterMessage && (
-              <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700 first:mt-0">
+              <p className="mt-3 rounded-lg border border-success-soft bg-success-soft p-3 text-sm text-success first:mt-0">
                 {hunterMessage}
               </p>
             )}
 
             {apolloMessage && (
-              <p className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 first:mt-0">
+              <p className="mt-3 rounded-lg border border-info-soft bg-info-soft p-3 text-sm text-info first:mt-0">
                 {apolloMessage}
               </p>
             )}
 
             {leadResearchMessage && (
-              <p className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-700 first:mt-0">
+              <p className="mt-3 rounded-lg border border-info-soft bg-info-soft p-3 text-sm text-info first:mt-0">
                 {leadResearchMessage}
               </p>
             )}
 
             {leadExtractionMessage && (
-              <p className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700 first:mt-0">
+              <p className="mt-3 rounded-lg border border-success-soft bg-success-soft p-3 text-sm text-success first:mt-0">
                 {leadExtractionMessage}
               </p>
             )}
 
             {leadScoringMessage && (
-              <p className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-700 first:mt-0">
+              <p className="mt-3 rounded-lg border border-violet-soft bg-violet-soft p-3 text-sm text-violet first:mt-0">
                 {leadScoringMessage}
               </p>
             )}
 
             {leadExtractionError && (
-              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">
+              <p className="mt-3 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger first:mt-0">
                 {leadExtractionError}
               </p>
             )}
 
             {hunterError && (
-              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">
+              <p className="mt-3 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger first:mt-0">
                 {hunterError}
               </p>
             )}
 
             {apolloError && (
-              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">
+              <p className="mt-3 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger first:mt-0">
                 {apolloError}
               </p>
             )}
 
             {leadScoringError && (
-              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">
+              <p className="mt-3 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger first:mt-0">
                 {leadScoringError}
               </p>
             )}
 
             {leadResearchError && (
-              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">
+              <p className="mt-3 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger first:mt-0">
                 {leadResearchError}
               </p>
             )}
 
             {callError && (
-              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">
+              <p className="mt-3 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger first:mt-0">
                 {callError}
               </p>
             )}

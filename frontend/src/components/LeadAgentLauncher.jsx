@@ -146,17 +146,17 @@ function LeadAgentLauncher({ campaign, onLeadsFound }) {
     <Card>
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <h2 className="text-xl font-semibold tracking-tight text-slate-950">Lead Agent</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <h2 className="text-xl font-semibold tracking-tight text-ink">Lead Agent</h2>
+          <p className="mt-1 text-sm text-muted">
             Trigger the n8n workflow for this campaign and watch for new leads.
           </p>
-          <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
-            <p className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <span className="block font-semibold text-slate-900">Industry</span>
+          <div className="mt-3 grid gap-2 text-xs text-ink-2 sm:grid-cols-2">
+            <p className="rounded-lg border line-1 surface-sunk p-3">
+              <span className="block font-semibold text-ink">Industry</span>
               {targetIndustry}
             </p>
-            <p className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <span className="block font-semibold text-slate-900">Location</span>
+            <p className="rounded-lg border line-1 surface-sunk p-3">
+              <span className="block font-semibold text-ink">Location</span>
               {targetLocation}
             </p>
           </div>
@@ -164,11 +164,11 @@ function LeadAgentLauncher({ campaign, onLeadsFound }) {
 
         <div className="grid w-full gap-3 sm:grid-cols-2 lg:max-w-md">
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Max results</span>
+            <span className="mb-1 block font-medium text-ink-2">Max results</span>
             <select
               value={maxResults}
               onChange={(event) => setMaxResults(Number(event.target.value))}
-              className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm text-slate-800 shadow-sm outline-none focus:ring-4 focus:ring-slate-100"
+              className="field"
             >
               {maxResultOptions.map((option) => (
                 <option key={option} value={option}>{option}</option>
@@ -177,11 +177,11 @@ function LeadAgentLauncher({ campaign, onLeadsFound }) {
           </label>
 
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Queries per day</span>
+            <span className="mb-1 block font-medium text-ink-2">Queries per day</span>
             <select
               value={queriesPerDay}
               onChange={(event) => setQueriesPerDay(Number(event.target.value))}
-              className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm text-slate-800 shadow-sm outline-none focus:ring-4 focus:ring-slate-100"
+              className="field"
             >
               {queryOptions.map((option) => (
                 <option key={option} value={option}>{option}</option>
@@ -192,20 +192,20 @@ function LeadAgentLauncher({ campaign, onLeadsFound }) {
       </div>
 
       <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-          <p className="text-xs text-blue-700">Estimated leads</p>
-          <p className="mt-1 text-2xl font-semibold text-blue-950">Up to {estimatedLeads}</p>
+        <div className="rounded-xl border border-info-soft bg-info-soft p-4">
+          <p className="text-xs text-info">Estimated leads</p>
+          <p className="mt-1 text-2xl font-semibold text-info">Up to {estimatedLeads}</p>
         </div>
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
-          <p className="text-xs text-indigo-700">Search queries</p>
-          <p className="mt-1 text-2xl font-semibold text-indigo-950">{estimatedQueries}</p>
+        <div className="rounded-xl border border-violet-soft bg-violet-soft p-4">
+          <p className="text-xs text-violet">Search queries</p>
+          <p className="mt-1 text-2xl font-semibold text-violet">{estimatedQueries}</p>
         </div>
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-          <p className="text-xs text-emerald-700">Estimated cost</p>
-          <p className="mt-1 text-2xl font-semibold text-emerald-950">
+        <div className="rounded-xl border border-success-soft bg-success-soft p-4">
+          <p className="text-xs text-success">Estimated cost</p>
+          <p className="mt-1 text-2xl font-semibold text-success">
             ~${estimatedApifyCost} Apify cost
           </p>
-          <p className="mt-1 text-xs text-emerald-700">
+          <p className="mt-1 text-xs text-success">
             Charged to your Apify account ($0.004 per lead)
           </p>
         </div>
@@ -222,33 +222,33 @@ function LeadAgentLauncher({ campaign, onLeadsFound }) {
         </Button>
 
         {status && (
-          <p className="text-sm text-slate-500">
-            Current leads: <span className="font-semibold text-slate-900">{status.total_leads}</span>
+          <p className="text-sm text-muted">
+            Current leads: <span className="font-semibold text-ink">{status.total_leads}</span>
           </p>
         )}
       </div>
 
       {error && (
-        <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p className="mt-4 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
           {error}
         </p>
       )}
 
       {success && (
-        <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-          <p className="font-semibold text-emerald-900">Lead Agent started successfully.</p>
-          <p className="mt-1 text-sm text-emerald-800">Leads will appear in 3-5 minutes.</p>
+        <div className="mt-4 rounded-xl border border-success-soft bg-success-soft p-4">
+          <p className="font-semibold text-success">Lead Agent started successfully.</p>
+          <p className="mt-1 text-sm text-success">Leads will appear in 3-5 minutes.</p>
           {success.ai_generated !== undefined && (
-            <p className="mt-1 text-xs text-emerald-700">
+            <p className="mt-1 text-xs text-success">
               {success.ai_generated ? "Queries generated with Gemini." : "Queries generated from custom sectors."}
             </p>
           )}
 
           <div className="mt-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Search queries</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-success">Search queries</p>
             <div className="mt-2 grid gap-2 lg:grid-cols-2">
               {displayedQueries.map((query) => (
-                <p key={query} className="break-words rounded-lg border border-emerald-100 bg-white/80 p-3 text-sm text-slate-700">
+                <p key={query} className="break-words rounded-lg border border-success-soft surface-2 p-3 text-sm text-ink-2">
                   {query}
                 </p>
               ))}
@@ -259,17 +259,17 @@ function LeadAgentLauncher({ campaign, onLeadsFound }) {
 
       {status && success && (
         <div className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">Discovered contacts</p>
-            <p className="mt-1 font-semibold text-slate-900">{status.discovered_contacts}</p>
+          <div className="rounded-lg border line-1 surface-sunk p-3">
+            <p className="text-xs text-muted">Discovered contacts</p>
+            <p className="mt-1 font-semibold text-ink">{status.discovered_contacts}</p>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">Imported contacts</p>
-            <p className="mt-1 font-semibold text-slate-900">{status.imported_contacts}</p>
+          <div className="rounded-lg border line-1 surface-sunk p-3">
+            <p className="text-xs text-muted">Imported contacts</p>
+            <p className="mt-1 font-semibold text-ink">{status.imported_contacts}</p>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">Leads with email</p>
-            <p className="mt-1 font-semibold text-slate-900">{status.leads_with_email}</p>
+          <div className="rounded-lg border line-1 surface-sunk p-3">
+            <p className="text-xs text-muted">Leads with email</p>
+            <p className="mt-1 font-semibold text-ink">{status.leads_with_email}</p>
           </div>
         </div>
       )}

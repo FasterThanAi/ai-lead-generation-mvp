@@ -1,37 +1,52 @@
+import ThemeToggle from "./ui/ThemeToggle";
+
 function Navbar({ pageTitle, collapsed, onMenuClick, onCollapseClick }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-white/70 bg-white/75 px-4 backdrop-blur-xl sm:px-5 lg:px-8">
-      <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between gap-4">
+    <header className="glass sticky top-0 z-30 rounded-none border-x-0 border-t-0 px-4 sm:px-5 lg:px-8">
+      <div className="mx-auto flex h-[72px] w-full max-w-[1440px] items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white/80 text-slate-700 shadow-sm lg:hidden"
+            className="btn btn-secondary h-10 w-10 shrink-0 rounded-2xl p-0 lg:hidden"
             aria-label="Open navigation"
             onClick={onMenuClick}
           >
-            <span className="text-xl leading-none">&#9776;</span>
+            <svg viewBox="0 0 24 24" className="relative z-10 h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
           </button>
 
           <button
             type="button"
-            className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white/80 text-slate-500 shadow-sm hover:bg-slate-50 lg:flex"
+            className="btn btn-secondary hidden h-10 w-10 shrink-0 rounded-2xl p-0 lg:flex"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             onClick={onCollapseClick}
           >
-            <span className="text-lg leading-none">{collapsed ? "\u203a" : "\u2039"}</span>
+            <svg viewBox="0 0 24 24" className="relative z-10 h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d={collapsed ? "M4 6h16M4 12h10M4 18h16" : "M4 6h16M10 12h10M4 18h16"} />
+            </svg>
           </button>
 
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-slate-500">AI Lead Generation MVP</p>
-            <h1 className="truncate text-lg font-semibold tracking-tight text-slate-950 sm:text-xl">
+            <p className="text-faint hidden truncate text-[11px] font-semibold uppercase tracking-[0.14em] sm:block">
+              AI Lead Generation
+            </p>
+            <h1 className="text-ink truncate text-lg font-semibold tracking-tight sm:text-xl">
               {pageTitle}
             </h1>
           </div>
         </div>
 
-        <div className="hidden items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 sm:flex">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          MVP Live
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="tone tone-success hidden px-3 py-1.5 md:inline-flex">
+            <span aria-hidden="true" className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-70" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-current" />
+            </span>
+            MVP Live
+          </div>
+
+          <ThemeToggle />
         </div>
       </div>
     </header>

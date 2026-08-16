@@ -116,7 +116,7 @@ function opportunityToForm(opportunity, currentForm) {
 function Field({ label, children }) {
   return (
     <label className="text-sm">
-      <span className="mb-1 block font-medium text-slate-700">{label}</span>
+      <span className="mb-1 block font-medium text-ink-2">{label}</span>
       {children}
     </label>
   );
@@ -124,7 +124,7 @@ function Field({ label, children }) {
 
 function ResultCard({ result, checked, onToggle }) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+    <article className="rounded-2xl border line-1 surface-2 p-4 elev-1">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <label className="flex min-w-0 items-start gap-3">
           <input
@@ -135,10 +135,10 @@ function ResultCard({ result, checked, onToggle }) {
             className="mt-1 h-4 w-4 shrink-0"
           />
           <span className="min-w-0">
-            <span className="block break-words text-base font-semibold text-slate-950">
+            <span className="block break-words text-base font-semibold text-ink">
               {display(result.name || result.organization, "Unnamed public contact")}
             </span>
-            <span className="mt-1 block break-words text-sm text-slate-500">
+            <span className="mt-1 block break-words text-sm text-muted">
               {[result.designation, result.department, result.organization].filter(Boolean).join(" | ") || "Context needs review"}
             </span>
           </span>
@@ -154,43 +154,43 @@ function ResultCard({ result, checked, onToggle }) {
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl bg-slate-50 p-3">
-          <p className="text-xs text-slate-500">Email</p>
+        <div className="rounded-xl surface-sunk p-3">
+          <p className="text-xs text-muted">Email</p>
           {result.email ? (
-            <a href={`mailto:${result.email}`} className="mt-1 block break-all text-sm font-semibold text-blue-600">
+            <a href={`mailto:${result.email}`} className="mt-1 block break-all text-sm font-semibold text-info">
               {result.email}
             </a>
           ) : (
-            <p className="mt-1 text-sm text-slate-500">No public email found</p>
+            <p className="mt-1 text-sm text-muted">No public email found</p>
           )}
         </div>
-        <div className="rounded-xl bg-slate-50 p-3">
-          <p className="text-xs text-slate-500">Phone</p>
-          <p className="mt-1 break-words text-sm font-semibold text-slate-900">{display(result.phone)}</p>
-          <p className={result.phone ? "mt-2 text-xs font-medium text-emerald-700" : "mt-2 text-xs font-medium text-amber-700"}>
+        <div className="rounded-xl surface-sunk p-3">
+          <p className="text-xs text-muted">Phone</p>
+          <p className="mt-1 break-words text-sm font-semibold text-ink">{display(result.phone)}</p>
+          <p className={result.phone ? "mt-2 text-xs font-medium text-success" : "mt-2 text-xs font-medium text-warn"}>
             Phone extracted: {result.phone ? "yes" : "no"}
           </p>
         </div>
-        <div className="rounded-xl bg-slate-50 p-3">
-          <p className="text-xs text-slate-500">Type / Location</p>
-          <p className="mt-1 break-words text-sm font-semibold text-slate-900">
+        <div className="rounded-xl surface-sunk p-3">
+          <p className="text-xs text-muted">Type / Location</p>
+          <p className="mt-1 break-words text-sm font-semibold text-ink">
             {[result.lead_type, result.location].filter(Boolean).join(" | ") || "N/A"}
           </p>
         </div>
-        <div className="rounded-xl bg-slate-50 p-3">
-          <p className="text-xs text-slate-500">Imported Lead</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{result.imported_lead_id || "Not imported"}</p>
+        <div className="rounded-xl surface-sunk p-3">
+          <p className="text-xs text-muted">Imported Lead</p>
+          <p className="mt-1 text-sm font-semibold text-ink">{result.imported_lead_id || "Not imported"}</p>
         </div>
       </div>
 
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         {result.fit_reason && (
-          <p className="break-words rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm leading-6 text-slate-600">
+          <p className="break-words rounded-xl border line-1 surface-sunk p-3 text-sm leading-6 text-ink-2">
             {result.fit_reason}
           </p>
         )}
         {result.risk_flags && (
-          <p className="break-words rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm leading-6 text-amber-700">
+          <p className="break-words rounded-xl border border-warn-soft bg-warn-soft p-3 text-sm leading-6 text-warn">
             {result.risk_flags}
           </p>
         )}
@@ -200,7 +200,7 @@ function ResultCard({ result, checked, onToggle }) {
         href={result.source_url}
         target="_blank"
         rel="noreferrer"
-        className="mt-3 block break-all text-xs font-medium text-blue-600 hover:text-blue-700"
+        className="mt-3 block break-all text-xs font-medium text-info hover:text-info"
       >
         Source: {result.source_url}
       </a>
@@ -553,8 +553,8 @@ function LeadDiscovery() {
         <Card>
           <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight text-slate-950">Create Discovery Job</h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <h2 className="text-xl font-semibold tracking-tight text-ink">Create Discovery Job</h2>
+              <p className="mt-1 text-sm text-muted">
                 Paste official public pages only. Search query mode gives copyable queries; it does not scrape search results or LinkedIn.
               </p>
             </div>
@@ -570,7 +570,7 @@ function LeadDiscovery() {
               <select
                 value={formValues.campaign_id}
                 onChange={(e) => updateFormValue("campaign_id", e.target.value)}
-                className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
+                className="field"
               >
                 <option value="">Optional campaign</option>
                 {campaigns.map((campaign) => (
@@ -583,7 +583,7 @@ function LeadDiscovery() {
               <select
                 value={formValues.opportunity_id}
                 onChange={(e) => handleOpportunityChange(e.target.value)}
-                className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
+                className="field"
               >
                 <option value="">Optional opportunity</option>
                 {opportunities.map((opportunity) => (
@@ -597,7 +597,7 @@ function LeadDiscovery() {
                 type="text"
                 value={formValues.title}
                 onChange={(e) => updateFormValue("title", e.target.value)}
-                className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
+                className="field"
                 placeholder="Professor CSE Discovery"
               />
             </Field>
@@ -606,7 +606,7 @@ function LeadDiscovery() {
               <select
                 value={formValues.target_type}
                 onChange={(e) => updateFormValue("target_type", e.target.value)}
-                className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
+                className="field"
               >
                 {targetTypes.map((type) => (
                   <option key={type} value={type}>{type}</option>
@@ -619,7 +619,7 @@ function LeadDiscovery() {
                 type="text"
                 value={formValues.department}
                 onChange={(e) => updateFormValue("department", e.target.value)}
-                className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
+                className="field"
                 placeholder="Computer Science / Restaurants / SaaS"
               />
             </Field>
@@ -629,7 +629,7 @@ function LeadDiscovery() {
                 type="text"
                 value={formValues.location}
                 onChange={(e) => updateFormValue("location", e.target.value)}
-                className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
+                className="field"
                 placeholder="India"
               />
             </Field>
@@ -639,7 +639,7 @@ function LeadDiscovery() {
                 type="text"
                 value={formValues.target_role}
                 onChange={(e) => updateFormValue("target_role", e.target.value)}
-                className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
+                className="field"
                 placeholder="Professor / HOD / Owner / CTO"
               />
             </Field>
@@ -651,29 +651,29 @@ function LeadDiscovery() {
                 max="50"
                 value={formValues.limit}
                 onChange={(e) => updateFormValue("limit", e.target.value)}
-                className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
+                className="field"
               />
             </Field>
 
             <label className="text-sm lg:col-span-2">
-              <span className="mb-1 block font-medium text-slate-700">Goal</span>
+              <span className="mb-1 block font-medium text-ink-2">Goal</span>
               <textarea
                 value={formValues.query_goal}
                 onChange={(e) => updateFormValue("query_goal", e.target.value)}
-                className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-sm leading-6 outline-none focus:ring-4 focus:ring-slate-100"
+                className="field min-h-24"
                 placeholder="Find public department/faculty/company contact pages relevant to this campaign."
               />
             </label>
 
             <label className="text-sm lg:col-span-2">
-              <span className="mb-1 block font-medium text-slate-700">Source URLs</span>
+              <span className="mb-1 block font-medium text-ink-2">Source URLs</span>
               <textarea
                 value={formValues.source_urls}
                 onChange={(e) => updateFormValue("source_urls", e.target.value)}
-                className="min-h-28 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-sm leading-6 outline-none focus:ring-4 focus:ring-slate-100"
+                className="field min-h-28"
                 placeholder={"https://www.cse.iitd.ac.in/\nhttps://www.iiit.ac.in/research/"}
               />
-              <span className="mt-1 block text-xs text-slate-500">One public URL per line. No login pages, CAPTCHA pages, or automated LinkedIn scraping.</span>
+              <span className="mt-1 block text-xs text-muted">One public URL per line. No login pages, CAPTCHA pages, or automated LinkedIn scraping.</span>
             </label>
           </div>
 
@@ -690,12 +690,12 @@ function LeadDiscovery() {
           </div>
 
           {generatedQueries.length > 0 && (
-            <div className="mt-5 rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
-              <p className="text-sm font-semibold text-sky-900">Generated manual search queries</p>
+            <div className="mt-5 rounded-2xl border border-info-soft bg-info-soft p-4">
+              <p className="text-sm font-semibold text-info">Generated manual search queries</p>
               <div className="mt-3 grid gap-2 lg:grid-cols-2">
                 {generatedQueries.map((query) => (
-                  <div key={query} className="flex min-w-0 flex-col gap-2 rounded-xl border border-sky-100 bg-white/80 p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="min-w-0 break-words text-sm text-slate-700">{query}</p>
+                  <div key={query} className="flex min-w-0 flex-col gap-2 rounded-xl border border-info-soft surface-2 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="min-w-0 break-words text-sm text-ink-2">{query}</p>
                     <Button type="button" size="sm" variant="secondary" onClick={() => copyText(query)}>
                       Copy
                     </Button>
@@ -708,20 +708,20 @@ function LeadDiscovery() {
 
         {(statusMessage || errorMessage) && (
           <Card>
-            {statusMessage && <p className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{statusMessage}</p>}
-            {errorMessage && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">{errorMessage}</p>}
+            {statusMessage && <p className="rounded-lg border border-success-soft bg-success-soft p-3 text-sm text-success">{statusMessage}</p>}
+            {errorMessage && <p className="mt-3 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger first:mt-0">{errorMessage}</p>}
           </Card>
         )}
 
         <div className="grid gap-6 xl:grid-cols-[minmax(320px,420px)_minmax(0,1fr)]">
           <Card>
             <div className="mb-4">
-              <h2 className="text-xl font-semibold tracking-tight text-slate-950">Discovery Jobs</h2>
-              <p className="mt-1 text-sm text-slate-500">{jobs.length} jobs saved.</p>
+              <h2 className="text-xl font-semibold tracking-tight text-ink">Discovery Jobs</h2>
+              <p className="mt-1 text-sm text-muted">{jobs.length} jobs saved.</p>
             </div>
 
             {isLoading ? (
-              <p className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">Loading jobs...</p>
+              <p className="rounded-2xl border line-1 surface-sunk p-4 text-sm text-ink-2">Loading jobs...</p>
             ) : jobs.length === 0 ? (
               <EmptyState title="No discovery jobs yet" description="Create a job from a strategy or paste source URLs manually." />
             ) : (
@@ -731,7 +731,7 @@ function LeadDiscovery() {
                     key={job.id}
                     className={[
                       "rounded-2xl border p-4 transition",
-                      String(selectedJobId) === String(job.id) ? "border-slate-950 bg-slate-50" : "border-slate-200 bg-white/80",
+                      String(selectedJobId) === String(job.id) ? "line-3 surface-sunk" : "line-1 surface-2",
                     ].join(" ")}
                   >
                     <button type="button" className="block w-full text-left" onClick={() => selectJob(job)}>
@@ -739,18 +739,18 @@ function LeadDiscovery() {
                         <Badge variant={job.status}>{job.status}</Badge>
                         {job.target_type && <Badge variant="neutral">{job.target_type}</Badge>}
                       </div>
-                      <h3 className="mt-3 break-words text-base font-semibold text-slate-950">{job.title}</h3>
-                      <p className="mt-2 break-words text-sm text-slate-500">{job.campaign_name || "No campaign selected"}</p>
-                      <p className="mt-2 text-xs text-slate-400">Created: {formatDateTimeIST(job.created_at)}</p>
+                      <h3 className="mt-3 break-words text-base font-semibold text-ink">{job.title}</h3>
+                      <p className="mt-2 break-words text-sm text-muted">{job.campaign_name || "No campaign selected"}</p>
+                      <p className="mt-2 text-xs text-faint">Created: {formatDateTimeIST(job.created_at)}</p>
                     </button>
 
-                    <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-600">
-                      <span className="rounded-xl bg-slate-50 p-2">Pages: {job.pages_attempted}</span>
-                      <span className="rounded-xl bg-slate-50 p-2">Contacts: {job.contacts_found}</span>
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-ink-2">
+                      <span className="rounded-xl surface-sunk p-2">Pages: {job.pages_attempted}</span>
+                      <span className="rounded-xl surface-sunk p-2">Contacts: {job.contacts_found}</span>
                     </div>
 
                     {job.errors && (
-                      <p className="mt-3 whitespace-pre-line break-words rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs leading-5 text-amber-700">
+                      <p className="mt-3 whitespace-pre-line break-words rounded-xl border border-warn-soft bg-warn-soft p-3 text-xs leading-5 text-warn">
                         {job.errors}
                       </p>
                     )}
@@ -772,8 +772,8 @@ function LeadDiscovery() {
           <Card>
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <h2 className="text-xl font-semibold tracking-tight text-slate-950">Results Review</h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <h2 className="text-xl font-semibold tracking-tight text-ink">Results Review</h2>
+                <p className="mt-1 text-sm text-muted">
                   {selectedJob ? selectedJob.title : "Select a job to review discovered contacts."}
                 </p>
               </div>
@@ -789,21 +789,21 @@ function LeadDiscovery() {
             ) : (
               <>
                 <div className="mb-4 grid gap-3 md:grid-cols-4">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs text-slate-500">Selected</p>
-                    <p className="mt-1 text-xl font-semibold text-slate-950">{selectedResultIds.length}</p>
+                  <div className="rounded-2xl border line-1 surface-sunk p-3">
+                    <p className="text-xs text-muted">Selected</p>
+                    <p className="mt-1 text-xl font-semibold text-ink">{selectedResultIds.length}</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs text-slate-500">Pending</p>
-                    <p className="mt-1 text-xl font-semibold text-slate-950">{results.filter((item) => item.status === "pending").length}</p>
+                  <div className="rounded-2xl border line-1 surface-sunk p-3">
+                    <p className="text-xs text-muted">Pending</p>
+                    <p className="mt-1 text-xl font-semibold text-ink">{results.filter((item) => item.status === "pending").length}</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs text-slate-500">Approved</p>
-                    <p className="mt-1 text-xl font-semibold text-slate-950">{results.filter((item) => item.status === "approved").length}</p>
+                  <div className="rounded-2xl border line-1 surface-sunk p-3">
+                    <p className="text-xs text-muted">Approved</p>
+                    <p className="mt-1 text-xl font-semibold text-ink">{results.filter((item) => item.status === "approved").length}</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs text-slate-500">Imported / Updated</p>
-                    <p className="mt-1 text-xl font-semibold text-slate-950">{results.filter((item) => isImportedResultStatus(item.status)).length}</p>
+                  <div className="rounded-2xl border line-1 surface-sunk p-3">
+                    <p className="text-xs text-muted">Imported / Updated</p>
+                    <p className="mt-1 text-xl font-semibold text-ink">{results.filter((item) => isImportedResultStatus(item.status)).length}</p>
                   </div>
                 </div>
 

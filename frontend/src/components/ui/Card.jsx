@@ -1,9 +1,14 @@
-function Card({ children, className = "", padded = true }) {
+/**
+ * Card — API unchanged (children, className, padded).
+ * `interactive` is optional and adds the hover lift.
+ */
+function Card({ children, className = "", padded = true, interactive = false }) {
   return (
     <section
       className={[
-        "rounded-panel border border-white/80 bg-white/85 shadow-soft backdrop-blur transition duration-300",
-        padded ? "p-5 sm:p-6" : "",
+        "glass rounded-panel",
+        interactive ? "glass-hover" : "",
+        padded ? "p-4 sm:p-5 lg:p-6" : "",
         className,
       ].join(" ")}
     >

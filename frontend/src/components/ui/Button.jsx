@@ -1,17 +1,23 @@
+/**
+ * Button — API unchanged.
+ * variant: primary | secondary | success | danger | warning | ghost | indigo
+ * size:    sm | md | lg
+ */
+
 const variantClasses = {
-  primary: "bg-slate-950 text-white shadow-sm shadow-slate-200 hover:bg-slate-800",
-  secondary: "border border-slate-200 bg-white/80 text-slate-700 hover:bg-slate-50",
-  success: "bg-emerald-600 text-white shadow-sm shadow-emerald-100 hover:bg-emerald-700",
-  danger: "bg-red-600 text-white shadow-sm shadow-red-100 hover:bg-red-700",
-  warning: "bg-amber-500 text-white shadow-sm shadow-amber-100 hover:bg-amber-600",
-  ghost: "text-slate-600 hover:bg-slate-100",
-  indigo: "bg-indigo-600 text-white shadow-sm shadow-indigo-100 hover:bg-indigo-700",
+  primary: "btn-primary",
+  secondary: "btn-secondary",
+  ghost: "btn-ghost",
+  success: "btn-tone [--tone:var(--t-success)]",
+  danger: "btn-tone [--tone:var(--t-danger)]",
+  warning: "btn-tone [--tone:var(--t-warn)]",
+  indigo: "btn-tone [--tone:var(--t-violet)]",
 };
 
 const sizeClasses = {
-  sm: "px-3 py-2 text-xs",
-  md: "px-4 py-2.5 text-sm",
-  lg: "px-5 py-3 text-sm",
+  sm: "px-3 py-1.5 text-xs min-h-9 rounded-xl",
+  md: "px-4 py-2 text-sm",
+  lg: "px-5 py-2.5 text-sm min-h-12 rounded-2xl",
 };
 
 function Button({
@@ -25,16 +31,14 @@ function Button({
   return (
     <Component
       className={[
-        "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl font-semibold transition",
-        "focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2",
-        "disabled:cursor-not-allowed disabled:opacity-50",
+        "btn",
         variantClasses[variant] || variantClasses.primary,
         sizeClasses[size] || sizeClasses.md,
         className,
       ].join(" ")}
       {...props}
     >
-      {children}
+      <span className="relative z-10 inline-flex items-center gap-2">{children}</span>
     </Component>
   );
 }

@@ -128,53 +128,53 @@ function EmailExtraction({ campaignId, onExtractionComplete }) {
   return (
     <Card>
       <div className="mb-4">
-        <h2 className="text-xl font-semibold tracking-tight text-slate-950">Email Extraction</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <h2 className="text-xl font-semibold tracking-tight text-ink">Email Extraction</h2>
+        <p className="mt-1 text-sm text-muted">
           Find public emails from lead websites for the selected campaign.
         </p>
       </div>
 
       {campaignStatus && (
         <div className="mb-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">Total Leads</p>
-            <p className="mt-1 font-semibold text-slate-900">{campaignStatus.total_leads}</p>
+          <div className="rounded-lg border line-1 surface-sunk p-3">
+            <p className="text-xs text-muted">Total Leads</p>
+            <p className="mt-1 font-semibold text-ink">{campaignStatus.total_leads}</p>
           </div>
-          <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
-            <p className="text-xs text-emerald-700">With Email</p>
-            <p className="mt-1 font-semibold text-emerald-900">{campaignStatus.with_email}</p>
+          <div className="rounded-lg border border-success-soft bg-success-soft p-3">
+            <p className="text-xs text-success">With Email</p>
+            <p className="mt-1 font-semibold text-success">{campaignStatus.with_email}</p>
           </div>
-          <div className="rounded-lg border border-amber-100 bg-amber-50 p-3">
-            <p className="text-xs text-amber-700">Needs Extraction</p>
-            <p className="mt-1 font-semibold text-amber-900">{campaignStatus.eligible_without_email}</p>
+          <div className="rounded-lg border border-warn-soft bg-warn-soft p-3">
+            <p className="text-xs text-warn">Needs Extraction</p>
+            <p className="mt-1 font-semibold text-warn">{campaignStatus.eligible_without_email}</p>
           </div>
-          <div className="rounded-lg border border-blue-100 bg-blue-50 p-3">
-            <p className="text-xs text-blue-700">Coverage</p>
-            <p className="mt-1 font-semibold text-blue-900">{campaignStatus.coverage_percent}%</p>
+          <div className="rounded-lg border border-info-soft bg-info-soft p-3">
+            <p className="text-xs text-info">Coverage</p>
+            <p className="mt-1 font-semibold text-info">{campaignStatus.coverage_percent}%</p>
           </div>
         </div>
       )}
 
       {isJobRunning && (
-        <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-3">
-          <div className="mb-2 flex items-center justify-between gap-3 text-xs text-blue-800">
+        <div className="mb-4 rounded-lg border border-info-soft bg-info-soft p-3">
+          <div className="mb-2 flex items-center justify-between gap-3 text-xs text-info">
             <span>Processing {job.processed ?? 0}/{job.total ?? 0} leads</span>
             <span>{progress}%</span>
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-white">
+          <div className="h-2 w-full overflow-hidden rounded-full surface-2">
             <div
-              className="h-full rounded-full bg-blue-600 transition-all duration-500"
+              className="h-full rounded-full bg-info-solid transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-            <span className="rounded border border-emerald-100 bg-white/80 px-2 py-1 text-emerald-700">
+            <span className="rounded border border-success-soft surface-2 px-2 py-1 text-success">
               Found: {job.found ?? 0}
             </span>
-            <span className="rounded border border-slate-100 bg-white/80 px-2 py-1 text-slate-600">
+            <span className="rounded border line-1 surface-2 px-2 py-1 text-ink-2">
               Skipped: {job.skipped ?? 0}
             </span>
-            <span className="rounded border border-red-100 bg-white/80 px-2 py-1 text-red-600">
+            <span className="rounded border border-danger-soft surface-2 px-2 py-1 text-danger">
               Failed: {job.failed ?? 0}
             </span>
           </div>
@@ -182,13 +182,13 @@ function EmailExtraction({ campaignId, onExtractionComplete }) {
       )}
 
       {summary && (
-        <p className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+        <p className="mb-4 rounded-lg border border-success-soft bg-success-soft p-3 text-sm text-success">
           {summary}
         </p>
       )}
 
       {error && (
-        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p className="mb-4 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
           {error}
         </p>
       )}
@@ -207,13 +207,13 @@ function EmailExtraction({ campaignId, onExtractionComplete }) {
       </Button>
 
       {!campaignId && (
-        <p className="mt-3 text-sm text-gray-500">
+        <p className="mt-3 text-sm text-muted">
           Select a campaign above to enable email extraction.
         </p>
       )}
 
       {campaignId && (
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-muted">
           Runs in the background and checks progress every 3 seconds, so large campaigns avoid Render request timeouts.
         </p>
       )}

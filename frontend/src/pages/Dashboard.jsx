@@ -115,11 +115,11 @@ function Dashboard() {
   ];
 
   const emailFunnelData = [
-    { name: "Generated", value: Number(stats.emails_generated ?? 0), color: "#2878ff" },
-    { name: "Approved", value: Number(stats.emails_approved ?? 0), color: "#10b981" },
-    { name: "Sent", value: Number(stats.emails_sent ?? 0), color: "#6366f1" },
-    { name: "Replied", value: Number(stats.emails_replied ?? 0), color: "#059669" },
-    { name: "Failed", value: Number(stats.emails_failed ?? 0), color: "#dc2626" },
+    { name: "Generated", value: Number(stats.emails_generated ?? 0), color: "var(--chart-1)" },
+    { name: "Approved", value: Number(stats.emails_approved ?? 0), color: "var(--chart-2)" },
+    { name: "Sent", value: Number(stats.emails_sent ?? 0), color: "var(--chart-3)" },
+    { name: "Replied", value: Number(stats.emails_replied ?? 0), color: "var(--chart-2)" },
+    { name: "Failed", value: Number(stats.emails_failed ?? 0), color: "var(--chart-4)" },
   ];
 
   const replySignalData = [
@@ -148,8 +148,8 @@ function Dashboard() {
         eyebrow="Revenue command center"
         description="A modern view of campaign throughput, reply quality, follow-up momentum, and AI lead scoring health."
         actions={
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/80 bg-white/75 px-3 py-2 text-sm font-semibold text-neutral-700 shadow-sm backdrop-blur">
-            <span className="h-2.5 w-2.5 rounded-full bg-accent-500 shadow-[0_0_0_4px_rgba(16,185,129,0.14)]" />
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border line-1 surface-2 px-3 py-2 text-sm font-semibold text-ink-2 elev-1 backdrop-blur">
+            <span className="h-2.5 w-2.5 rounded-full bg-accent shadow-[0_0_0_4px_rgba(16,185,129,0.14)]" />
             {stats.gmail_connected ? "Gmail connected" : "Gmail needs attention"}
           </div>
         }
@@ -193,13 +193,13 @@ function Dashboard() {
                 key={label}
                 whileHover={{ y: -2 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
-                className="rounded-panel border border-white/80 bg-white/80 p-4 shadow-soft backdrop-blur transition hover:shadow-lift"
+                className="rounded-panel border line-1 surface-2 p-4 elev-1 backdrop-blur transition hover:elev-2"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-neutral-500">{label}</p>
+                  <p className="text-sm font-semibold text-muted">{label}</p>
                   <Badge variant={tone}>{badge}</Badge>
                 </div>
-                <p className="mt-3 break-words text-2xl font-bold tracking-tight text-neutral-950">{value}</p>
+                <p className="mt-3 break-words text-2xl font-bold tracking-tight text-ink">{value}</p>
               </motion.div>
             ))}
           </div>
@@ -208,8 +208,8 @@ function Dashboard() {
             <Card className="xl:col-span-3">
               <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h3 className="text-lg font-bold tracking-tight text-neutral-950">Email Funnel</h3>
-                  <p className="mt-1 text-sm leading-6 text-neutral-500">
+                  <h3 className="text-lg font-bold tracking-tight text-ink">Email Funnel</h3>
+                  <p className="mt-1 text-sm leading-6 text-muted">
                     Generated drafts through replies, using the current dashboard payload.
                   </p>
                 </div>
@@ -218,14 +218,14 @@ function Dashboard() {
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={emailFunnelData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fill: "var(--chart-axis)", fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: "var(--chart-axis)", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
                     <Tooltip
                       cursor={{ fill: "rgba(40, 120, 255, 0.08)" }}
                       contentStyle={{
                         borderRadius: 16,
-                        border: "1px solid #e2e8f0",
+                        border: "1px solid var(--chart-grid)",
                         boxShadow: "0 18px 45px rgba(15, 23, 42, 0.08)",
                       }}
                     />
@@ -241,8 +241,8 @@ function Dashboard() {
 
             <Card className="xl:col-span-2">
               <div className="mb-6">
-                <h3 className="text-lg font-bold tracking-tight text-neutral-950">Reply Signals</h3>
-                <p className="mt-1 text-sm leading-6 text-neutral-500">
+                <h3 className="text-lg font-bold tracking-tight text-ink">Reply Signals</h3>
+                <p className="mt-1 text-sm leading-6 text-muted">
                   High-intent categories from classified replies.
                 </p>
               </div>
@@ -251,21 +251,21 @@ function Dashboard() {
                   <AreaChart data={replySignalData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
                     <defs>
                       <linearGradient id="replySignal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+                        <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0.02} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fill: "var(--chart-axis)", fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: "var(--chart-axis)", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
                     <Tooltip
                       contentStyle={{
                         borderRadius: 16,
-                        border: "1px solid #e2e8f0",
+                        border: "1px solid var(--chart-grid)",
                         boxShadow: "0 18px 45px rgba(15, 23, 42, 0.08)",
                       }}
                     />
-                    <Area type="monotone" dataKey="value" stroke="#059669" strokeWidth={3} fill="url(#replySignal)" />
+                    <Area type="monotone" dataKey="value" stroke="var(--chart-2)" strokeWidth={3} fill="url(#replySignal)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -275,26 +275,26 @@ function Dashboard() {
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <Card>
               <div className="mb-6">
-                <h3 className="text-lg font-bold tracking-tight text-neutral-950">Follow-up Production</h3>
-                <p className="mt-1 text-sm leading-6 text-neutral-500">
+                <h3 className="text-lg font-bold tracking-tight text-ink">Follow-up Production</h3>
+                <p className="mt-1 text-sm leading-6 text-muted">
                   Generated and sent volumes for follow-ups and reply responses.
                 </p>
               </div>
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={followupData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fill: "var(--chart-axis)", fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: "var(--chart-axis)", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
                     <Tooltip
                       contentStyle={{
                         borderRadius: 16,
-                        border: "1px solid #e2e8f0",
+                        border: "1px solid var(--chart-grid)",
                         boxShadow: "0 18px 45px rgba(15, 23, 42, 0.08)",
                       }}
                     />
-                    <Bar dataKey="generated" fill="#2878ff" radius={[10, 10, 4, 4]} />
-                    <Bar dataKey="sent" fill="#10b981" radius={[10, 10, 4, 4]} />
+                    <Bar dataKey="generated" fill="var(--chart-1)" radius={[10, 10, 4, 4]} />
+                    <Bar dataKey="sent" fill="var(--chart-2)" radius={[10, 10, 4, 4]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -302,8 +302,8 @@ function Dashboard() {
 
             <Card>
               <div className="mb-6">
-                <h3 className="text-lg font-bold tracking-tight text-neutral-950">Latest Campaigns</h3>
-                <p className="mt-1 text-sm leading-6 text-neutral-500">
+                <h3 className="text-lg font-bold tracking-tight text-ink">Latest Campaigns</h3>
+                <p className="mt-1 text-sm leading-6 text-muted">
                   Recently created campaign workspaces.
                 </p>
               </div>
@@ -318,16 +318,16 @@ function Dashboard() {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.04, duration: 0.2 }}
-                      className="rounded-2xl border border-neutral-200 bg-neutral-50/80 p-4 transition hover:-translate-y-0.5 hover:border-primary-100 hover:bg-white hover:shadow-soft"
+                      className="rounded-2xl border line-1 surface-sunk p-4 transition hover:-translate-y-0.5 hover:line-2 hover:surface-3 hover:elev-1"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="break-words text-sm font-bold text-neutral-950">{campaign.campaign_name}</p>
-                          <p className="mt-1 break-words text-sm text-neutral-500">{campaign.industry || "N/A"}</p>
+                          <p className="break-words text-sm font-bold text-ink">{campaign.campaign_name}</p>
+                          <p className="mt-1 break-words text-sm text-muted">{campaign.industry || "N/A"}</p>
                         </div>
                         <Badge variant={campaign.status || "running"}>{campaign.status || "active"}</Badge>
                       </div>
-                      <p className="mt-3 text-xs font-medium text-neutral-400">{formatDateTimeIST(campaign.created_at)}</p>
+                      <p className="mt-3 text-xs font-medium text-faint">{formatDateTimeIST(campaign.created_at)}</p>
                     </motion.div>
                   ))}
                 </div>
@@ -339,8 +339,8 @@ function Dashboard() {
             <Card className="xl:col-span-2">
               <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h3 className="text-lg font-bold tracking-tight text-neutral-950">Top AI-Scored Leads</h3>
-                  <p className="mt-1 text-sm leading-6 text-neutral-500">
+                  <h3 className="text-lg font-bold tracking-tight text-ink">Top AI-Scored Leads</h3>
+                  <p className="mt-1 text-sm leading-6 text-muted">
                     Highest-quality opportunities ranked by fit, contact confidence, and priority signals.
                   </p>
                 </div>
@@ -357,18 +357,18 @@ function Dashboard() {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.04, duration: 0.2 }}
-                      className="group rounded-2xl border border-neutral-200 bg-neutral-50/80 p-4 transition hover:-translate-y-1 hover:border-primary-100 hover:bg-white hover:shadow-lift"
+                      className="group rounded-2xl border line-1 surface-sunk p-4 transition hover:-translate-y-1 hover:line-2 hover:surface-3 hover:elev-2"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="break-words text-sm font-bold text-neutral-950">
+                          <p className="break-words text-sm font-bold text-ink">
                             {lead.company_name || `Lead ID ${lead.lead_id || lead.id}`}
                           </p>
-                          <p className="mt-1 break-words text-xs font-medium text-neutral-500">
+                          <p className="mt-1 break-words text-xs font-medium text-muted">
                             {lead.campaign_name || "Campaign unavailable"}
                           </p>
                         </div>
-                        <span className="rounded-2xl bg-primary-50 px-3 py-2 text-sm font-bold text-primary-700 ring-1 ring-primary-100">
+                        <span className="rounded-2xl bg-accent-soft px-3 py-2 text-sm font-bold text-accent ring-1 ring-[color:var(--ring)]">
                           {lead.ai_score ?? 0}
                         </span>
                       </div>
@@ -390,8 +390,8 @@ function Dashboard() {
 
             <Card className="xl:col-span-2">
               <div className="mb-6">
-                <h3 className="text-lg font-bold tracking-tight text-neutral-950">Recent Email Drafts</h3>
-                <p className="mt-1 text-sm leading-6 text-neutral-500">
+                <h3 className="text-lg font-bold tracking-tight text-ink">Recent Email Drafts</h3>
+                <p className="mt-1 text-sm leading-6 text-muted">
                   Drafts created most recently, with status surfaced for quick review.
                 </p>
               </div>
@@ -406,18 +406,18 @@ function Dashboard() {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.04, duration: 0.2 }}
-                      className="rounded-2xl border border-neutral-200 bg-neutral-50/80 p-4 transition hover:-translate-y-0.5 hover:border-primary-100 hover:bg-white hover:shadow-soft"
+                      className="rounded-2xl border line-1 surface-sunk p-4 transition hover:-translate-y-0.5 hover:line-2 hover:surface-3 hover:elev-1"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
-                          <p className="break-words text-sm font-bold text-neutral-950">{draft.subject}</p>
-                          <p className="mt-1 break-words text-xs font-medium text-neutral-500">
+                          <p className="break-words text-sm font-bold text-ink">{draft.subject}</p>
+                          <p className="mt-1 break-words text-xs font-medium text-muted">
                             {[draft.campaign_name, draft.lead_company_name].filter(Boolean).join(" | ") || `Lead ID ${draft.lead_id}`}
                           </p>
                         </div>
                         <Badge variant={draft.status}>{draft.status}</Badge>
                       </div>
-                      <p className="mt-3 text-xs font-medium text-neutral-400">{formatDateTimeIST(draft.created_at)}</p>
+                      <p className="mt-3 text-xs font-medium text-faint">{formatDateTimeIST(draft.created_at)}</p>
                     </motion.div>
                   ))}
                 </div>
