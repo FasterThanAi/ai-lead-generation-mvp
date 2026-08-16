@@ -1,3 +1,4 @@
+#api call via router
 from fastapi import APIRouter
 from app.api.routes import (
     ai,
