@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '127.0.0.1',
       port: Number(env.VITE_FRONTEND_PORT) || 5173,
-      strictPort: false
+      strictPort: true
     }
   }
 })
