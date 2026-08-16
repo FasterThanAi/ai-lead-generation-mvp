@@ -3,27 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Button from "./ui/Button";
 import Card from "./ui/Card";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const maxResultOptions = [25, 50, 100, 200];
-const queryOptions = [1, 2, 3];
-
-function normalizeList(value) {
-  return String(value || "")
-    .split(/[,/;|\n]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function buildPreviewQueries(campaign, maxQueries = 5) {
-  const industry = campaign?.target_industry || campaign?.industry || "startup";
-  const location = campaign?.target_location || campaign?.location || "India";
-  const role = campaign?.target_role || "Founder";
-  const sectors = normalizeList(industry).slice(0, 3);
-  const cities = normalizeList(location).slice(0, 3);
-  const safeSectors = sectors.length ? sectors : [industry];
-  const safeCities = cities.length ? cities : [location];
-  const queries = [];
-
   safeCities.forEach((city) => {
     safeSectors.forEach((sector) => {
       queries.push(`"${city}" "${sector}" "startup" "contact"`);
