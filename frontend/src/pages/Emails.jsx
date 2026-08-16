@@ -996,13 +996,13 @@ function Emails() {
       />
 
       <div className="space-y-6">
-        <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-sm shadow-slate-200/70 backdrop-blur sm:p-6">
+        <div className="rounded-3xl border line-1 surface-2 p-5 elev-1 backdrop-blur sm:p-6">
           <div className="mb-4">
             <h2 className="text-xl font-semibold">Select Campaign</h2>
           </div>
 
           {campaignsError && (
-            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <p className="mb-4 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
               {campaignsError}
             </p>
           )}
@@ -1010,7 +1010,7 @@ function Emails() {
           <select
             value={selectedCampaignId}
             onChange={handleCampaignChange}
-            className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white/80 px-4 text-sm text-slate-800 shadow-sm outline-none transition focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+            className="field"
             disabled={isLoadingCampaigns || campaigns.length === 0}
           >
             <option value="">
@@ -1024,65 +1024,65 @@ function Emails() {
           </select>
 
           {!isLoadingCampaigns && !campaignsError && campaigns.length === 0 && (
-            <p className="mt-3 text-sm text-gray-500">
+            <p className="mt-3 text-sm text-muted">
               Create your first campaign to start lead outreach.
             </p>
           )}
         </div>
 
         {selectedCampaign && (
-          <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-sm shadow-slate-200/70 backdrop-blur sm:p-6">
+          <div className="rounded-3xl border line-1 surface-2 p-5 elev-1 backdrop-blur sm:p-6">
             <div className="mb-4">
               <h2 className="text-xl font-semibold">Campaign Summary</h2>
-              <p className="text-sm text-gray-500 mt-1">{selectedCampaign.campaign_name}</p>
+              <p className="text-sm text-muted mt-1">{selectedCampaign.campaign_name}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
-              <div className="rounded-lg border bg-gray-50 p-4">
-                <p className="text-xs text-gray-500">Total Drafts</p>
-                <p className="mt-1 text-2xl font-semibold text-gray-900">{draftSummary.total}</p>
+              <div className="rounded-lg border surface-sunk p-4">
+                <p className="text-xs text-muted">Total Drafts</p>
+                <p className="mt-1 text-2xl font-semibold text-ink">{draftSummary.total}</p>
               </div>
-              <div className="rounded-lg border bg-blue-50 p-4">
-                <p className="text-xs text-blue-700">Generated</p>
-                <p className="mt-1 text-2xl font-semibold text-blue-900">{draftSummary.generated}</p>
+              <div className="rounded-lg border bg-info-soft p-4">
+                <p className="text-xs text-info">Generated</p>
+                <p className="mt-1 text-2xl font-semibold text-info">{draftSummary.generated}</p>
               </div>
-              <div className="rounded-lg border bg-green-50 p-4">
-                <p className="text-xs text-green-700">Approved</p>
-                <p className="mt-1 text-2xl font-semibold text-green-900">{draftSummary.approved}</p>
+              <div className="rounded-lg border bg-success-soft p-4">
+                <p className="text-xs text-success">Approved</p>
+                <p className="mt-1 text-2xl font-semibold text-success">{draftSummary.approved}</p>
               </div>
-              <div className="rounded-lg border bg-purple-50 p-4">
-                <p className="text-xs text-purple-700">Sent</p>
-                <p className="mt-1 text-2xl font-semibold text-purple-900">{draftSummary.sent}</p>
+              <div className="rounded-lg border bg-violet-soft p-4">
+                <p className="text-xs text-violet">Sent</p>
+                <p className="mt-1 text-2xl font-semibold text-violet">{draftSummary.sent}</p>
               </div>
-              <div className="rounded-lg border bg-emerald-50 p-4">
-                <p className="text-xs text-emerald-700">Replied</p>
-                <p className="mt-1 text-2xl font-semibold text-emerald-900">{draftSummary.replied}</p>
+              <div className="rounded-lg border bg-success-soft p-4">
+                <p className="text-xs text-success">Replied</p>
+                <p className="mt-1 text-2xl font-semibold text-success">{draftSummary.replied}</p>
               </div>
-              <div className="rounded-lg border bg-red-50 p-4">
-                <p className="text-xs text-red-700">Failed</p>
-                <p className="mt-1 text-2xl font-semibold text-red-900">{draftSummary.failed}</p>
+              <div className="rounded-lg border bg-danger-soft p-4">
+                <p className="text-xs text-danger">Failed</p>
+                <p className="mt-1 text-2xl font-semibold text-danger">{draftSummary.failed}</p>
               </div>
             </div>
           </div>
         )}
 
         {selectedCampaign && (
-          <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-sm shadow-slate-200/70 backdrop-blur sm:p-6">
+          <div className="rounded-3xl border line-1 surface-2 p-5 elev-1 backdrop-blur sm:p-6">
             <div className="mb-4">
               <h2 className="text-xl font-semibold">Campaign Analytics</h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-muted mt-1">
                 Reply tracking uses Gmail readonly access and does not send emails.
               </p>
             </div>
 
             {isLoadingAnalytics && (
-              <div className="rounded-lg border bg-gray-50 p-4 text-sm text-gray-600">
+              <div className="rounded-lg border surface-sunk p-4 text-sm text-ink-2">
                 Loading campaign analytics...
               </div>
             )}
 
             {!isLoadingAnalytics && analyticsError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <div className="rounded-lg border border-danger-soft bg-danger-soft p-4 text-sm text-danger">
                 {analyticsError}
               </div>
             )}
@@ -1090,130 +1090,130 @@ function Emails() {
             {!isLoadingAnalytics && !analyticsError && campaignAnalytics && (
               <div className="space-y-5">
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                  <div className="rounded-lg border bg-gray-50 p-4">
-                    <p className="text-xs text-gray-500">Leads</p>
-                    <p className="mt-1 text-2xl font-semibold text-gray-900">{campaignAnalytics.lead_count}</p>
+                  <div className="rounded-lg border surface-sunk p-4">
+                    <p className="text-xs text-muted">Leads</p>
+                    <p className="mt-1 text-2xl font-semibold text-ink">{campaignAnalytics.lead_count}</p>
                   </div>
-                  <div className="rounded-lg border bg-gray-50 p-4">
-                    <p className="text-xs text-gray-500">Drafts</p>
-                    <p className="mt-1 text-2xl font-semibold text-gray-900">{campaignAnalytics.draft_count}</p>
+                  <div className="rounded-lg border surface-sunk p-4">
+                    <p className="text-xs text-muted">Drafts</p>
+                    <p className="mt-1 text-2xl font-semibold text-ink">{campaignAnalytics.draft_count}</p>
                   </div>
-                  <div className="rounded-lg border bg-purple-50 p-4">
-                    <p className="text-xs text-purple-700">Sent</p>
-                    <p className="mt-1 text-2xl font-semibold text-purple-900">{campaignAnalytics.sent_count}</p>
+                  <div className="rounded-lg border bg-violet-soft p-4">
+                    <p className="text-xs text-violet">Sent</p>
+                    <p className="mt-1 text-2xl font-semibold text-violet">{campaignAnalytics.sent_count}</p>
                   </div>
-                  <div className="rounded-lg border bg-red-50 p-4">
-                    <p className="text-xs text-red-700">Failed</p>
-                    <p className="mt-1 text-2xl font-semibold text-red-900">{campaignAnalytics.failed_count}</p>
+                  <div className="rounded-lg border bg-danger-soft p-4">
+                    <p className="text-xs text-danger">Failed</p>
+                    <p className="mt-1 text-2xl font-semibold text-danger">{campaignAnalytics.failed_count}</p>
                   </div>
-                  <div className="rounded-lg border bg-emerald-50 p-4">
-                    <p className="text-xs text-emerald-700">Replied</p>
-                    <p className="mt-1 text-2xl font-semibold text-emerald-900">{campaignAnalytics.replied_count}</p>
+                  <div className="rounded-lg border bg-success-soft p-4">
+                    <p className="text-xs text-success">Replied</p>
+                    <p className="mt-1 text-2xl font-semibold text-success">{campaignAnalytics.replied_count}</p>
                   </div>
-                  <div className="rounded-lg border bg-sky-50 p-4">
-                    <p className="text-xs text-sky-700">Classified Replies</p>
-                    <p className="mt-1 text-2xl font-semibold text-sky-900">{campaignAnalytics.classified_replies ?? 0}</p>
+                  <div className="rounded-lg border bg-info-soft p-4">
+                    <p className="text-xs text-info">Classified Replies</p>
+                    <p className="mt-1 text-2xl font-semibold text-info">{campaignAnalytics.classified_replies ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-red-50 p-4">
-                    <p className="text-xs text-red-700">High Priority Replies</p>
-                    <p className="mt-1 text-2xl font-semibold text-red-900">{campaignAnalytics.high_priority_replies ?? 0}</p>
+                  <div className="rounded-lg border bg-danger-soft p-4">
+                    <p className="text-xs text-danger">High Priority Replies</p>
+                    <p className="mt-1 text-2xl font-semibold text-danger">{campaignAnalytics.high_priority_replies ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-emerald-50 p-4">
-                    <p className="text-xs text-emerald-700">Interested</p>
-                    <p className="mt-1 text-2xl font-semibold text-emerald-900">{campaignAnalytics.interested_replies ?? 0}</p>
+                  <div className="rounded-lg border bg-success-soft p-4">
+                    <p className="text-xs text-success">Interested</p>
+                    <p className="mt-1 text-2xl font-semibold text-success">{campaignAnalytics.interested_replies ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-blue-50 p-4">
-                    <p className="text-xs text-blue-700">Pricing</p>
-                    <p className="mt-1 text-2xl font-semibold text-blue-900">{campaignAnalytics.pricing_replies ?? 0}</p>
+                  <div className="rounded-lg border bg-info-soft p-4">
+                    <p className="text-xs text-info">Pricing</p>
+                    <p className="mt-1 text-2xl font-semibold text-info">{campaignAnalytics.pricing_replies ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-green-50 p-4">
-                    <p className="text-xs text-green-700">Meeting Requests</p>
-                    <p className="mt-1 text-2xl font-semibold text-green-900">{campaignAnalytics.meeting_request_replies ?? 0}</p>
+                  <div className="rounded-lg border bg-success-soft p-4">
+                    <p className="text-xs text-success">Meeting Requests</p>
+                    <p className="mt-1 text-2xl font-semibold text-success">{campaignAnalytics.meeting_request_replies ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-slate-50 p-4">
-                    <p className="text-xs text-slate-600">Not Interested</p>
-                    <p className="mt-1 text-2xl font-semibold text-slate-900">{campaignAnalytics.not_interested_replies ?? 0}</p>
+                  <div className="rounded-lg border surface-sunk p-4">
+                    <p className="text-xs text-ink-2">Not Interested</p>
+                    <p className="mt-1 text-2xl font-semibold text-ink">{campaignAnalytics.not_interested_replies ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-red-50 p-4">
-                    <p className="text-xs text-red-700">Unsubscribe</p>
-                    <p className="mt-1 text-2xl font-semibold text-red-900">{campaignAnalytics.unsubscribe_replies ?? 0}</p>
+                  <div className="rounded-lg border bg-danger-soft p-4">
+                    <p className="text-xs text-danger">Unsubscribe</p>
+                    <p className="mt-1 text-2xl font-semibold text-danger">{campaignAnalytics.unsubscribe_replies ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-blue-50 p-4">
-                    <p className="text-xs text-blue-700">Reply Rate</p>
-                    <p className="mt-1 text-2xl font-semibold text-blue-900">{formatPercent(campaignAnalytics.reply_rate)}</p>
+                  <div className="rounded-lg border bg-info-soft p-4">
+                    <p className="text-xs text-info">Reply Rate</p>
+                    <p className="mt-1 text-2xl font-semibold text-info">{formatPercent(campaignAnalytics.reply_rate)}</p>
                   </div>
-                  <div className="rounded-lg border bg-green-50 p-4">
-                    <p className="text-xs text-green-700">Send Success</p>
-                    <p className="mt-1 text-2xl font-semibold text-green-900">{formatPercent(campaignAnalytics.send_success_rate)}</p>
+                  <div className="rounded-lg border bg-success-soft p-4">
+                    <p className="text-xs text-success">Send Success</p>
+                    <p className="mt-1 text-2xl font-semibold text-success">{formatPercent(campaignAnalytics.send_success_rate)}</p>
                   </div>
-                  <div className="rounded-lg border bg-yellow-50 p-4">
-                    <p className="text-xs text-yellow-700">Needs Follow-up</p>
-                    <p className="mt-1 text-2xl font-semibold text-yellow-900">{campaignAnalytics.needs_follow_up_count}</p>
+                  <div className="rounded-lg border bg-warn-soft p-4">
+                    <p className="text-xs text-warn">Needs Follow-up</p>
+                    <p className="mt-1 text-2xl font-semibold text-warn">{campaignAnalytics.needs_follow_up_count}</p>
                   </div>
-                  <div className="rounded-lg border bg-blue-50 p-4">
-                    <p className="text-xs text-blue-700">Follow-ups Generated</p>
-                    <p className="mt-1 text-2xl font-semibold text-blue-900">{campaignAnalytics.followups_generated_count ?? 0}</p>
+                  <div className="rounded-lg border bg-info-soft p-4">
+                    <p className="text-xs text-info">Follow-ups Generated</p>
+                    <p className="mt-1 text-2xl font-semibold text-info">{campaignAnalytics.followups_generated_count ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-green-50 p-4">
-                    <p className="text-xs text-green-700">Follow-ups Approved</p>
-                    <p className="mt-1 text-2xl font-semibold text-green-900">{campaignAnalytics.followups_approved_count ?? 0}</p>
+                  <div className="rounded-lg border bg-success-soft p-4">
+                    <p className="text-xs text-success">Follow-ups Approved</p>
+                    <p className="mt-1 text-2xl font-semibold text-success">{campaignAnalytics.followups_approved_count ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-purple-50 p-4">
-                    <p className="text-xs text-purple-700">Follow-ups Sent</p>
-                    <p className="mt-1 text-2xl font-semibold text-purple-900">{campaignAnalytics.followups_sent_count ?? 0}</p>
+                  <div className="rounded-lg border bg-violet-soft p-4">
+                    <p className="text-xs text-violet">Follow-ups Sent</p>
+                    <p className="mt-1 text-2xl font-semibold text-violet">{campaignAnalytics.followups_sent_count ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-red-50 p-4">
-                    <p className="text-xs text-red-700">Follow-ups Failed</p>
-                    <p className="mt-1 text-2xl font-semibold text-red-900">{campaignAnalytics.followups_failed_count ?? 0}</p>
+                  <div className="rounded-lg border bg-danger-soft p-4">
+                    <p className="text-xs text-danger">Follow-ups Failed</p>
+                    <p className="mt-1 text-2xl font-semibold text-danger">{campaignAnalytics.followups_failed_count ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-sky-50 p-4">
-                    <p className="text-xs text-sky-700">Responses Generated</p>
-                    <p className="mt-1 text-2xl font-semibold text-sky-900">{campaignAnalytics.response_drafts_generated ?? 0}</p>
+                  <div className="rounded-lg border bg-info-soft p-4">
+                    <p className="text-xs text-info">Responses Generated</p>
+                    <p className="mt-1 text-2xl font-semibold text-info">{campaignAnalytics.response_drafts_generated ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-green-50 p-4">
-                    <p className="text-xs text-green-700">Responses Approved</p>
-                    <p className="mt-1 text-2xl font-semibold text-green-900">{campaignAnalytics.response_drafts_approved ?? 0}</p>
+                  <div className="rounded-lg border bg-success-soft p-4">
+                    <p className="text-xs text-success">Responses Approved</p>
+                    <p className="mt-1 text-2xl font-semibold text-success">{campaignAnalytics.response_drafts_approved ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-purple-50 p-4">
-                    <p className="text-xs text-purple-700">Responses Sent</p>
-                    <p className="mt-1 text-2xl font-semibold text-purple-900">{campaignAnalytics.response_drafts_sent ?? 0}</p>
+                  <div className="rounded-lg border bg-violet-soft p-4">
+                    <p className="text-xs text-violet">Responses Sent</p>
+                    <p className="mt-1 text-2xl font-semibold text-violet">{campaignAnalytics.response_drafts_sent ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-red-50 p-4">
-                    <p className="text-xs text-red-700">Responses Failed</p>
-                    <p className="mt-1 text-2xl font-semibold text-red-900">{campaignAnalytics.response_drafts_failed ?? 0}</p>
+                  <div className="rounded-lg border bg-danger-soft p-4">
+                    <p className="text-xs text-danger">Responses Failed</p>
+                    <p className="mt-1 text-2xl font-semibold text-danger">{campaignAnalytics.response_drafts_failed ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-indigo-50 p-4">
-                    <p className="text-xs text-indigo-700">AI Scored Leads</p>
-                    <p className="mt-1 text-2xl font-semibold text-indigo-900">{campaignAnalytics.scored_leads ?? 0}</p>
+                  <div className="rounded-lg border bg-violet-soft p-4">
+                    <p className="text-xs text-violet">AI Scored Leads</p>
+                    <p className="mt-1 text-2xl font-semibold text-violet">{campaignAnalytics.scored_leads ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-gray-50 p-4">
-                    <p className="text-xs text-gray-500">Unscored Leads</p>
-                    <p className="mt-1 text-2xl font-semibold text-gray-900">{campaignAnalytics.unscored_leads ?? 0}</p>
+                  <div className="rounded-lg border surface-sunk p-4">
+                    <p className="text-xs text-muted">Unscored Leads</p>
+                    <p className="mt-1 text-2xl font-semibold text-ink">{campaignAnalytics.unscored_leads ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-indigo-50 p-4">
-                    <p className="text-xs text-indigo-700">Avg AI Score</p>
-                    <p className="mt-1 text-2xl font-semibold text-indigo-900">{Number(campaignAnalytics.average_ai_score ?? 0).toFixed(1)}</p>
+                  <div className="rounded-lg border bg-violet-soft p-4">
+                    <p className="text-xs text-violet">Avg AI Score</p>
+                    <p className="mt-1 text-2xl font-semibold text-violet">{Number(campaignAnalytics.average_ai_score ?? 0).toFixed(1)}</p>
                   </div>
-                  <div className="rounded-lg border bg-green-50 p-4">
-                    <p className="text-xs text-green-700">High Priority</p>
-                    <p className="mt-1 text-2xl font-semibold text-green-900">{campaignAnalytics.high_priority_leads ?? 0}</p>
+                  <div className="rounded-lg border bg-success-soft p-4">
+                    <p className="text-xs text-success">High Priority</p>
+                    <p className="mt-1 text-2xl font-semibold text-success">{campaignAnalytics.high_priority_leads ?? 0}</p>
                   </div>
-                  <div className="rounded-lg border bg-emerald-50 p-4">
-                    <p className="text-xs text-emerald-700">Hot Leads</p>
-                    <p className="mt-1 text-2xl font-semibold text-emerald-900">{campaignAnalytics.hot_leads ?? 0}</p>
+                  <div className="rounded-lg border bg-success-soft p-4">
+                    <p className="text-xs text-success">Hot Leads</p>
+                    <p className="mt-1 text-2xl font-semibold text-success">{campaignAnalytics.hot_leads ?? 0}</p>
                   </div>
                 </div>
 
                 {campaignAnalytics.recent_replies?.length > 0 && (
-                  <div className="rounded-lg border bg-gray-50 p-4">
-                    <h3 className="text-sm font-semibold text-gray-900">Recent Replies</h3>
+                  <div className="rounded-lg border surface-sunk p-4">
+                    <h3 className="text-sm font-semibold text-ink">Recent Replies</h3>
                     <div className="mt-3 space-y-3">
                       {campaignAnalytics.recent_replies.map((reply) => (
                         <div key={reply.email_draft_id} className="border-t pt-3 first:border-t-0 first:pt-0">
-                          <p className="text-sm font-medium text-gray-900">
+                          <p className="text-sm font-medium text-ink">
                             {reply.company_name || reply.lead_email || `Lead ID ${reply.lead_id}`}
                           </p>
-                          <p className="mt-1 text-xs text-gray-500">
+                          <p className="mt-1 text-xs text-muted">
                             {[reply.lead_email, formatDateTimeIST(reply.replied_at)].filter(Boolean).join(" | ")}
                           </p>
                           {(reply.reply_intent || reply.reply_priority || reply.reply_sentiment) && (
@@ -1224,10 +1224,10 @@ function Emails() {
                             </div>
                           )}
                           {reply.reply_snippet && (
-                            <p className="mt-2 text-sm text-gray-700">{reply.reply_snippet}</p>
+                            <p className="mt-2 text-sm text-ink-2">{reply.reply_snippet}</p>
                           )}
                           {reply.reply_next_action && (
-                            <p className="mt-2 text-sm font-medium text-slate-700">Next: {reply.reply_next_action}</p>
+                            <p className="mt-2 text-sm font-medium text-ink-2">Next: {reply.reply_next_action}</p>
                           )}
                         </div>
                       ))}
@@ -1239,12 +1239,12 @@ function Emails() {
           </div>
         )}
 
-        <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-sm shadow-slate-200/70 backdrop-blur sm:p-6">
+        <div className="rounded-3xl border line-1 surface-2 p-5 elev-1 backdrop-blur sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight text-slate-950">Outreach Actions</h2>
+              <h2 className="text-xl font-semibold tracking-tight text-ink">Outreach Actions</h2>
               {selectedCampaign && (
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-muted">
                   {selectedCampaign.campaign_name}
                 </p>
               )}
@@ -1333,156 +1333,156 @@ function Emails() {
             </div>
           </div>
 
-          <p className="mt-3 text-sm text-gray-500">
+          <p className="mt-3 text-sm text-muted">
             For safety, only 5 leads are processed per click.
           </p>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-muted">
             Only approved drafts are sent. Sending is limited to 5 per click.
           </p>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-muted">
             Reply checking uses Gmail readonly access and does not send emails.
           </p>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-muted">
             AI reply classification only suggests next actions. It does not send replies automatically.
           </p>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-muted">
             AI response drafts are not sent automatically. Approve before sending. Do not include pricing unless verified.
           </p>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-muted">
             AI uses saved company knowledge when relevant. Review before sending.
           </p>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-muted">
             Follow-ups are generated only for sent emails without replies.
           </p>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-muted">
             Follow-ups are never sent automatically. Only approved follow-ups can be sent.
           </p>
 
           {generationSummary && (
-            <p className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+            <p className="mt-4 rounded-lg border border-success-soft bg-success-soft p-3 text-sm text-success">
               Generated: {generationSummary.generated}, Skipped: {generationSummary.skipped}, Failed: {generationSummary.failed}, Remaining: {generationSummary.remaining}
             </p>
           )}
 
           {generationError && (
-            <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <p className="mt-4 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
               {generationError}
             </p>
           )}
 
           {sendSummary && (
-            <p className="mt-4 rounded-lg border border-purple-200 bg-purple-50 p-3 text-sm text-purple-700">
+            <p className="mt-4 rounded-lg border border-violet-soft bg-violet-soft p-3 text-sm text-violet">
               Sent: {sendSummary.sent}, Failed: {sendSummary.failed}, Remaining approved: {sendSummary.remainingApproved}
             </p>
           )}
 
           {replyCheckSummary && (
-            <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+            <p className="mt-4 rounded-lg border border-success-soft bg-success-soft p-3 text-sm text-success">
               Checked: {replyCheckSummary.processed}, Replies found: {replyCheckSummary.replied}, No reply: {replyCheckSummary.noReply}, Failed: {replyCheckSummary.failed}
             </p>
           )}
 
           {replyClassificationSummary && (
-            <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <p className="mt-4 rounded-lg border border-warn-soft bg-warn-soft p-3 text-sm text-warn">
               Classified {replyClassificationSummary.classified} replies, skipped {replyClassificationSummary.skipped}, failed {replyClassificationSummary.failed}. Remaining: {replyClassificationSummary.remaining}.
             </p>
           )}
 
           {followUpSummary?.mode === "generated" && (
-            <p className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-700">
+            <p className="mt-4 rounded-lg border border-violet-soft bg-violet-soft p-3 text-sm text-violet">
               Processed: {followUpSummary.processed}, Generated: {followUpSummary.generated}, Skipped: {followUpSummary.skipped}, Failed: {followUpSummary.failed}, Remaining: {followUpSummary.remaining}
             </p>
           )}
 
           {followUpSummary?.mode === "sent" && (
-            <p className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            <p className="mt-4 rounded-lg border line-1 surface-sunk p-3 text-sm text-ink-2">
               Follow-ups sent: {followUpSummary.sent}, Failed: {followUpSummary.failed}, Skipped: {followUpSummary.skipped}, Remaining approved: {followUpSummary.remainingApproved}
             </p>
           )}
 
           {responseDraftSummary?.mode === "generated" && (
-            <p className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-700">
+            <p className="mt-4 rounded-lg border border-info-soft bg-info-soft p-3 text-sm text-info">
               Responses processed: {responseDraftSummary.processed}, Generated: {responseDraftSummary.generated}, Skipped: {responseDraftSummary.skipped}, Failed: {responseDraftSummary.failed}, Remaining: {responseDraftSummary.remaining}
             </p>
           )}
 
           {responseDraftSummary?.mode === "sent" && (
-            <p className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            <p className="mt-4 rounded-lg border line-1 surface-sunk p-3 text-sm text-ink-2">
               Responses sent: {responseDraftSummary.sent}, Failed: {responseDraftSummary.failed}, Skipped: {responseDraftSummary.skipped}, Remaining approved: {responseDraftSummary.remainingApproved}
             </p>
           )}
         </div>
 
         {(statusMessage || statusError) && (
-          <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-sm shadow-slate-200/70 backdrop-blur sm:p-6">
+          <div className="rounded-3xl border line-1 surface-2 p-5 elev-1 backdrop-blur sm:p-6">
             {statusMessage && (
-              <p className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+              <p className="rounded-lg border border-success-soft bg-success-soft p-3 text-sm text-success">
                 {statusMessage}
               </p>
             )}
 
             {statusError && (
-              <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <p className="rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
                 {statusError}
               </p>
             )}
           </div>
         )}
 
-        <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-sm shadow-slate-200/70 backdrop-blur sm:p-6">
+        <div className="rounded-3xl border line-1 surface-2 p-5 elev-1 backdrop-blur sm:p-6">
           <div className="mb-4">
             <h2 className="text-xl font-semibold">Email Drafts</h2>
           </div>
 
           {!selectedCampaignId && (
             <div className="border border-dashed rounded-lg p-6 text-center">
-              <h3 className="font-medium text-gray-800">Select a campaign</h3>
-              <p className="text-sm text-gray-500 mt-1">
+              <h3 className="font-medium text-ink">Select a campaign</h3>
+              <p className="text-sm text-muted mt-1">
                 Select a campaign to generate and manage email drafts.
               </p>
             </div>
           )}
 
           {selectedCampaignId && isLoadingDrafts && (
-            <div className="border rounded-lg p-5 text-sm text-gray-600">
+            <div className="border rounded-lg p-5 text-sm text-ink-2">
               Loading email drafts...
             </div>
           )}
 
           {selectedCampaignId && !isLoadingDrafts && isLoadingFollowUps && (
-            <div className="mb-4 border rounded-lg p-4 text-sm text-gray-600">
+            <div className="mb-4 border rounded-lg p-4 text-sm text-ink-2">
               Loading follow-up drafts...
             </div>
           )}
 
           {selectedCampaignId && !isLoadingDrafts && isLoadingResponseDrafts && (
-            <div className="mb-4 border rounded-lg p-4 text-sm text-gray-600">
+            <div className="mb-4 border rounded-lg p-4 text-sm text-ink-2">
               Loading response drafts...
             </div>
           )}
 
           {selectedCampaignId && !isLoadingDrafts && draftsError && (
-            <div className="border border-red-200 bg-red-50 text-red-700 rounded-lg p-4 text-sm">
+            <div className="border border-danger-soft bg-danger-soft text-danger rounded-lg p-4 text-sm">
               {draftsError}
             </div>
           )}
 
           {selectedCampaignId && !isLoadingDrafts && !draftsError && followUpsError && (
-            <div className="mb-4 border border-red-200 bg-red-50 text-red-700 rounded-lg p-4 text-sm">
+            <div className="mb-4 border border-danger-soft bg-danger-soft text-danger rounded-lg p-4 text-sm">
               {followUpsError}
             </div>
           )}
 
           {selectedCampaignId && !isLoadingDrafts && !draftsError && responseDraftsError && (
-            <div className="mb-4 border border-red-200 bg-red-50 text-red-700 rounded-lg p-4 text-sm">
+            <div className="mb-4 border border-danger-soft bg-danger-soft text-danger rounded-lg p-4 text-sm">
               {responseDraftsError}
             </div>
           )}
 
           {selectedCampaignId && !isLoadingDrafts && !draftsError && drafts.length === 0 && (
             <div className="border border-dashed rounded-lg p-6 text-center">
-              <h3 className="font-medium text-gray-800">No email drafts found.</h3>
-              <p className="text-sm text-gray-500 mt-1">
+              <h3 className="font-medium text-ink">No email drafts found.</h3>
+              <p className="text-sm text-muted mt-1">
                 Generate AI drafts for this campaign.
               </p>
             </div>
@@ -1519,13 +1519,13 @@ function Emails() {
                 <div
                   key={draft.id}
                   className={[
-                    "rounded-3xl border bg-white/85 p-4 shadow-sm sm:p-5",
-                    isLinkedDraft ? "border-indigo-300 ring-4 ring-indigo-100" : "border-slate-200",
+                    "rounded-3xl border surface-2 p-4 elev-1 sm:p-5",
+                    isLinkedDraft ? "border-violet-soft ring-4 ring-violet-soft" : "line-1",
                   ].join(" ")}
                 >
                   <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                      <p className="text-sm text-slate-500">
+                      <p className="text-sm text-muted">
                         {draft.lead_company_name || `Lead ID ${draft.lead_id}`}
                       </p>
                       {isEditingDraft ? (
@@ -1536,21 +1536,21 @@ function Emails() {
                             ...current,
                             subject: e.target.value,
                           }))}
-                          className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                          className="field mt-2 font-semibold"
                           placeholder="Subject"
                         />
                       ) : (
-                        <h3 className="mt-1 break-words text-lg font-semibold text-slate-950">
+                        <h3 className="mt-1 break-words text-lg font-semibold text-ink">
                           {draft.subject}
                         </h3>
                       )}
                       {(draft.lead_contact_name || draft.lead_contact_role) && (
-                        <p className="mt-1 break-words text-sm text-slate-500">
+                        <p className="mt-1 break-words text-sm text-muted">
                           {[draft.lead_contact_name, draft.lead_contact_role].filter(Boolean).join(" · ")}
                         </p>
                       )}
                       {draft.lead_email && (
-                        <p className="mt-1 break-words text-sm text-slate-500">
+                        <p className="mt-1 break-words text-sm text-muted">
                           To: {draft.lead_email}
                         </p>
                       )}
@@ -1561,13 +1561,13 @@ function Emails() {
                         </div>
                       )}
                       {isCallFollowUp && draft.call_log_id && (
-                        <p className="mt-2 text-xs font-medium text-indigo-700">
+                        <p className="mt-2 text-xs font-medium text-violet">
                           Based on call {draft.call_created_at ? `from ${formatDateTimeIST(draft.call_started_at || draft.call_created_at)}` : `#${draft.call_log_id}`}
                           {draft.call_outcome ? ` | Outcome: ${draft.call_outcome}` : ""}
                         </p>
                       )}
                       {draft.lead_ai_score !== null && draft.lead_ai_score !== undefined ? (
-                        <p className="mt-2 text-sm font-medium text-indigo-700">
+                        <p className="mt-2 text-sm font-medium text-violet">
                           Final AI Score: {draft.lead_ai_score}
                           {draft.lead_ai_fit_score !== null && draft.lead_ai_fit_score !== undefined ? ` | Fit ${draft.lead_ai_fit_score}` : ""}
                           {draft.lead_ai_contact_confidence_score !== null && draft.lead_ai_contact_confidence_score !== undefined ? ` | Contact ${draft.lead_ai_contact_confidence_score}` : ""}
@@ -1575,7 +1575,7 @@ function Emails() {
                           {draft.lead_ai_qualification ? ` | ${draft.lead_ai_qualification}` : ""}
                         </p>
                       ) : (
-                        <p className="mt-2 text-sm text-yellow-700">
+                        <p className="mt-2 text-sm text-warn">
                           This lead has not been AI-scored yet.
                         </p>
                       )}
@@ -1587,7 +1587,7 @@ function Emails() {
                     </div>
                   </div>
 
-                  <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                  <div className="mt-4 rounded-2xl surface-sunk p-4">
                     {isEditingDraft ? (
                       <div>
                         <textarea
@@ -1596,22 +1596,22 @@ function Emails() {
                             ...current,
                             body: e.target.value,
                           }))}
-                          className="min-h-44 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-slate-700 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                          className="field min-h-44"
                           placeholder="Email body"
                         />
-                        <p className="mt-2 text-xs text-slate-500">
+                        <p className="mt-2 text-xs text-muted">
                           Editing an approved draft will require approval again before sending. Replace placeholders like [Your Name] manually before sending.
                         </p>
                       </div>
                     ) : (
                       <>
-                        <p className="whitespace-pre-line break-words text-sm leading-6 text-slate-700">
+                        <p className="whitespace-pre-line break-words text-sm leading-6 text-ink-2">
                           {isDraftExpanded ? draft.body : getPreviewText(draft.body)}
                         </p>
                         {shouldCollapseDraft && (
                           <button
                             type="button"
-                            className="mt-3 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                            className="mt-3 text-sm font-semibold text-info hover:text-info"
                             onClick={() => toggleDraftExpanded(draft.id)}
                           >
                             {isDraftExpanded ? "Hide full email" : "Show full email"}
@@ -1622,7 +1622,7 @@ function Emails() {
                   </div>
 
                   {(draft.sent_at || draft.send_error || draft.gmail_message_id) && (
-                    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                    <div className="mt-4 rounded-2xl border line-1 surface-sunk p-3 text-xs text-ink-2">
                       {draft.sent_at && (
                         <p>Sent at: {formatDateTimeIST(draft.sent_at)}</p>
                       )}
@@ -1630,19 +1630,19 @@ function Emails() {
                         <p>Gmail message ID: {draft.gmail_message_id}</p>
                       )}
                       {draft.send_error && (
-                        <p className="text-red-700">Send error: {draft.send_error}</p>
+                        <p className="text-danger">Send error: {draft.send_error}</p>
                       )}
                     </div>
                   )}
 
                   {isCallFollowUp && draftKnowledgeUsedItems.length > 0 && (
-                    <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3">
-                      <p className="text-xs font-semibold uppercase text-slate-500">Knowledge used</p>
+                    <div className="mt-4 rounded-xl border border-violet-soft bg-violet-soft p-3">
+                      <p className="text-xs font-semibold uppercase text-muted">Knowledge used</p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {draftKnowledgeUsedItems.map((item, index) => (
                           <span
                             key={`${item.label}-${index}`}
-                            className="inline-flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
+                            className="inline-flex flex-wrap items-center gap-2 rounded-xl border line-1 surface-2 px-3 py-2 text-xs text-ink-2"
                           >
                             <span className="font-medium">{item.title}</span>
                             {item.sourceType && (
@@ -1657,10 +1657,10 @@ function Emails() {
                   )}
 
                   {draft.status === "replied" && (draft.reply_snippet || draft.replied_at) && (
-                    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                    <div className="mt-4 rounded-2xl border border-success-soft bg-success-soft p-4 text-sm text-success">
                       <p className="font-medium">Replied</p>
                       {draft.replied_at && (
-                        <p className="mt-1 text-xs text-emerald-700">Replied at: {formatDateTimeIST(draft.replied_at)}</p>
+                        <p className="mt-1 text-xs text-success">Replied at: {formatDateTimeIST(draft.replied_at)}</p>
                       )}
                       {draft.reply_snippet && (
                         <p className="mt-2 text-sm leading-6">{draft.reply_snippet}</p>
@@ -1669,12 +1669,12 @@ function Emails() {
                   )}
 
                   {draft.status === "replied" && replyClassified && (
-                    <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-800">
+                    <div className="mt-4 rounded-2xl border border-info-soft bg-info-soft p-4 text-sm text-ink">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <p className="font-semibold text-slate-950">AI Reply Classification</p>
+                          <p className="font-semibold text-ink">AI Reply Classification</p>
                           {draft.reply_classified_at && (
-                            <p className="mt-1 text-xs text-slate-500">
+                            <p className="mt-1 text-xs text-muted">
                               Classified at: {formatDateTimeIST(draft.reply_classified_at)}
                             </p>
                           )}
@@ -1688,27 +1688,27 @@ function Emails() {
 
                       {draft.reply_summary && (
                         <div className="mt-4">
-                          <p className="text-xs font-semibold uppercase text-slate-500">Summary</p>
-                          <p className="mt-1 leading-6 text-slate-700">{draft.reply_summary}</p>
+                          <p className="text-xs font-semibold uppercase text-muted">Summary</p>
+                          <p className="mt-1 leading-6 text-ink-2">{draft.reply_summary}</p>
                         </div>
                       )}
 
                       {draft.reply_next_action && (
                         <div className="mt-3">
-                          <p className="text-xs font-semibold uppercase text-slate-500">Next action</p>
-                          <p className="mt-1 leading-6 text-slate-700">{draft.reply_next_action}</p>
+                          <p className="text-xs font-semibold uppercase text-muted">Next action</p>
+                          <p className="mt-1 leading-6 text-ink-2">{draft.reply_next_action}</p>
                         </div>
                       )}
 
                       {draft.reply_suggested_response_direction && (
                         <div className="mt-3">
-                          <p className="text-xs font-semibold uppercase text-slate-500">Suggested response direction</p>
-                          <p className="mt-1 leading-6 text-slate-700">{draft.reply_suggested_response_direction}</p>
+                          <p className="text-xs font-semibold uppercase text-muted">Suggested response direction</p>
+                          <p className="mt-1 leading-6 text-ink-2">{draft.reply_suggested_response_direction}</p>
                         </div>
                       )}
 
                       {draft.reply_classification_error && (
-                        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                        <p className="mt-3 rounded-lg border border-warn-soft bg-warn-soft p-3 text-xs text-warn">
                           {draft.reply_classification_error}
                         </p>
                       )}
@@ -1716,10 +1716,10 @@ function Emails() {
                   )}
 
                   {draft.status === "replied" && latestResponseDraft && (
-                    <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-slate-800">
+                    <div className="mt-4 rounded-2xl border border-violet-soft bg-violet-soft p-4 text-sm text-ink">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 	                        <div>
-	                          <p className="font-semibold text-slate-950">AI Response Draft</p>
+	                          <p className="font-semibold text-ink">AI Response Draft</p>
 	                          {isEditingResponseDraft ? (
 	                            <input
 	                              type="text"
@@ -1728,11 +1728,11 @@ function Emails() {
 	                                ...current,
 	                                subject: e.target.value,
 	                              }))}
-	                              className="mt-2 min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+	                              className="field mt-2 font-semibold"
 	                              placeholder="Subject"
 	                            />
 	                          ) : (
-	                            <h4 className="mt-1 break-words text-sm font-semibold text-slate-900">
+	                            <h4 className="mt-1 break-words text-sm font-semibold text-ink">
 	                              {latestResponseDraft.subject}
 	                            </h4>
 	                          )}
@@ -1748,27 +1748,27 @@ function Emails() {
 	                              ...current,
 	                              body: e.target.value,
 	                            }))}
-	                            className="min-h-44 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-slate-700 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+	                            className="field min-h-44"
 	                            placeholder="Response body"
 	                          />
-	                          <p className="mt-2 text-xs text-slate-500">
+	                          <p className="mt-2 text-xs text-muted">
 	                            Editing an approved draft will require approval again before sending. Replace placeholders like [Your Name] manually before sending.
 	                          </p>
 	                        </div>
 	                      ) : (
-	                        <p className="mt-4 whitespace-pre-line break-words leading-6 text-slate-700">
+	                        <p className="mt-4 whitespace-pre-line break-words leading-6 text-ink-2">
 	                          {latestResponseDraft.body}
 	                        </p>
 	                      )}
 
                       {knowledgeUsedItems.length > 0 && (
-                        <div className="mt-4 rounded-xl border border-indigo-200 bg-white/70 p-3">
-                          <p className="text-xs font-semibold uppercase text-slate-500">Knowledge used</p>
+                        <div className="mt-4 rounded-xl border border-violet-soft surface-2 p-3">
+                          <p className="text-xs font-semibold uppercase text-muted">Knowledge used</p>
                           <div className="mt-2 flex flex-wrap gap-2">
                             {knowledgeUsedItems.map((item, index) => (
                               <span
                                 key={`${item.label}-${index}`}
-                                className="inline-flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
+                                className="inline-flex flex-wrap items-center gap-2 rounded-xl border line-1 surface-2 px-3 py-2 text-xs text-ink-2"
                               >
                                 <span className="font-medium">{item.title}</span>
                                 {item.sourceType && (
@@ -1782,7 +1782,7 @@ function Emails() {
                         </div>
                       )}
 
-                      <div className="mt-4 space-y-1 text-xs text-slate-600">
+                      <div className="mt-4 space-y-1 text-xs text-ink-2">
                         <p>Generated: {formatDateTimeIST(latestResponseDraft.generated_at || latestResponseDraft.created_at)}</p>
                         {latestResponseDraft.approved_at && (
                           <p>Approved: {formatDateTimeIST(latestResponseDraft.approved_at)}</p>
@@ -1797,7 +1797,7 @@ function Emails() {
                           <p>Gmail thread ID: {latestResponseDraft.gmail_thread_id}</p>
                         )}
                         {latestResponseDraft.send_error && (
-                          <p className={latestResponseDraft.status === "failed" ? "text-red-700" : "text-amber-700"}>
+                          <p className={latestResponseDraft.status === "failed" ? "text-danger" : "text-warn"}>
                             {latestResponseDraft.status === "failed" ? "Send error" : "Generation note"}: {latestResponseDraft.send_error}
                           </p>
                         )}
@@ -1807,14 +1807,14 @@ function Emails() {
 	                        {isEditingResponseDraft ? (
 	                          <>
 	                            <button
-	                              className="rounded bg-slate-900 px-3 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+	                              className="rounded bg-accent px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:surface-3"
 	                              disabled={updatingResponseDraftId === latestResponseDraft.id}
 	                              onClick={() => handleSaveResponseDraftEdit(latestResponseDraft.id)}
 	                            >
 	                              {updatingResponseDraftId === latestResponseDraft.id ? "Saving..." : "Save"}
 	                            </button>
 	                            <button
-	                              className="rounded border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+	                              className="rounded border line-1 surface-2 px-3 py-2 text-xs font-medium text-ink-2 hover:surface-2"
 	                              onClick={cancelResponseDraftEdit}
 	                            >
 	                              Cancel
@@ -1825,14 +1825,14 @@ function Emails() {
 	                        {latestResponseDraft.status === "generated" && (
 	                          <>
                             <button
-                              className="rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
+                              className="rounded bg-success-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:bg-success-solid"
                               disabled={updatingResponseDraftId === latestResponseDraft.id}
                               onClick={() => handleUpdateResponseStatus(latestResponseDraft.id, "approved")}
                             >
                               {updatingResponseDraftId === latestResponseDraft.id ? "Updating..." : "Approve"}
                             </button>
                             <button
-                              className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                              className="rounded bg-danger-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:bg-danger-solid"
                               disabled={updatingResponseDraftId === latestResponseDraft.id}
                               onClick={() => handleUpdateResponseStatus(latestResponseDraft.id, "rejected")}
                             >
@@ -1844,14 +1844,14 @@ function Emails() {
                         {latestResponseDraft.status === "approved" && (
                           <>
                             <button
-                              className="rounded bg-slate-700 px-3 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                              className="rounded bg-accent px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:surface-3"
                               disabled={sendingResponseDraftId === latestResponseDraft.id || isSendingResponses}
                               onClick={() => handleSendResponseDraft(latestResponseDraft.id)}
                             >
                               {sendingResponseDraftId === latestResponseDraft.id ? "Sending..." : "Send Response"}
                             </button>
                             <button
-                              className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                              className="rounded bg-danger-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:bg-danger-solid"
                               disabled={updatingResponseDraftId === latestResponseDraft.id || sendingResponseDraftId === latestResponseDraft.id}
                               onClick={() => handleUpdateResponseStatus(latestResponseDraft.id, "rejected")}
                             >
@@ -1861,7 +1861,7 @@ function Emails() {
 	                        )}
 	                            {["generated", "approved", "failed"].includes(latestResponseDraft.status) && (
 	                              <button
-	                                className="rounded border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+	                                className="rounded border line-1 surface-2 px-3 py-2 text-xs font-medium text-ink-2 hover:surface-2"
 	                                onClick={() => startResponseDraftEdit(latestResponseDraft)}
 	                              >
 	                                Edit
@@ -1873,8 +1873,8 @@ function Emails() {
                     </div>
                   )}
 
-                  <div className="mt-5 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-xs text-slate-500">
+                  <div className="mt-5 flex flex-col gap-3 border-t line-1 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-xs text-muted">
                       <span>{draft.ai_model || "AI model unavailable"}</span>
                       <span className="mx-2">|</span>
                       <span>{formatDateTimeIST(draft.created_at)}</span>
@@ -1884,14 +1884,14 @@ function Emails() {
                       {isEditingDraft ? (
                         <>
                           <button
-                            className="rounded bg-slate-900 px-3 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                            className="rounded bg-accent px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:surface-3"
                             disabled={updatingDraftId === draft.id}
                             onClick={() => handleSaveDraftEdit(draft.id)}
                           >
                             {updatingDraftId === draft.id ? "Saving..." : "Save"}
                           </button>
                           <button
-                            className="rounded border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                            className="rounded border line-1 surface-2 px-3 py-2 text-xs font-medium text-ink-2 hover:surface-2"
                             onClick={cancelDraftEdit}
                           >
                             Cancel
@@ -1902,14 +1902,14 @@ function Emails() {
                       {draft.status === "generated" && (
                         <>
                           <button
-                            className="rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
+                            className="rounded bg-success-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:bg-success-solid"
                             disabled={updatingDraftId === draft.id || sendingDraftId === draft.id}
                             onClick={() => handleUpdateStatus(draft.id, "approved")}
                           >
                             {updatingDraftId === draft.id ? "Updating..." : "Approve"}
                           </button>
                           <button
-                            className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                            className="rounded bg-danger-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:bg-danger-solid"
                             disabled={updatingDraftId === draft.id || sendingDraftId === draft.id}
                             onClick={() => handleUpdateStatus(draft.id, "rejected")}
                           >
@@ -1920,14 +1920,14 @@ function Emails() {
                       {draft.status === "approved" && (
                         <>
                           <button
-                            className="rounded bg-purple-600 px-3 py-2 text-xs font-medium text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-purple-300"
+                            className="rounded bg-violet-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:bg-violet-solid"
                             disabled={sendingDraftId === draft.id || isSendingCampaign}
                             onClick={() => handleSendDraft(draft.id)}
                           >
                             {sendingDraftId === draft.id ? "Sending..." : "Send"}
                           </button>
                           <button
-                            className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                            className="rounded bg-danger-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:bg-danger-solid"
                             disabled={updatingDraftId === draft.id || sendingDraftId === draft.id}
                             onClick={() => handleUpdateStatus(draft.id, "rejected")}
                           >
@@ -1938,7 +1938,7 @@ function Emails() {
                       {draft.status === "sent" && (
                         <>
                           <button
-                            className="rounded bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                            className="rounded bg-success-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:bg-success-solid"
                             disabled={checkingReplyDraftId === draft.id || isCheckingReplies}
                             onClick={() => handleCheckDraftReply(draft.id)}
                           >
@@ -1946,7 +1946,7 @@ function Emails() {
                           </button>
                           {canGenerateFollowUp && (
                             <button
-                              className="rounded bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
+                              className="rounded bg-violet-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:bg-violet-solid"
                               disabled={generatingFollowUpDraftId === draft.id || isGeneratingFollowUps}
                               onClick={() => handleGenerateFollowUp(draft.id)}
                             >
@@ -1958,7 +1958,7 @@ function Emails() {
                       {draft.status === "replied" && (
                         <>
                           <button
-                            className="rounded bg-amber-600 px-3 py-2 text-xs font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-amber-300"
+                            className="rounded bg-warn-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:bg-warn-solid"
                             disabled={classifyingReplyDraftId === draft.id || isClassifyingReplies}
                             onClick={() => handleClassifyDraftReply(draft.id, replyClassified)}
                           >
@@ -1971,7 +1971,7 @@ function Emails() {
 
                           {canGenerateResponseDraft && latestResponseDraft?.status !== "sent" && (
                             <button
-                              className="rounded bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
+                              className="rounded bg-violet-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:bg-violet-solid"
                               disabled={generatingResponseDraftId === draft.id || isGeneratingResponses}
                               onClick={() => handleGenerateResponseDraft(draft.id, Boolean(latestResponseDraft))}
                             >
@@ -1986,7 +1986,7 @@ function Emails() {
                       )}
                           {canEditDraft && (
                             <button
-                              className="rounded border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                              className="rounded border line-1 surface-2 px-3 py-2 text-xs font-medium text-ink-2 hover:surface-2"
                               onClick={() => startDraftEdit(draft)}
                             >
                               Edit
@@ -1999,7 +1999,7 @@ function Emails() {
 
                   {draftFollowUps.length > 0 && (
                     <div className="mt-5 border-t pt-4">
-                      <h4 className="text-sm font-semibold text-gray-900">Follow-ups</h4>
+                      <h4 className="text-sm font-semibold text-ink">Follow-ups</h4>
                       <div className="mt-3 divide-y">
                         {draftFollowUps.map((followUp) => {
                           const isFollowUpExpanded = Boolean(expandedFollowUpIds[followUp.id]);
@@ -2011,7 +2011,7 @@ function Emails() {
                           <div key={followUp.id} className="py-4 first:pt-0 last:pb-0">
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                               <div>
-                                <p className="text-xs font-medium text-gray-500">
+                                <p className="text-xs font-medium text-muted">
                                   Follow-up #{followUp.follow_up_number}
                                 </p>
                                 {isEditingFollowUp ? (
@@ -2022,11 +2022,11 @@ function Emails() {
                                       ...current,
                                       subject: e.target.value,
                                     }))}
-                                    className="mt-2 min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                                    className="field mt-2 font-semibold"
                                     placeholder="Subject"
                                   />
                                 ) : (
-                                  <h5 className="mt-1 text-sm font-semibold text-gray-900">
+                                  <h5 className="mt-1 text-sm font-semibold text-ink">
                                     {followUp.subject}
                                   </h5>
                                 )}
@@ -2043,22 +2043,22 @@ function Emails() {
                                     ...current,
                                     body: e.target.value,
                                   }))}
-                                  className="min-h-44 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-slate-700 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                                  className="field min-h-44"
                                   placeholder="Follow-up body"
                                 />
-                                <p className="mt-2 text-xs text-slate-500">
+                                <p className="mt-2 text-xs text-muted">
                                   Editing an approved draft will require approval again before sending. Replace placeholders like [Your Name] manually before sending.
                                 </p>
                               </div>
                             ) : (
                               <>
-                                <p className="mt-3 whitespace-pre-line text-sm leading-6 text-gray-700">
+                                <p className="mt-3 whitespace-pre-line text-sm leading-6 text-ink-2">
                                   {isFollowUpExpanded ? followUp.body : getPreviewText(followUp.body, 180)}
                                 </p>
                                 {shouldCollapseFollowUp && (
                                   <button
                                     type="button"
-                                    className="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                    className="mt-2 text-xs font-semibold text-info hover:text-info"
                                     onClick={() => toggleFollowUpExpanded(followUp.id)}
                                   >
                                     {isFollowUpExpanded ? "Hide follow-up" : "Show full follow-up"}
@@ -2067,7 +2067,7 @@ function Emails() {
                               </>
                             )}
 
-                            <div className="mt-3 text-xs text-gray-500">
+                            <div className="mt-3 text-xs text-muted">
                               <p>Generated: {formatDateTimeIST(followUp.generated_at || followUp.created_at)}</p>
                               {followUp.sent_at && (
                                 <p>Sent at: {formatDateTimeIST(followUp.sent_at)}</p>
@@ -2076,7 +2076,7 @@ function Emails() {
                                 <p>Gmail message ID: {followUp.gmail_message_id}</p>
                               )}
                               {followUp.send_error && (
-                                <p className="text-red-700">Send error: {followUp.send_error}</p>
+                                <p className="text-danger">Send error: {followUp.send_error}</p>
                               )}
                             </div>
 
@@ -2084,14 +2084,14 @@ function Emails() {
                               {isEditingFollowUp ? (
                                 <>
                                   <button
-                                    className="rounded bg-slate-900 px-3 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                                    className="rounded bg-accent px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:surface-3"
                                     disabled={updatingFollowUpId === followUp.id}
                                     onClick={() => handleSaveFollowUpEdit(followUp.id)}
                                   >
                                     {updatingFollowUpId === followUp.id ? "Saving..." : "Save"}
                                   </button>
                                   <button
-                                    className="rounded border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                    className="rounded border line-1 surface-2 px-3 py-2 text-xs font-medium text-ink-2 hover:surface-2"
                                     onClick={cancelFollowUpEdit}
                                   >
                                     Cancel
@@ -2102,14 +2102,14 @@ function Emails() {
                                   {followUp.status === "generated" && (
                                     <>
                                       <button
-                                        className="rounded bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
+                                        className="rounded bg-success-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:bg-success-solid"
                                         disabled={updatingFollowUpId === followUp.id}
                                         onClick={() => handleUpdateFollowUpStatus(followUp.id, "approved")}
                                       >
                                         {updatingFollowUpId === followUp.id ? "Updating..." : "Approve"}
                                       </button>
                                       <button
-                                        className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                                        className="rounded bg-danger-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:bg-danger-solid"
                                         disabled={updatingFollowUpId === followUp.id}
                                         onClick={() => handleUpdateFollowUpStatus(followUp.id, "rejected")}
                                       >
@@ -2121,14 +2121,14 @@ function Emails() {
                                   {followUp.status === "approved" && (
                                     <>
                                       <button
-                                        className="rounded bg-slate-700 px-3 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                                        className="rounded bg-accent px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:surface-3"
                                         disabled={sendingFollowUpId === followUp.id || isSendingFollowUps}
                                         onClick={() => handleSendFollowUp(followUp.id)}
                                       >
                                         {sendingFollowUpId === followUp.id ? "Sending..." : "Send"}
                                       </button>
                                       <button
-                                        className="rounded bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                                        className="rounded bg-danger-solid px-3 py-2 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:bg-danger-solid"
                                         disabled={updatingFollowUpId === followUp.id || sendingFollowUpId === followUp.id}
                                         onClick={() => handleUpdateFollowUpStatus(followUp.id, "rejected")}
                                       >
@@ -2138,7 +2138,7 @@ function Emails() {
                                   )}
                                   {canEditFollowUp && (
                                     <button
-                                      className="rounded border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                      className="rounded border line-1 surface-2 px-3 py-2 text-xs font-medium text-ink-2 hover:surface-2"
                                       onClick={() => startFollowUpEdit(followUp)}
                                     >
                                       Edit

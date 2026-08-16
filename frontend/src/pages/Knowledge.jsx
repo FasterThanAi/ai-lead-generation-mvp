@@ -462,10 +462,10 @@ function Knowledge() {
           <Card>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                <h3 className="text-xl font-semibold tracking-tight text-ink">
                   {editingId ? "Edit Knowledge" : "Add Knowledge"}
                 </h3>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
+                <p className="mt-1 text-sm leading-6 text-muted">
                   Keep entries specific and factual. AI uses these as context, not as automatic send instructions.
                 </p>
               </div>
@@ -478,7 +478,7 @@ function Knowledge() {
 
             <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
               <div>
-                <label className="text-xs font-semibold uppercase text-slate-500" htmlFor="knowledge-title">
+                <label className="text-xs font-semibold uppercase text-muted" htmlFor="knowledge-title">
                   Title
                 </label>
                 <input
@@ -486,20 +486,20 @@ function Knowledge() {
                   type="text"
                   value={formValues.title}
                   onChange={(e) => updateFormValue("title", e.target.value)}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                  className="field mt-2"
                   placeholder="Pricing Overview"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold uppercase text-slate-500" htmlFor="knowledge-category">
+                <label className="text-xs font-semibold uppercase text-muted" htmlFor="knowledge-category">
                   Category
                 </label>
                 <select
                   id="knowledge-category"
                   value={formValues.category}
                   onChange={(e) => updateFormValue("category", e.target.value)}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                  className="field mt-2"
                 >
                   {KNOWLEDGE_CATEGORIES.map((category) => (
                     <option key={category} value={category}>
@@ -510,7 +510,7 @@ function Knowledge() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold uppercase text-slate-500" htmlFor="knowledge-tags">
+                <label className="text-xs font-semibold uppercase text-muted" htmlFor="knowledge-tags">
                   Tags
                 </label>
                 <input
@@ -518,33 +518,33 @@ function Knowledge() {
                   type="text"
                   value={formValues.tags}
                   onChange={(e) => updateFormValue("tags", e.target.value)}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                  className="field mt-2"
                   placeholder="pricing, pilot, demo"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold uppercase text-slate-500" htmlFor="knowledge-content">
+                <label className="text-xs font-semibold uppercase text-muted" htmlFor="knowledge-content">
                   Content
                 </label>
                 <textarea
                   id="knowledge-content"
                   value={formValues.content}
                   onChange={(e) => updateFormValue("content", e.target.value)}
-                  className="mt-2 min-h-56 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-slate-900 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                  className="field mt-2 min-h-56"
                   placeholder="Add concise, verified company information."
                 />
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-muted">
                   Max 10,000 characters. Shorter entries are easier for AI to use cleanly.
                 </p>
               </div>
 
-              <label className="flex items-center gap-2 text-sm text-slate-700">
+              <label className="flex items-center gap-2 text-sm text-ink-2">
                 <input
                   type="checkbox"
                   checked={formValues.is_active}
                   onChange={(e) => updateFormValue("is_active", e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300"
+                  className="h-4 w-4 rounded line-2"
                 />
                 Active
               </label>
@@ -557,17 +557,17 @@ function Knowledge() {
 
           <Card>
             <div>
-              <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+              <h3 className="text-xl font-semibold tracking-tight text-ink">
                 Upload Knowledge Document
               </h3>
-              <p className="mt-1 text-sm leading-6 text-slate-500">
+              <p className="mt-1 text-sm leading-6 text-muted">
                 Supported: PDF, DOCX, TXT, MD. Max 5 MB.
               </p>
             </div>
 
             <form className="mt-5 space-y-4" onSubmit={handleUploadSubmit}>
               <div>
-                <label className="text-xs font-semibold uppercase text-slate-500" htmlFor="knowledge-document-file">
+                <label className="text-xs font-semibold uppercase text-muted" htmlFor="knowledge-document-file">
                   File
                 </label>
                 <input
@@ -576,19 +576,19 @@ function Knowledge() {
                   type="file"
                   accept=".pdf,.docx,.txt,.md"
                   onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                  className="mt-2 w-full rounded-xl border border-dashed border-slate-300 bg-white px-3 py-3 text-sm text-slate-700 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                  className="field mt-2 border-dashed file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold uppercase text-slate-500" htmlFor="knowledge-upload-category">
+                <label className="text-xs font-semibold uppercase text-muted" htmlFor="knowledge-upload-category">
                   Category
                 </label>
                 <select
                   id="knowledge-upload-category"
                   value={uploadFormValues.category}
                   onChange={(e) => updateUploadFormValue("category", e.target.value)}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                  className="field mt-2"
                 >
                   {KNOWLEDGE_CATEGORIES.map((category) => (
                     <option key={category} value={category}>
@@ -599,7 +599,7 @@ function Knowledge() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold uppercase text-slate-500" htmlFor="knowledge-upload-tags">
+                <label className="text-xs font-semibold uppercase text-muted" htmlFor="knowledge-upload-tags">
                   Tags
                 </label>
                 <input
@@ -607,7 +607,7 @@ function Knowledge() {
                   type="text"
                   value={uploadFormValues.tags}
                   onChange={(e) => updateUploadFormValue("tags", e.target.value)}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                  className="field mt-2"
                   placeholder="pricing, demo, onboarding"
                 />
               </div>
@@ -622,10 +622,10 @@ function Knowledge() {
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                  <h3 className="text-xl font-semibold tracking-tight text-ink">
                     Semantic RAG
                   </h3>
-                  <p className="mt-1 text-sm leading-6 text-slate-500">
+                  <p className="mt-1 text-sm leading-6 text-muted">
                     Hybrid search uses embeddings when available and falls back to keyword search.
                   </p>
                 </div>
@@ -635,25 +635,25 @@ function Knowledge() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold uppercase text-slate-500">Active</p>
-                  <p className="mt-1 font-semibold text-slate-950">{embeddingStatus?.total_active ?? 0}</p>
+                <div className="rounded-xl border line-1 surface-sunk p-3">
+                  <p className="text-xs font-semibold uppercase text-muted">Active</p>
+                  <p className="mt-1 font-semibold text-ink">{embeddingStatus?.total_active ?? 0}</p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold uppercase text-slate-500">Embedded</p>
-                  <p className="mt-1 font-semibold text-slate-950">{embeddingStatus?.with_embeddings ?? 0}</p>
+                <div className="rounded-xl border line-1 surface-sunk p-3">
+                  <p className="text-xs font-semibold uppercase text-muted">Embedded</p>
+                  <p className="mt-1 font-semibold text-ink">{embeddingStatus?.with_embeddings ?? 0}</p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold uppercase text-slate-500">Missing</p>
-                  <p className="mt-1 font-semibold text-slate-950">{embeddingStatus?.missing_embeddings ?? 0}</p>
+                <div className="rounded-xl border line-1 surface-sunk p-3">
+                  <p className="text-xs font-semibold uppercase text-muted">Missing</p>
+                  <p className="mt-1 font-semibold text-ink">{embeddingStatus?.missing_embeddings ?? 0}</p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold uppercase text-slate-500">Errors</p>
-                  <p className="mt-1 font-semibold text-slate-950">{embeddingStatus?.embedding_errors ?? 0}</p>
+                <div className="rounded-xl border line-1 surface-sunk p-3">
+                  <p className="text-xs font-semibold uppercase text-muted">Errors</p>
+                  <p className="mt-1 font-semibold text-ink">{embeddingStatus?.embedding_errors ?? 0}</p>
                 </div>
               </div>
 
-              <p className="break-words text-xs text-slate-500">
+              <p className="break-words text-xs text-muted">
                 Model: {embeddingStatus?.embedding_model || "Not configured"}
               </p>
 
@@ -674,8 +674,8 @@ function Knowledge() {
           <Card className="order-1">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <h3 className="text-xl font-semibold tracking-tight text-slate-950">Company Knowledge Base</h3>
-                <p className="mt-1 text-sm text-slate-500">
+                <h3 className="text-xl font-semibold tracking-tight text-ink">Company Knowledge Base</h3>
+                <p className="mt-1 text-sm text-muted">
                   Search manual entries and uploaded document chunks.
                 </p>
               </div>
@@ -685,13 +685,13 @@ function Knowledge() {
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                  className="field"
                   placeholder="Search knowledge"
                 />
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                  className="field"
                 >
                   <option value="">All categories</option>
                   {KNOWLEDGE_CATEGORIES.map((category) => (
@@ -703,7 +703,7 @@ function Knowledge() {
                 <select
                   value={searchMode}
                   onChange={(e) => setSearchMode(e.target.value)}
-                  className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                  className="field"
                 >
                   <option value="hybrid">Hybrid</option>
                   <option value="semantic">Semantic</option>
@@ -720,12 +720,12 @@ function Knowledge() {
               </form>
             </div>
 
-            <label className="mt-4 flex items-center gap-2 text-sm text-slate-600">
+            <label className="mt-4 flex items-center gap-2 text-sm text-ink-2">
               <input
                 type="checkbox"
                 checked={activeOnly}
                 onChange={(e) => setActiveOnly(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300"
+                className="h-4 w-4 rounded line-2"
               />
               Show active entries only
             </label>
@@ -733,12 +733,12 @@ function Knowledge() {
             {(statusMessage || errorMessage) && (
               <div className="mt-4 space-y-2">
                 {statusMessage && (
-                  <p className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+                  <p className="rounded-lg border border-success-soft bg-success-soft p-3 text-sm text-success">
                     {statusMessage}
                   </p>
                 )}
                 {errorMessage && (
-                  <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  <p className="rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
                     {errorMessage}
                   </p>
                 )}
@@ -746,7 +746,7 @@ function Knowledge() {
             )}
 
             {activeSearch && searchMeta?.message && searchMode !== "keyword" && (
-              <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <p className="mt-4 rounded-lg border border-warn-soft bg-warn-soft p-3 text-sm text-warn">
                 {searchMeta.message}
               </p>
             )}
@@ -755,19 +755,19 @@ function Knowledge() {
           <Card className="order-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h3 className="text-xl font-semibold tracking-tight text-slate-950">Uploaded Documents</h3>
-                <p className="mt-1 text-sm text-slate-500">
+                <h3 className="text-xl font-semibold tracking-tight text-ink">Uploaded Documents</h3>
+                <p className="mt-1 text-sm text-muted">
                   {documents.length} documents uploaded.
                 </p>
               </div>
             </div>
 
             {isLoadingDocuments ? (
-              <p className="mt-4 text-sm text-slate-600">Loading uploaded documents...</p>
+              <p className="mt-4 text-sm text-ink-2">Loading uploaded documents...</p>
             ) : documents.length === 0 ? (
-              <div className="mt-4 border border-dashed border-slate-200 p-6 text-center">
-                <h3 className="font-medium text-slate-800">No uploaded documents yet.</h3>
-                <p className="mt-1 text-sm text-slate-500">
+              <div className="mt-4 border border-dashed line-1 p-6 text-center">
+                <h3 className="font-medium text-ink">No uploaded documents yet.</h3>
+                <p className="mt-1 text-sm text-muted">
                   Upload TXT, Markdown, PDF, or DOCX files to turn them into searchable knowledge chunks.
                 </p>
               </div>
@@ -780,7 +780,7 @@ function Knowledge() {
                   const isSelected = selectedDocumentId === document.id;
 
                   return (
-                    <article key={document.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <article key={document.id} className="rounded-2xl border line-1 surface-sunk p-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
                           <div className="flex flex-wrap gap-2">
@@ -792,22 +792,22 @@ function Knowledge() {
                             </Badge>
                             {document.category && <Badge variant="neutral">{document.category}</Badge>}
                           </div>
-                          <h4 className="mt-3 break-words text-base font-semibold text-slate-950">
+                          <h4 className="mt-3 break-words text-base font-semibold text-ink">
                             {document.original_filename || document.filename}
                           </h4>
                           {document.tags && (
-                            <p className="mt-1 break-words text-xs font-medium text-slate-500">
+                            <p className="mt-1 break-words text-xs font-medium text-muted">
                               {document.tags}
                             </p>
                           )}
                         </div>
                       </div>
 
-                      <div className="mt-4 space-y-1 text-xs text-slate-600">
+                      <div className="mt-4 space-y-1 text-xs text-ink-2">
                         <p>Chunks: {activeChunks} active / {totalChunks} total</p>
                         <p>Uploaded: {formatDateTimeIST(document.uploaded_at)}</p>
                         {document.error_message && (
-                          <p className="text-red-700">{document.error_message}</p>
+                          <p className="text-danger">{document.error_message}</p>
                         )}
                       </div>
 
@@ -844,30 +844,30 @@ function Knowledge() {
                       </div>
 
                       {isSelected && (
-                        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+                        <div className="mt-4 rounded-xl border line-1 surface-2 p-3">
                           {isLoadingDocumentDetail ? (
-                            <p className="text-sm text-slate-600">Loading chunks...</p>
+                            <p className="text-sm text-ink-2">Loading chunks...</p>
                           ) : documentDetail?.chunks?.length ? (
                             <div className="space-y-3">
                               {documentDetail.chunks.map((chunk) => (
-                                <div key={chunk.id} className="border-b border-slate-100 pb-3 last:border-b-0 last:pb-0">
+                                <div key={chunk.id} className="border-b line-1 pb-3 last:border-b-0 last:pb-0">
                                   <div className="flex flex-wrap items-center gap-2">
                                     <Badge variant={chunk.is_active ? "success" : "neutral"}>
                                       {chunk.is_active ? "Active" : "Inactive"}
                                     </Badge>
                                     <Badge variant="neutral">Chunk {chunk.chunk_index || chunk.id}</Badge>
                                   </div>
-                                  <p className="mt-2 break-words text-sm font-medium text-slate-900">
+                                  <p className="mt-2 break-words text-sm font-medium text-ink">
                                     {chunk.title}
                                   </p>
-                                  <p className="mt-1 whitespace-pre-line break-words text-xs leading-5 text-slate-600">
+                                  <p className="mt-1 whitespace-pre-line break-words text-xs leading-5 text-ink-2">
                                     {getPreviewText(chunk.content_preview || chunk.content, 220)}
                                   </p>
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <p className="text-sm text-slate-600">No chunks found for this document.</p>
+                            <p className="text-sm text-ink-2">No chunks found for this document.</p>
                           )}
                         </div>
                       )}
@@ -882,10 +882,10 @@ function Knowledge() {
             <Card>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h3 className="text-xl font-semibold tracking-tight text-slate-950">
+                  <h3 className="text-xl font-semibold tracking-tight text-ink">
                     {entriesSectionTitle}
                   </h3>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-sm text-muted">
                     {entriesSectionSummary}
                   </p>
                 </div>
@@ -894,15 +894,15 @@ function Knowledge() {
 
           {isLoading ? (
             <Card>
-              <p className="text-sm text-slate-600">Loading knowledge entries...</p>
+              <p className="text-sm text-ink-2">Loading knowledge entries...</p>
             </Card>
           ) : entries.length === 0 ? (
             <Card>
-              <div className="border border-dashed border-slate-200 p-6 text-center">
-                <h3 className="font-medium text-slate-800">
+              <div className="border border-dashed line-1 p-6 text-center">
+                <h3 className="font-medium text-ink">
                   {activeSearch ? "No knowledge found for this search." : "No knowledge entries found."}
                 </h3>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-muted">
                   {activeSearch
                     ? "Try another term or clear the search to browse all active knowledge."
                     : "Add product details, pricing notes, FAQs, demo scripts, or uploaded documents to make AI drafts more specific."}
@@ -915,7 +915,7 @@ function Knowledge() {
                 const sourceLabel = getSourceLabel(entry);
 
                 return (
-                  <article key={entry.id} className="rounded-3xl border border-slate-200 bg-white/85 p-5 shadow-sm">
+                  <article key={entry.id} className="rounded-3xl border line-1 surface-2 p-5 elev-1">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -932,43 +932,43 @@ function Knowledge() {
                             </Badge>
                           )}
                         </div>
-                        <h4 className="mt-3 break-words text-lg font-semibold text-slate-950">
+                        <h4 className="mt-3 break-words text-lg font-semibold text-ink">
                           {entry.title}
                         </h4>
                         {entry.tags && (
-                          <p className="mt-1 break-words text-xs font-medium text-slate-500">
+                          <p className="mt-1 break-words text-xs font-medium text-muted">
                             {entry.tags}
                           </p>
                         )}
                         {sourceLabel === "Document" && (
-                          <p className="mt-2 break-words text-xs text-slate-500">
+                          <p className="mt-2 break-words text-xs text-muted">
                             Source: Document - {entry.document_filename || `Document ID ${entry.document_id || "unknown"}`}
                             {entry.chunk_index ? ` - Chunk ${entry.chunk_index}` : ""}
                           </p>
                         )}
                         {entry.similarity_score !== null && entry.similarity_score !== undefined && (
-                          <p className="mt-2 text-xs font-medium text-emerald-700">
+                          <p className="mt-2 text-xs font-medium text-success">
                             Similarity: {Number(entry.similarity_score).toFixed(2)}
                           </p>
                         )}
                         {entry.keyword_score !== null && entry.keyword_score !== undefined && (
-                          <p className="mt-1 text-xs font-medium text-slate-600">
+                          <p className="mt-1 text-xs font-medium text-ink-2">
                             Keyword score: {entry.keyword_score}
                           </p>
                         )}
                         {entry.match_reason && (
-                          <p className="mt-1 break-words text-xs text-slate-500">
+                          <p className="mt-1 break-words text-xs text-muted">
                             Match: {entry.match_reason}
                           </p>
                         )}
                       </div>
                     </div>
 
-                    <p className="mt-4 whitespace-pre-line break-words text-sm leading-6 text-slate-700">
+                    <p className="mt-4 whitespace-pre-line break-words text-sm leading-6 text-ink-2">
                       {getPreviewText(entry.content_preview || entry.content)}
                     </p>
 
-                    <div className="mt-4 space-y-1 text-xs text-slate-500">
+                    <div className="mt-4 space-y-1 text-xs text-muted">
                       <p>Created: {formatDateTimeIST(entry.created_at)}</p>
                       {entry.updated_at && <p>Updated: {formatDateTimeIST(entry.updated_at)}</p>}
                     </div>

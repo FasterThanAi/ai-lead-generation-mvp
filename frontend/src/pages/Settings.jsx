@@ -155,23 +155,23 @@ function Settings() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-xl font-semibold tracking-tight text-slate-950">Gmail Connection</h3>
+                <h3 className="text-xl font-semibold tracking-tight text-ink">Gmail Connection</h3>
                 {!isLoadingStatus && (
                   <Badge variant={gmailStatus.connected ? "success" : "neutral"}>
                     {gmailStatus.connected ? "Connected" : "Not connected"}
                   </Badge>
                 )}
               </div>
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-2 text-sm text-muted">
                 Gmail sending is restricted to approved drafts and approved follow-ups only.
               </p>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-muted">
                 Reply tracking requires Gmail readonly permission. If reply check fails, reconnect Gmail.
               </p>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-muted">
                 AI reply classification only suggests next actions. It does not send replies automatically.
               </p>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-muted">
                 AI response drafts require approval before sending.
               </p>
             </div>
@@ -187,21 +187,21 @@ function Settings() {
             </Button>
           </div>
 
-          <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+          <div className="mt-5 rounded-3xl border line-1 surface-sunk p-4 sm:p-5">
             {isLoadingStatus ? (
-              <p className="text-sm text-slate-600">Checking Gmail connection...</p>
+              <p className="text-sm text-ink-2">Checking Gmail connection...</p>
             ) : gmailStatus.connected ? (
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="break-words text-sm font-semibold text-emerald-700">
+                  <p className="break-words text-sm font-semibold text-success">
                     {gmailStatus.email ? `Gmail connected as ${gmailStatus.email}` : "Gmail connected"}
                   </p>
-                  <p className="mt-1 text-sm text-slate-600">Approved drafts and approved follow-ups can be sent from the Emails page.</p>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <p className="mt-1 text-sm text-ink-2">Approved drafts and approved follow-ups can be sent from the Emails page.</p>
+                  <p className="mt-1 text-sm text-ink-2">
                     Reconnect Gmail if reply tracking is not available.
                   </p>
                   {!gmailStatus.replyTrackingAvailable && (
-                    <p className="mt-2 text-sm font-medium text-yellow-700">
+                    <p className="mt-2 text-sm font-medium text-warn">
                       Gmail readonly permission may be missing.
                     </p>
                   )}
@@ -219,8 +219,8 @@ function Settings() {
             ) : (
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-slate-800">Gmail not connected</p>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="text-sm font-semibold text-ink">Gmail not connected</p>
+                  <p className="mt-1 text-sm text-muted">
                     Connect Gmail to send approved email drafts.
                   </p>
                 </div>
@@ -238,13 +238,13 @@ function Settings() {
           </div>
 
           {showAuthorizationHint && (
-            <p className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
+            <p className="mt-4 rounded-lg border border-info-soft bg-info-soft p-3 text-sm text-info">
               Complete Gmail authorization in the new tab, then refresh the status here.
             </p>
           )}
 
           {statusError && (
-            <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <p className="mt-4 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
               {statusError}
             </p>
           )}
@@ -254,7 +254,7 @@ function Settings() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-xl font-semibold tracking-tight text-slate-950">Hunter.io Enrichment</h3>
+                <h3 className="text-xl font-semibold tracking-tight text-ink">Hunter.io Enrichment</h3>
                 {!isLoadingHunterStatus && hunterStatus && (
                   <Badge variant={hunterStatus.configured ? "success" : "warning"}>
                     {hunterStatus.configured ? "Configured" : "Not configured"}
@@ -264,10 +264,10 @@ function Settings() {
                   <Badge variant="warning">Test key</Badge>
                 )}
               </div>
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-2 text-sm text-muted">
                 Hunter can find professional emails from a lead website when public extraction does not find one.
               </p>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-muted">
                 Bulk enrichment uses credits, so the Leads page caps each run.
               </p>
             </div>
@@ -283,20 +283,20 @@ function Settings() {
             </Button>
           </div>
 
-          <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+          <div className="mt-5 rounded-3xl border line-1 surface-sunk p-4 sm:p-5">
             {isLoadingHunterStatus ? (
-              <p className="text-sm text-slate-600">Checking Hunter.io status...</p>
+              <p className="text-sm text-ink-2">Checking Hunter.io status...</p>
             ) : hunterStatus ? (
-              <p className={hunterStatus.configured ? "text-sm font-semibold text-emerald-700" : "text-sm font-semibold text-amber-700"}>
+              <p className={hunterStatus.configured ? "text-sm font-semibold text-success" : "text-sm font-semibold text-warn"}>
                 {hunterStatus.message}
               </p>
             ) : (
-              <p className="text-sm text-slate-600">Hunter.io status unavailable.</p>
+              <p className="text-sm text-ink-2">Hunter.io status unavailable.</p>
             )}
           </div>
 
           {hunterStatusError && (
-            <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <p className="mt-4 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
               {hunterStatusError}
             </p>
           )}

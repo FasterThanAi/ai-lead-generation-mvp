@@ -15,7 +15,9 @@ from app.db.database_utils import (
     ensure_lead_ai_scoring_columns,
     ensure_lead_call_columns,
     ensure_lead_discovery_source_columns,
+    ensure_lead_research_job_columns,
     ensure_lead_research_columns,
+    ensure_lead_scoring_job_columns,
     ensure_opportunity_columns,
     ensure_reply_response_draft_columns,
 )
@@ -33,6 +35,8 @@ from app.db.models import (  # noqa: F401
     GmailToken,
     KnowledgeDocument,
     Lead,
+    LeadResearchJob,
+    LeadScoringJob,
     Opportunity,
     ReplyResponseDraft,
 )
@@ -41,6 +45,8 @@ from app.db.models import (  # noqa: F401
 Base.metadata.create_all(bind=engine)
 ensure_email_draft_columns(engine)
 ensure_email_extraction_job_columns(engine)
+ensure_lead_research_job_columns(engine)
+ensure_lead_scoring_job_columns(engine)
 ensure_lead_ai_scoring_columns(engine)
 ensure_lead_research_columns(engine)
 ensure_lead_discovery_source_columns(engine)

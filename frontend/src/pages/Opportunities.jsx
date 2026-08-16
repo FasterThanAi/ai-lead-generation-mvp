@@ -56,9 +56,9 @@ function TextBlock({ label, value, className = "" }) {
   }
 
   return (
-    <div className={`rounded-2xl border border-slate-200 bg-white/80 p-4 ${className}`}>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-slate-700">{value}</p>
+    <div className={`glass rounded-2xl p-4 ${className}`}>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
+      <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-ink-2">{value}</p>
     </div>
   );
 }
@@ -71,11 +71,11 @@ function ListBlock({ label, value }) {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+    <div className="rounded-2xl border line-1 surface-2 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {items.map((item, index) => (
-          <span key={`${item}-${index}`} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+          <span key={`${item}-${index}`} className="rounded-full border line-1 surface-sunk px-3 py-1 text-xs font-medium text-ink-2">
             {item}
           </span>
         ))}
@@ -88,7 +88,7 @@ function StrategyView({ opportunity, onConvert, onCreateDiscoveryJob, isConverti
   if (!opportunity) {
     return (
       <Card>
-        <p className="text-sm text-slate-500">Select an opportunity to view or generate its strategy.</p>
+        <p className="text-sm text-muted">Select an opportunity to view or generate its strategy.</p>
       </Card>
     );
   }
@@ -104,10 +104,10 @@ function StrategyView({ opportunity, onConvert, onCreateDiscoveryJob, isConverti
             <Badge variant={opportunity.status}>{opportunity.status}</Badge>
             {opportunity.converted_campaign_id && <Badge variant="success">Campaign created</Badge>}
           </div>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight text-ink">
             {opportunity.title}
           </h2>
-          <p className="mt-2 max-w-3xl whitespace-pre-line break-words text-sm leading-6 text-slate-600">
+          <p className="mt-2 max-w-3xl whitespace-pre-line break-words text-sm leading-6 text-ink-2">
             {opportunity.raw_goal}
           </p>
         </div>
@@ -138,9 +138,9 @@ function StrategyView({ opportunity, onConvert, onCreateDiscoveryJob, isConverti
       </div>
 
       {!hasStrategy ? (
-        <div className="mt-6 rounded-2xl border border-dashed border-slate-200 p-6 text-center">
-          <p className="text-sm font-medium text-slate-700">No strategy generated yet.</p>
-          <p className="mt-1 text-sm text-slate-500">Generate the strategy from the opportunity card.</p>
+        <div className="mt-6 rounded-2xl border border-dashed line-1 p-6 text-center">
+          <p className="text-sm font-medium text-ink-2">No strategy generated yet.</p>
+          <p className="mt-1 text-sm text-muted">Generate the strategy from the opportunity card.</p>
         </div>
       ) : (
         <div className="mt-6 space-y-5">
@@ -168,21 +168,21 @@ function StrategyView({ opportunity, onConvert, onCreateDiscoveryJob, isConverti
           </div>
 
           {followUps.length > 0 && (
-            <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Follow-up sequence</p>
+            <div className="rounded-2xl border line-1 surface-2 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Follow-up sequence</p>
               <div className="mt-3 grid gap-3 lg:grid-cols-2">
                 {followUps.map((step) => (
-                  <div key={`${step.step}-${step.purpose}`} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                    <p className="text-sm font-semibold text-slate-900">Step {step.step}: {step.purpose}</p>
-                    <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-slate-600">{step.message}</p>
+                  <div key={`${step.step}-${step.purpose}`} className="rounded-xl border line-1 surface-sunk p-3">
+                    <p className="text-sm font-semibold text-ink">Step {step.step}: {step.purpose}</p>
+                    <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-ink-2">{step.message}</p>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Suggested campaign</p>
+          <div className="rounded-2xl border border-violet-soft bg-violet-soft p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-violet">Suggested campaign</p>
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
               <TextBlock label="Name" value={opportunity.suggested_campaign_name} />
               <TextBlock label="Industry" value={opportunity.suggested_campaign_industry} />
@@ -192,8 +192,8 @@ function StrategyView({ opportunity, onConvert, onCreateDiscoveryJob, isConverti
             </div>
           </div>
 
-          <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Suggested discovery</p>
+          <div className="rounded-2xl border border-info-soft bg-info-soft p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-info">Suggested discovery</p>
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <TextBlock label="Target type" value={opportunity.suggested_discovery_target_type} />
               <TextBlock label="Department/domain" value={opportunity.suggested_discovery_department} />
@@ -389,63 +389,63 @@ function Opportunities() {
       <div className="space-y-6">
         <Card>
           <div className="mb-5">
-            <h2 className="text-xl font-semibold tracking-tight text-slate-950">Create Opportunity</h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <h2 className="text-xl font-semibold tracking-tight text-ink">Create Opportunity</h2>
+            <p className="mt-1 text-sm text-muted">
               Start with a rough goal. The strategy can target professors, colleges, SMEs, clinics, restaurants, startups, or any other segment.
             </p>
           </div>
 
           <form className="grid gap-4 lg:grid-cols-2" onSubmit={handleCreate}>
             <label className="text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Title</span>
+              <span className="mb-1 block font-medium text-ink-2">Title</span>
               <input
                 type="text"
                 value={formValues.title}
                 onChange={(e) => updateFormValue("title", e.target.value)}
-                className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                className="field"
                 placeholder="Professor Research Collaboration"
               />
             </label>
 
             <label className="text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Target domain</span>
+              <span className="mb-1 block font-medium text-ink-2">Target domain</span>
               <input
                 type="text"
                 value={formValues.target_domain}
                 onChange={(e) => updateFormValue("target_domain", e.target.value)}
-                className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                className="field"
                 placeholder="Engineering Colleges / Research"
               />
             </label>
 
             <label className="text-sm lg:col-span-2">
-              <span className="mb-1 block font-medium text-slate-700">Raw goal / idea</span>
+              <span className="mb-1 block font-medium text-ink-2">Raw goal / idea</span>
               <textarea
                 value={formValues.raw_goal}
                 onChange={(e) => updateFormValue("raw_goal", e.target.value)}
-                className="min-h-32 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-sm leading-6 outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                className="field min-h-32"
                 placeholder="Reach engineering professors for research/project implementation assistance for students."
               />
             </label>
 
             <label className="text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Target location</span>
+              <span className="mb-1 block font-medium text-ink-2">Target location</span>
               <input
                 type="text"
                 value={formValues.target_location}
                 onChange={(e) => updateFormValue("target_location", e.target.value)}
-                className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                className="field"
                 placeholder="India"
               />
             </label>
 
             <label className="text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Offer</span>
+              <span className="mb-1 block font-medium text-ink-2">Offer</span>
               <input
                 type="text"
                 value={formValues.offer}
                 onChange={(e) => updateFormValue("offer", e.target.value)}
-                className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100"
+                className="field"
                 placeholder="SIP, final-year projects, prototype support, mentorship, documentation"
               />
             </label>
@@ -461,12 +461,12 @@ function Opportunities() {
         {(statusMessage || errorMessage) && (
           <Card>
             {statusMessage && (
-              <p className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+              <p className="rounded-lg border border-success-soft bg-success-soft p-3 text-sm text-success">
                 {statusMessage}
               </p>
             )}
             {errorMessage && (
-              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">
+              <p className="mt-3 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger first:mt-0">
                 {errorMessage}
               </p>
             )}
@@ -476,16 +476,16 @@ function Opportunities() {
         <div className="grid gap-6 xl:grid-cols-[minmax(320px,420px)_minmax(0,1fr)]">
           <Card>
             <div className="mb-4">
-              <h2 className="text-xl font-semibold tracking-tight text-slate-950">Opportunity List</h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <h2 className="text-xl font-semibold tracking-tight text-ink">Opportunity List</h2>
+              <p className="mt-1 text-sm text-muted">
                 {opportunities.length} active opportunities.
               </p>
             </div>
 
             {isLoading ? (
-              <p className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">Loading opportunities...</p>
+              <p className="rounded-2xl border line-1 surface-sunk p-4 text-sm text-ink-2">Loading opportunities...</p>
             ) : opportunities.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+              <p className="rounded-2xl border border-dashed line-1 p-6 text-center text-sm text-muted">
                 No opportunities yet.
               </p>
             ) : (
@@ -496,8 +496,8 @@ function Opportunities() {
                     className={[
                       "rounded-2xl border p-4 transition",
                       selectedOpportunity?.id === opportunity.id
-                        ? "border-slate-950 bg-slate-50"
-                        : "border-slate-200 bg-white/80 hover:bg-slate-50",
+                        ? "line-3 surface-sunk"
+                        : "line-1 surface-2 hover:surface-2",
                     ].join(" ")}
                   >
                     <button
@@ -509,11 +509,11 @@ function Opportunities() {
                         <Badge variant={opportunity.status}>{opportunity.status}</Badge>
                         {opportunity.converted_campaign_id && <Badge variant="success">converted</Badge>}
                       </div>
-                      <h3 className="mt-3 break-words text-base font-semibold text-slate-950">{opportunity.title}</h3>
-                      <p className="mt-2 line-clamp-3 break-words text-sm leading-6 text-slate-600">
+                      <h3 className="mt-3 break-words text-base font-semibold text-ink">{opportunity.title}</h3>
+                      <p className="mt-2 line-clamp-3 break-words text-sm leading-6 text-ink-2">
                         {opportunity.raw_goal}
                       </p>
-                      <p className="mt-2 text-xs text-slate-400">
+                      <p className="mt-2 text-xs text-faint">
                         Created: {formatDateTimeIST(opportunity.created_at)}
                       </p>
                     </button>

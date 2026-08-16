@@ -1,10 +1,28 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#05070f" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f6f8ff" media="(prefers-color-scheme: light)" />
+    <meta name="description" content="AI Lead Generation — campaigns, discovery, research, scoring and approved outreach." />
+    <title>Lead Agent — AI Lead Generation</title>
+    <script>
+      // Resolve the theme before first paint so there is no white flash.
+      (function () {
+        try {
+          var stored = localStorage.getItem("leadagent-theme");
+          var theme = stored === "light" || stored === "dark" ? stored : "dark";
+          var root = document.documentElement;
+          root.classList.remove("light", "dark");
+          root.classList.add(theme);
+          root.style.colorScheme = theme;
+        } catch (e) {
+          /* keep the `dark` class already on <html> */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

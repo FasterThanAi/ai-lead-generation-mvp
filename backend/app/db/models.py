@@ -26,6 +26,8 @@ class Campaign(Base):
     call_logs = relationship("CallLog", back_populates="campaign")
     call_scripts = relationship("CallScript", back_populates="campaign")
     email_extraction_jobs = relationship("EmailExtractionJob", back_populates="campaign", cascade="all, delete-orphan")
+    lead_research_jobs = relationship("LeadResearchJob", back_populates="campaign", cascade="all, delete-orphan")
+    lead_scoring_jobs = relationship("LeadScoringJob", back_populates="campaign", cascade="all, delete-orphan")
 
 
 class Opportunity(Base):
@@ -205,6 +207,43 @@ class EmailExtractionJob(Base):
     error = Column(Text, nullable=True)
 
     campaign = relationship("Campaign", back_populates="email_extraction_jobs")
+
+
+class LeadResearchJob(Base):
+    __tablename__ = "lead_research_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
+    status = Column(String(50), default="pending", nullable=False)
+    total_leads = Column(Integer, default=0, nullable=False)
+    processed = Column(Integer, default=0, nullable=False)
+    researched = Column(Integer, default=0, nullable=False)
+    skipped = Column(Integer, default=0, nullable=False)
+    failed = Column(Integer, default=0, nullable=False)
+    started_at = Column(DateTime, default=utc_now)
+    finished_at = Column(DateTime, nullable=True)
+    error = Column(Text, nullable=True)
+
+    campaign = relationship("Campaign", back_populates="lead_research_jobs")
+
+
+class LeadScoringJob(Base):
+    __tablename__ = "lead_scoring_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
+    status = Column(String(50), default="pending", nullable=False)
+    total_leads = Column(Integer, default=0, nullable=False)
+    processed = Column(Integer, default=0, nullable=False)
+    scored = Column(Integer, default=0, nullable=False)
+    skipped = Column(Integer, default=0, nullable=False)
+    failed = Column(Integer, default=0, nullable=False)
+    started_at = Column(DateTime, default=utc_now)
+    finished_at = Column(DateTime, nullable=True)
+    error = Column(Text, nullable=True)
+    force = Column(Boolean, default=False, nullable=False)
+
+    campaign = relationship("Campaign", back_populates="lead_scoring_jobs")
 
 
 class CallLog(Base):

@@ -40,34 +40,34 @@ function ScriptPreview({ script }) {
   if (!script) {
     return (
       <Card>
-        <p className="text-sm text-slate-500">Generate a call script to preview opener, questions, objection handling, and closing.</p>
+        <p className="text-sm text-muted">Generate a call script to preview opener, questions, objection handling, and closing.</p>
       </Card>
     );
   }
 
   return (
     <Card>
-      <h2 className="text-xl font-semibold tracking-tight text-slate-950">Call Script Preview</h2>
+      <h2 className="text-xl font-semibold tracking-tight text-ink">Call Script Preview</h2>
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Opener</p>
-          <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-slate-700">{script.opener}</p>
+        <div className="rounded-2xl border line-1 surface-sunk p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Opener</p>
+          <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-ink-2">{script.opener}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Purpose</p>
-          <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-slate-700">{script.purpose}</p>
+        <div className="rounded-2xl border line-1 surface-sunk p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Purpose</p>
+          <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-ink-2">{script.purpose}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Questions</p>
-          <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-slate-700">{script.questions}</p>
+        <div className="rounded-2xl border line-1 surface-sunk p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Questions</p>
+          <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-ink-2">{script.questions}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Objection handling</p>
-          <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-slate-700">{script.objection_handling}</p>
+        <div className="rounded-2xl border line-1 surface-sunk p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Objection handling</p>
+          <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-ink-2">{script.objection_handling}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:col-span-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Closing</p>
-          <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-slate-700">{script.closing}</p>
+        <div className="rounded-2xl border line-1 surface-sunk p-4 lg:col-span-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Closing</p>
+          <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-ink-2">{script.closing}</p>
         </div>
       </div>
     </Card>
@@ -76,7 +76,7 @@ function ScriptPreview({ script }) {
 
 function CallLogCard({ callLog, onCreateFollowup, creatingFollowupId }) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+    <article className="rounded-2xl border line-1 surface-2 p-4 elev-1">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap gap-2">
@@ -86,36 +86,36 @@ function CallLogCard({ callLog, onCreateFollowup, creatingFollowupId }) {
             {callLog.sentiment && <Badge variant={callLog.sentiment}>{callLog.sentiment}</Badge>}
             {callLog.priority && <Badge variant={callLog.priority}>{callLog.priority}</Badge>}
           </div>
-          <h3 className="mt-3 break-words text-base font-semibold text-slate-950">
+          <h3 className="mt-3 break-words text-base font-semibold text-ink">
             {display(callLog.lead_company_name, "Unlinked call")}
           </h3>
-          <p className="mt-1 break-words text-sm text-slate-500">
+          <p className="mt-1 break-words text-sm text-muted">
             {[callLog.lead_name, callLog.lead_contact_role, callLog.campaign_name].filter(Boolean).join(" | ") || "No lead context"}
           </p>
-          <p className="mt-1 break-words text-xs text-slate-400">
+          <p className="mt-1 break-words text-xs text-faint">
             Called: {display(callLog.called_number || callLog.phone_number)} | Duration: {callLog.duration_seconds ?? "-"}s
           </p>
         </div>
-        <p className="text-xs text-slate-400 lg:text-right">{formatDateTimeIST(callLog.created_at)}</p>
+        <p className="text-xs text-faint lg:text-right">{formatDateTimeIST(callLog.created_at)}</p>
       </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
         {callLog.summary && (
-          <p className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm leading-6 text-slate-700">{callLog.summary}</p>
+          <p className="rounded-xl border line-1 surface-sunk p-3 text-sm leading-6 text-ink-2">{callLog.summary}</p>
         )}
         {callLog.next_action && (
-          <p className="rounded-xl border border-sky-100 bg-sky-50 p-3 text-sm leading-6 text-sky-700">{callLog.next_action}</p>
+          <p className="rounded-xl border border-info-soft bg-info-soft p-3 text-sm leading-6 text-info">{callLog.next_action}</p>
         )}
       </div>
 
       {callLog.recording_url && (
-        <a href={callLog.recording_url} target="_blank" rel="noreferrer" className="mt-3 block break-all text-sm font-medium text-blue-600">
+        <a href={callLog.recording_url} target="_blank" rel="noreferrer" className="mt-3 block break-all text-sm font-medium text-info">
           Recording
         </a>
       )}
 
       {callLog.error_message && (
-        <p className="mt-3 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">{callLog.error_message}</p>
+        <p className="mt-3 rounded-xl border border-danger-soft bg-danger-soft p-3 text-sm text-danger">{callLog.error_message}</p>
       )}
 
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -133,9 +133,9 @@ function CallLogCard({ callLog, onCreateFollowup, creatingFollowupId }) {
       </div>
 
       {callLog.transcript && (
-        <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50">
-          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-700">Transcript</summary>
-          <p className="whitespace-pre-line break-words border-t border-slate-200 px-4 py-3 text-sm leading-6 text-slate-600">
+        <details className="mt-4 rounded-xl border line-1 surface-sunk">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-ink-2">Transcript</summary>
+          <p className="whitespace-pre-line break-words border-t line-1 px-4 py-3 text-sm leading-6 text-ink-2">
             {callLog.transcript}
           </p>
         </details>
@@ -379,8 +379,8 @@ function Calls() {
         <Card>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight text-slate-950">Vapi Status</h2>
-              <p className="mt-1 text-sm text-slate-500">Calls are started only from this backend. Vapi secrets never go to the browser.</p>
+              <h2 className="text-xl font-semibold tracking-tight text-ink">Vapi Status</h2>
+              <p className="mt-1 text-sm text-muted">Calls are started only from this backend. Vapi secrets never go to the browser.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge variant={configStatus?.vapi_enabled ? "success" : "warning"}>
@@ -394,7 +394,7 @@ function Calls() {
             </div>
           </div>
           {configStatus && !configStatus.configured && (
-            <p className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-700">
+            <p className="mt-4 rounded-2xl border border-warn-soft bg-warn-soft p-3 text-sm text-warn">
               Vapi not configured. You can still generate call scripts and save manual call logs.
             </p>
           )}
@@ -402,9 +402,9 @@ function Calls() {
 
         {(statusMessage || errorMessage) && (
           <Card>
-            {statusMessage && <p className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{statusMessage}</p>}
+            {statusMessage && <p className="rounded-lg border border-success-soft bg-success-soft p-3 text-sm text-success">{statusMessage}</p>}
             {createdFollowupDraft?.id && (
-              <div className="mt-3 flex flex-col gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-sm text-indigo-800 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mt-3 flex flex-col gap-2 rounded-lg border border-violet-soft bg-violet-soft p-3 text-sm text-violet sm:flex-row sm:items-center sm:justify-between">
                 <span>Draft #{createdFollowupDraft.id} is ready for manual review. It was not sent.</span>
                 <Button
                   as={Link}
@@ -417,16 +417,16 @@ function Calls() {
                 </Button>
               </div>
             )}
-            {errorMessage && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 first:mt-0">{errorMessage}</p>}
+            {errorMessage && <p className="mt-3 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger first:mt-0">{errorMessage}</p>}
           </Card>
         )}
 
         <div className="grid gap-6 xl:grid-cols-[minmax(320px,460px)_minmax(0,1fr)]">
           <Card>
-            <h2 className="text-xl font-semibold tracking-tight text-slate-950">Start AI Call</h2>
+            <h2 className="text-xl font-semibold tracking-tight text-ink">Start AI Call</h2>
             <div className="mt-4 grid gap-4">
               <label className="text-sm">
-                <span className="mb-1 block font-medium text-slate-700">Campaign</span>
+                <span className="mb-1 block font-medium text-ink-2">Campaign</span>
                 <select
                   value={selectedCampaignId}
                   onChange={(e) => {
@@ -434,7 +434,7 @@ function Calls() {
                     setSelectedLeadId("");
                     setScript(null);
                   }}
-                  className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
+                  className="field"
                 >
                   <option value="">Choose campaign</option>
                   {campaigns.map((campaign) => (
@@ -444,14 +444,14 @@ function Calls() {
               </label>
 
               <label className="text-sm">
-                <span className="mb-1 block font-medium text-slate-700">Lead</span>
+                <span className="mb-1 block font-medium text-ink-2">Lead</span>
                 <select
                   value={selectedLeadId}
                   onChange={(e) => {
                     setSelectedLeadId(e.target.value);
                     setScript(null);
                   }}
-                  className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
+                  className="field"
                   disabled={!selectedCampaignId}
                 >
                   <option value="">Choose lead</option>
@@ -462,60 +462,60 @@ function Calls() {
               </label>
 
               <label className="text-sm">
-                <span className="mb-1 block font-medium text-slate-700">Lead phone number</span>
+                <span className="mb-1 block font-medium text-ink-2">Lead phone number</span>
                 <input
                   type="tel"
                   value={selectedLead?.phone || ""}
                   readOnly
-                  className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
+                  className="field"
                   placeholder="+91..."
                 />
-                <span className="mt-1 block text-xs text-slate-500">
+                <span className="mt-1 block text-xs text-muted">
                   {selectedLead?.phone ? "Saved on the selected lead." : "No saved lead phone. Keep test number checked."}
                 </span>
               </label>
 
-              <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-700">
+              <label className="flex items-center gap-2 rounded-2xl border line-1 surface-sunk p-3 text-sm font-medium text-ink-2">
                 <input type="checkbox" checked={useTestNumber} onChange={(e) => setUseTestNumber(e.target.checked)} className="h-4 w-4" />
                 Use test phone number
               </label>
               {!useTestNumber && selectedLead?.phone && (
-                <p className="rounded-2xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800">
+                <p className="rounded-2xl border border-warn-soft bg-warn-soft p-3 text-sm text-warn">
                   Test number is off. Starting the call will use this lead phone number.
                 </p>
               )}
               {!useTestNumber && !selectedLead?.phone && (
-                <p className="rounded-2xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+                <p className="rounded-2xl border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
                   Lead does not have a phone number.
                 </p>
               )}
 
               {useTestNumber && (
                 <label className="text-sm">
-                  <span className="mb-1 block font-medium text-slate-700">Test phone number override</span>
+                  <span className="mb-1 block font-medium text-ink-2">Test phone number override</span>
                   <input
                     type="tel"
                     value={testPhoneNumber}
                     onChange={(e) => setTestPhoneNumber(e.target.value)}
-                    className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
+                    className="field"
                     placeholder="Leave blank to use backend default"
                   />
                 </label>
               )}
 
               {selectedLead?.do_not_call && (
-                <p className="rounded-2xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+                <p className="rounded-2xl border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
                   This lead is marked do-not-call. AI calling is disabled.
                 </p>
               )}
 
-              <p className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-800">
+              <p className="rounded-2xl border line-1 surface-sunk p-3 text-sm font-semibold text-ink">
                 Calling: {callingLabel} {display(callingNumber)}
               </p>
 
               {selectedCampaign && selectedLead && (
-                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3 text-sm leading-6 text-indigo-800">
-                  <p className="font-semibold text-indigo-900">Call context preview</p>
+                <div className="rounded-2xl border border-violet-soft bg-violet-soft p-3 text-sm leading-6 text-violet">
+                  <p className="font-semibold text-violet">Call context preview</p>
                   <p className="mt-1">
                     This call will use campaign: {selectedCampaign.campaign_name}, offer: {selectedCampaign.offer}, lead: {selectedLead.contact_name || selectedLead.company_name}.
                   </p>
@@ -537,14 +537,14 @@ function Calls() {
         </div>
 
         <Card>
-          <h2 className="text-xl font-semibold tracking-tight text-slate-950">Manual Call Log</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-ink">Manual Call Log</h2>
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <label className="text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Outcome</span>
+              <span className="mb-1 block font-medium text-ink-2">Outcome</span>
               <select
                 value={manualLog.outcome}
                 onChange={(e) => setManualLog((current) => ({ ...current, outcome: e.target.value }))}
-                className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
+                className="field"
               >
                 <option value="interested">interested</option>
                 <option value="asked_details">asked_details</option>
@@ -556,21 +556,21 @@ function Calls() {
               </select>
             </label>
             <label className="text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Next action</span>
+              <span className="mb-1 block font-medium text-ink-2">Next action</span>
               <input
                 type="text"
                 value={manualLog.next_action}
                 onChange={(e) => setManualLog((current) => ({ ...current, next_action: e.target.value }))}
-                className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 text-sm outline-none focus:ring-4 focus:ring-slate-100"
+                className="field"
                 placeholder="Send proposal by email"
               />
             </label>
             <label className="text-sm lg:col-span-2">
-              <span className="mb-1 block font-medium text-slate-700">Notes</span>
+              <span className="mb-1 block font-medium text-ink-2">Notes</span>
               <textarea
                 value={manualLog.notes}
                 onChange={(e) => setManualLog((current) => ({ ...current, notes: e.target.value }))}
-                className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-sm leading-6 outline-none focus:ring-4 focus:ring-slate-100"
+                className="field min-h-24"
                 placeholder="Professor asked to send proposal over email."
               />
             </label>
@@ -584,12 +584,12 @@ function Calls() {
 
         <Card>
           <div className="mb-5">
-            <h2 className="text-xl font-semibold tracking-tight text-slate-950">Call Logs</h2>
-            <p className="mt-1 text-sm text-slate-500">Latest Vapi and manual calls for the selected lead or campaign.</p>
+            <h2 className="text-xl font-semibold tracking-tight text-ink">Call Logs</h2>
+            <p className="mt-1 text-sm text-muted">Latest Vapi and manual calls for the selected lead or campaign.</p>
           </div>
 
           {isLoading ? (
-            <p className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">Loading calls...</p>
+            <p className="rounded-2xl border line-1 surface-sunk p-4 text-sm text-ink-2">Loading calls...</p>
           ) : callLogs.length === 0 ? (
             <EmptyState title="No calls yet" description="Generate a script, start a selected AI call, or save a manual call log." />
           ) : (
