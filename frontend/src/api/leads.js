@@ -1,5 +1,5 @@
 
-//ai lead generation update 
+
 import api from "../services/api";
 
 export const extractEmailsAsync = (campaignId, limit = 100) =>
