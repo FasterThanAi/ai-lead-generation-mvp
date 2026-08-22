@@ -325,10 +325,27 @@ def enrich_product(db: Session, product_id: int) -> dict[str, Any]:
             except Exception as exc:
                 logger.warning("Extraction failed for source %s on product %s: %s", source.id, product.id, exc)
 
-        # Pure deterministic normalization immediately after extraction
+        # 1. Pure deterministic normalization immediately after extraction
         from app.services.normalization_service import normalize_product_attributes
         norm_result = normalize_product_attributes(db, product.id)
         logger.info("Normalized attributes for product %s: %s", product.id, norm_result)
+
+        # 2. Rule-based validation pass (no AI)
+        from app.services.validation_service import (
+            validate_product,
+            ai_plausibility_check,
+            detect_conflicts,
+        )
+        val_result = validate_product(db, product.id)
+        logger.info("Validated attributes for product %s: %s", product.id, val_result)
+
+        # 3. AI plausibility check (soft non-blocking pass)
+        plaus_result = ai_plausibility_check(db, product.id)
+        logger.info("AI plausibility for product %s: %s", product.id, plaus_result)
+
+        # 4. Multi-source conflict detection & auto-resolution
+        conflicts = detect_conflicts(db, product.id)
+        logger.info("Conflicts for product %s: %d detected", product.id, len(conflicts))
 
         product.status = "needs_review"
         product.enriched_at = utc_now()
@@ -341,6 +358,9 @@ def enrich_product(db: Session, product_id: int) -> dict[str, Any]:
             "product_id": product_id,
             "attributes_extracted": total_extracted,
             "normalization": norm_result,
+            "validation": val_result,
+            "plausibility": plaus_result,
+            "conflicts_count": len(conflicts),
         }
 
     except Exception as exc:

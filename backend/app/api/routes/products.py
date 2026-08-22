@@ -14,6 +14,7 @@ from app.services.ingestion_service import (
     register_document,
     sanitize_filename,
 )
+from app.utils.time_utils import utc_now
 
 router = APIRouter(
     prefix="/products",
@@ -208,3 +209,69 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
         "status": "success",
         "message": f"Product {product_id} deleted successfully"
     }
+
+
+@router.get("/{product_id}/conflicts")
+def get_product_conflicts(product_id: int, db: Session = Depends(get_db)):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail=f"Product with id {product_id} was not found")
+
+    conflicts = db.query(AttributeConflict).filter(AttributeConflict.product_id == product_id).all()
+    return {
+        "status": "success",
+        "product_id": product_id,
+        "count": len(conflicts),
+        "data": conflicts,
+    }
+
+
+@router.patch("/{product_id}/conflicts/{conflict_id}")
+def resolve_product_conflict(
+    product_id: int,
+    conflict_id: int,
+    payload: dict,
+    db: Session = Depends(get_db)
+):
+    conflict = db.query(AttributeConflict).filter(
+        AttributeConflict.id == conflict_id,
+        AttributeConflict.product_id == product_id
+    ).first()
+
+    if not conflict:
+        raise HTTPException(status_code=404, detail=f"Conflict with id {conflict_id} for product {product_id} was not found")
+
+    resolved_value = payload.get("resolved_value")
+    if resolved_value is None:
+        raise HTTPException(status_code=400, detail="Missing required field 'resolved_value' in request body.")
+
+    conflict.resolution = "human"
+    conflict.resolved_value = str(resolved_value)
+    conflict.resolved_by = "human_curator"
+    conflict.resolved_at = utc_now()
+
+    # Update candidate attribute rows
+    key_attributes = db.query(ProductAttribute).filter(
+        ProductAttribute.product_id == product_id,
+        ProductAttribute.key == conflict.key
+    ).all()
+
+    for attr in key_attributes:
+        if str(attr.value_norm) == str(resolved_value) or str(attr.value_raw) == str(resolved_value):
+            attr.status = "approved"
+            attr.reviewed_by = "human_curator"
+            attr.reviewed_at = utc_now()
+        else:
+            attr.status = "rejected"
+            attr.reviewed_by = "human_curator"
+            attr.reviewed_at = utc_now()
+
+    db.commit()
+    db.refresh(conflict)
+
+    return {
+        "status": "success",
+        "message": f"Conflict on '{conflict.key}' resolved successfully.",
+        "data": conflict
+    }
+
