@@ -423,7 +423,11 @@ def enrich_product(db: Session, product_id: int) -> dict[str, Any]:
         conflicts = detect_conflicts(db, product.id)
         logger.info("Conflicts for product %s: %d detected", product.id, len(conflicts))
 
-        product.status = "needs_review"
+        # 5. Quality scoring (completeness %, confidence %, grade A-D)
+        from app.services.quality_service import compute_product_scores
+        quality_scores = compute_product_scores(db, product.id)
+        logger.info("Quality scores for product %s: %s", product.id, quality_scores)
+
         product.enriched_at = utc_now()
         product.model_used = settings.GEMINI_MODEL
         product.error = None
@@ -437,6 +441,7 @@ def enrich_product(db: Session, product_id: int) -> dict[str, Any]:
             "validation": val_result,
             "plausibility": plaus_result,
             "conflicts_count": len(conflicts),
+            "quality": quality_scores,
         }
 
     except Exception as exc:
