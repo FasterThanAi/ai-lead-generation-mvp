@@ -29,7 +29,7 @@ function Navbar({ pageTitle, collapsed, onMenuClick, onCollapseClick }) {
 
           <div className="min-w-0">
             <p className="text-faint hidden truncate text-[11px] font-semibold uppercase tracking-[0.14em] sm:block">
-              AI Lead Generation
+              SpecForge Core
             </p>
             <h1 className="text-ink truncate text-lg font-semibold tracking-tight sm:text-xl">
               {pageTitle}

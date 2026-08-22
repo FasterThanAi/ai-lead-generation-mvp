@@ -298,3 +298,46 @@ def delete_catalog_schema(catalog_id: int, schema_id: int, db: Session = Depends
     db.commit()
     return {"status": "success", "message": "Schema deleted successfully"}
 
+
+@router.get("/{catalog_id}/export.csv")
+def export_catalog_as_csv(
+    catalog_id: int,
+    approved_only: bool = True,
+    db: Session = Depends(get_db)
+):
+    from fastapi.responses import Response
+    from app.services.export_service import export_catalog_csv
+
+    try:
+        csv_bytes = export_catalog_csv(db, catalog_id, approved_only=approved_only)
+        filename = f"catalog_{catalog_id}_export.csv"
+        return Response(
+            content=csv_bytes,
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.get("/{catalog_id}/export.json")
+def export_catalog_as_json(
+    catalog_id: int,
+    approved_only: bool = True,
+    db: Session = Depends(get_db)
+):
+    from fastapi.responses import Response
+    from app.services.export_service import export_catalog_json
+
+    try:
+        json_bytes = export_catalog_json(db, catalog_id, approved_only=approved_only)
+        filename = f"catalog_{catalog_id}_export.json"
+        return Response(
+            content=json_bytes,
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+

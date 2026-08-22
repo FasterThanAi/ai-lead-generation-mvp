@@ -54,10 +54,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def api_key_guard_middleware(request, call_next):
+    # If API_KEY is configured, enforce X-API-Key header on mutating HTTP methods
+    if settings.API_KEY and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        path = request.url.path
+        if not (path.startswith("/docs") or path.startswith("/openapi.json") or path.startswith("/health")):
+            client_key = request.headers.get("X-API-Key") or request.headers.get("x-api-key")
+            if not client_key or client_key != settings.API_KEY:
+                from fastapi.responses import JSONResponse
+                return JSONResponse(
+                    status_code=401,
+                    content={
+                        "status": "error",
+                        "detail": "Unauthorized. Mutating actions require a valid 'X-API-Key' header."
+                    }
+                )
+
+    return await call_next(request)
+
+
 app.include_router(api_router, prefix="/api")
+
 
 @app.get("/")
 def root():
     return {
         "message": f"{settings.APP_NAME} Backend is running"
     }
+

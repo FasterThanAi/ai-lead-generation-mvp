@@ -1,98 +1,62 @@
 /**
- * Badge — API unchanged. Every variant key from the old map is preserved,
- * now expressed as one of seven semantic tones so both themes stay legible.
+ * Badge — Semantic tone badges supporting all SpecForge quality, validation, and status states.
  */
 
 const toneByVariant = {
-  /* lifecycle */
+  /* lifecycle & product status */
   draft: "neutral",
   pending: "neutral",
-  generated: "info",
-  running: "warn",
-  in_progress: "violet",
-  completed: "success",
+  enriching: "info",
+  needs_review: "warn",
+  proposed: "info",
   approved: "success",
-  converted: "success",
   rejected: "danger",
+  conflicted: "warn",
   failed: "danger",
   archived: "neutral",
   imported: "violet",
-  updated_existing: "info",
-  discovery: "info",
-  queued: "info",
-  sending: "warn",
-  sent: "violet",
-  replied: "success",
+  completed: "success",
 
-  /* calls */
-  ringing: "warn",
-  no_answer: "neutral",
-  canceled: "neutral",
-  asked_details: "info",
-  call_later: "warn",
-  do_not_call: "danger",
-  test: "violet",
-  actual: "success",
+  /* quality grades */
+  a: "success",
+  b: "info",
+  c: "warn",
+  d: "danger",
+  "grade a": "success",
+  "grade b": "info",
+  "grade c": "warn",
+  "grade d": "danger",
 
-  /* discovery target types */
-  professor: "violet",
-  college: "violet",
-  department: "info",
-  company: "neutral",
-  startup: "success",
-  student: "warn",
+  /* extraction methods */
+  pdf: "info",
+  vision: "violet",
+  html: "info",
+  inferred: "warn",
+  text: "neutral",
 
-  /* scoring */
+  /* scoring & confidence */
   high: "success",
   medium: "warn",
   low: "neutral",
-  hot: "pink",
-  warm: "warn",
-  cold: "neutral",
 
-  /* reply intents */
-  interested: "success",
-  "asked for pricing": "info",
-  "asked for more info": "info",
-  "meeting request": "success",
-  "not interested": "danger",
-  "not relevant": "danger",
-  "wrong person": "warn",
-  "out of office": "warn",
-  unsubscribe: "danger",
-  "spam/irrelevant": "neutral",
-  unknown: "neutral",
-
-  /* sentiment */
-  positive: "success",
-  negative: "danger",
-  neutral: "neutral",
-
-  /* generic */
+  /* generic tones */
   success: "success",
   warning: "warn",
+  warn: "warn",
   danger: "danger",
   info: "info",
-
-  /* lead status */
-  new: "info",
-  email_found: "success",
-  email_not_found: "warn",
-  website_missing: "neutral",
-  extraction_failed: "danger",
-  not_researched: "neutral",
-  researching: "warn",
-  researched: "success",
+  violet: "violet",
+  neutral: "neutral",
 };
 
-const dotTones = new Set(["running", "in_progress", "ringing", "sending", "researching", "queued"]);
+const dotTones = new Set(["enriching", "running", "in_progress", "pending"]);
 
-function Badge({ children, variant = "neutral", className = "" }) {
-  const normalizedVariant = String(variant || "neutral").toLowerCase();
-  const tone = toneByVariant[normalizedVariant] || "neutral";
+function Badge({ children, variant = "neutral", tone, className = "" }) {
+  const normalizedVariant = String(tone || variant || "neutral").toLowerCase();
+  const activeTone = toneByVariant[normalizedVariant] || normalizedVariant || "neutral";
 
   return (
-    <span className={["tone", `tone-${tone}`, className].join(" ")}>
+    <span className={["tone", `tone-${activeTone}`, className].join(" ")}>
       {dotTones.has(normalizedVariant) && (
         <span
           aria-hidden="true"

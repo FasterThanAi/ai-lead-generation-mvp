@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ThemeContext } from "./theme-context";
 
-const STORAGE_KEY = "leadagent-theme";
+const STORAGE_KEY = "specforge-theme";
 
 function readStoredTheme() {
   if (typeof window === "undefined") {

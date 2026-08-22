@@ -7,6 +7,7 @@ from app.api.routes import (
     knowledge,
     products,
     quality,
+    schemas,
     sources,
 )
 
@@ -18,5 +19,7 @@ api_router.include_router(catalogs.router)
 api_router.include_router(products.router)
 api_router.include_router(sources.router)
 api_router.include_router(quality.router)
+api_router.include_router(schemas.router)
 api_router.include_router(knowledge.router)
 api_router.include_router(analytics.router)
+

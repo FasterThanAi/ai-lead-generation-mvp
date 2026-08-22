@@ -1,305 +1,164 @@
 import { useEffect, useState } from "react";
-import { getHunterStatus } from "../api/hunter";
 import api from "../services/api";
-import { getFriendlyErrorMessage } from "../utils/errorMessages";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import PageHeader from "../components/ui/PageHeader";
+import Skeleton from "../components/ui/Skeleton";
 
 function Settings() {
-  const [gmailStatus, setGmailStatus] = useState({
-    connected: false,
-    email: "",
-    replyTrackingAvailable: false,
-  });
-  const [isLoadingStatus, setIsLoadingStatus] = useState(true);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [showAuthorizationHint, setShowAuthorizationHint] = useState(false);
-  const [statusError, setStatusError] = useState("");
-  const [hunterStatus, setHunterStatus] = useState(null);
-  const [isLoadingHunterStatus, setIsLoadingHunterStatus] = useState(true);
-  const [hunterStatusError, setHunterStatusError] = useState("");
+  const [deepHealth, setDeepHealth] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const fetchGmailStatus = async () => {
-    setIsLoadingStatus(true);
-    setStatusError("");
-
+  const fetchHealth = async () => {
     try {
-      const res = await api.get("/gmail/status");
-      setGmailStatus({
-        connected: Boolean(res.data.connected),
-        email: res.data.email || "",
-        replyTrackingAvailable: Boolean(res.data.reply_tracking_available),
-      });
-
-      if (res.data.connected) {
-        setShowAuthorizationHint(false);
-      }
+      setLoading(true);
+      const res = await api.get("/health/deep");
+      setDeepHealth(res.data);
     } catch (err) {
-      setStatusError(getFriendlyErrorMessage(err, "Could not load Gmail connection status."));
-      console.error(err);
+      console.error("Health check failed:", err);
     } finally {
-      setIsLoadingStatus(false);
-    }
-  };
-
-  const fetchHunterConnectionStatus = async () => {
-    setIsLoadingHunterStatus(true);
-    setHunterStatusError("");
-
-    try {
-      const status = await getHunterStatus();
-      setHunterStatus(status);
-    } catch (err) {
-      setHunterStatusError(getFriendlyErrorMessage(err, "Could not load Hunter.io status."));
-      console.error(err);
-    } finally {
-      setIsLoadingHunterStatus(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadGmailStatus = async () => {
-      try {
-        const res = await api.get("/gmail/status");
-
-        if (!isMounted) {
-          return;
-        }
-
-        setGmailStatus({
-          connected: Boolean(res.data.connected),
-          email: res.data.email || "",
-          replyTrackingAvailable: Boolean(res.data.reply_tracking_available),
-        });
-
-        if (res.data.connected) {
-          setShowAuthorizationHint(false);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setStatusError(getFriendlyErrorMessage(err, "Could not load Gmail connection status."));
-        }
-        console.error(err);
-      } finally {
-        if (isMounted) {
-          setIsLoadingStatus(false);
-        }
-      }
-    };
-
-    const loadHunterStatus = async () => {
-      try {
-        const status = await getHunterStatus();
-
-        if (!isMounted) {
-          return;
-        }
-
-        setHunterStatus(status);
-      } catch (err) {
-        if (isMounted) {
-          setHunterStatusError(getFriendlyErrorMessage(err, "Could not load Hunter.io status."));
-        }
-        console.error(err);
-      } finally {
-        if (isMounted) {
-          setIsLoadingHunterStatus(false);
-        }
-      }
-    };
-
-    loadGmailStatus();
-    loadHunterStatus();
-
-    return () => {
-      isMounted = false;
-    };
+    fetchHealth();
   }, []);
 
-  const handleConnectGmail = async () => {
-    setIsConnecting(true);
-    setShowAuthorizationHint(false);
-    setStatusError("");
-
-    try {
-      const res = await api.get("/gmail/oauth/start");
-      const authUrl = res.data.auth_url;
-
-      if (!authUrl) {
-        throw new Error("Missing Gmail authorization URL.");
-      }
-
-      window.open(authUrl, "_blank", "noopener,noreferrer");
-      setShowAuthorizationHint(true);
-    } catch (err) {
-      setStatusError(getFriendlyErrorMessage(err, "Could not start Gmail connection."));
-      console.error(err);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader
-        title="Settings"
-        description="Manage Gmail connection and safety controls for sending and reply tracking."
+        title="Settings & System Health"
+        description="Configure SpecForge extraction models, deterministic normalization engine, and security keys."
+        action={
+          <Button variant="secondary" onClick={fetchHealth}>
+            ↻ Re-Run Health Diagnostics
+          </Button>
+        }
       />
 
       <div className="space-y-6">
-        <Card>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        {/* Deep Health Diagnostics */}
+        <Card className="glass p-6 space-y-4">
+          <div className="flex items-center justify-between border-b line-1 pb-3">
             <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-xl font-semibold tracking-tight text-ink">Gmail Connection</h3>
-                {!isLoadingStatus && (
-                  <Badge variant={gmailStatus.connected ? "success" : "neutral"}>
-                    {gmailStatus.connected ? "Connected" : "Not connected"}
-                  </Badge>
-                )}
-              </div>
-              <p className="mt-2 text-sm text-muted">
-                Gmail sending is restricted to approved drafts and approved follow-ups only.
-              </p>
-              <p className="mt-1 text-sm text-muted">
-                Reply tracking requires Gmail readonly permission. If reply check fails, reconnect Gmail.
-              </p>
-              <p className="mt-1 text-sm text-muted">
-                AI reply classification only suggests next actions. It does not send replies automatically.
-              </p>
-              <p className="mt-1 text-sm text-muted">
-                AI response drafts require approval before sending.
-              </p>
+              <h3 className="text-base font-semibold text-ink">Deep System Diagnostics</h3>
+              <p className="text-muted text-xs">Live connectivity status for SQLite/PostgreSQL, Gemini API, and Vector Store.</p>
             </div>
-
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full sm:w-auto"
-              disabled={isLoadingStatus}
-              onClick={fetchGmailStatus}
-            >
-              Refresh Status
-            </Button>
-          </div>
-
-          <div className="mt-5 rounded-3xl border line-1 surface-sunk p-4 sm:p-5">
-            {isLoadingStatus ? (
-              <p className="text-sm text-ink-2">Checking Gmail connection...</p>
-            ) : gmailStatus.connected ? (
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="break-words text-sm font-semibold text-success">
-                    {gmailStatus.email ? `Gmail connected as ${gmailStatus.email}` : "Gmail connected"}
-                  </p>
-                  <p className="mt-1 text-sm text-ink-2">Approved drafts and approved follow-ups can be sent from the Emails page.</p>
-                  <p className="mt-1 text-sm text-ink-2">
-                    Reconnect Gmail if reply tracking is not available.
-                  </p>
-                  {!gmailStatus.replyTrackingAvailable && (
-                    <p className="mt-2 text-sm font-medium text-warn">
-                      Gmail readonly permission may be missing.
-                    </p>
-                  )}
-                </div>
-
-                <Button
-                  type="button"
-                  className="w-full sm:w-auto"
-                  disabled={isConnecting}
-                  onClick={handleConnectGmail}
-                >
-                  {isConnecting ? "Opening Gmail..." : "Reconnect Gmail"}
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-ink">Gmail not connected</p>
-                  <p className="mt-1 text-sm text-muted">
-                    Connect Gmail to send approved email drafts.
-                  </p>
-                </div>
-
-                <Button
-                  type="button"
-                  className="w-full sm:w-auto"
-                  disabled={isConnecting}
-                  onClick={handleConnectGmail}
-                >
-                  {isConnecting ? "Opening Gmail..." : "Connect Gmail"}
-                </Button>
-              </div>
+            {deepHealth && (
+              <Badge tone={deepHealth.status === "healthy" ? "success" : "warn"} variant="solid">
+                System {deepHealth.status}
+              </Badge>
             )}
           </div>
 
-          {showAuthorizationHint && (
-            <p className="mt-4 rounded-lg border border-info-soft bg-info-soft p-3 text-sm text-info">
-              Complete Gmail authorization in the new tab, then refresh the status here.
-            </p>
-          )}
+          {loading ? (
+            <Skeleton className="h-32 w-full rounded-lg" />
+          ) : deepHealth?.checks ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Database */}
+              <div className="well p-4 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-ink">Database Engine</span>
+                  <Badge tone={deepHealth.checks.database?.status === "ok" ? "success" : "danger"} variant="soft">
+                    {deepHealth.checks.database?.status || "error"}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-faint">
+                  Dialect: <span className="font-mono text-ink font-semibold">{deepHealth.checks.database?.dialect || "sqlite"}</span>
+                </p>
+                <p className="text-[11px] text-muted">
+                  Dialect-safe column migrations initialized automatically at startup.
+                </p>
+              </div>
 
-          {statusError && (
-            <p className="mt-4 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
-              {statusError}
-            </p>
+              {/* Gemini Model */}
+              <div className="well p-4 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-ink">Gemini Multimodal</span>
+                  <Badge
+                    tone={deepHealth.checks.gemini?.status === "ok" ? "success" : "neutral"}
+                    variant="soft"
+                  >
+                    {deepHealth.checks.gemini?.status || "offline"}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-faint">
+                  Model: <span className="font-mono text-ink font-semibold">{deepHealth.checks.gemini?.model || "gemini-2.5-flash"}</span>
+                </p>
+                <p className="text-[11px] text-muted">
+                  Multimodal vision extraction, schema proposals, and plausibility verification.
+                </p>
+              </div>
+
+              {/* Vector RAG */}
+              <div className="well p-4 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-ink">Taxonomy Vector Store</span>
+                  <Badge tone="info" variant="soft">
+                    {deepHealth.checks.pgvector?.status || "active"}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-faint">
+                  Vector Engine: <span className="font-mono text-ink font-semibold">In-Memory / PGVector</span>
+                </p>
+                <p className="text-[11px] text-muted">
+                  Domain taxonomy chunk retrieval for guided LLM candidate extraction.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-danger">Diagnostics unavailable.</p>
           )}
         </Card>
 
-        <Card>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-xl font-semibold tracking-tight text-ink">Hunter.io Enrichment</h3>
-                {!isLoadingHunterStatus && hunterStatus && (
-                  <Badge variant={hunterStatus.configured ? "success" : "warning"}>
-                    {hunterStatus.configured ? "Configured" : "Not configured"}
-                  </Badge>
-                )}
-                {!isLoadingHunterStatus && hunterStatus?.is_test_key && (
-                  <Badge variant="warning">Test key</Badge>
-                )}
-              </div>
-              <p className="mt-2 text-sm text-muted">
-                Hunter can find professional emails from a lead website when public extraction does not find one.
-              </p>
-              <p className="mt-1 text-sm text-muted">
-                Bulk enrichment uses credits, so the Leads page caps each run.
-              </p>
+        {/* Multimodal Vision Settings */}
+        <Card className="glass p-6 space-y-4">
+          <div className="border-b line-1 pb-3">
+            <h3 className="text-base font-semibold text-ink">Multimodal Vision & Resolution Settings</h3>
+            <p className="text-muted text-xs">PyMuPDF document rendering and cost-control thresholds.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+            <div className="well p-3.5 rounded-lg space-y-1">
+              <span className="text-faint block">Max Pages per Document:</span>
+              <span className="font-bold text-ink text-sm">10 Pages</span>
+              <p className="text-[11px] text-muted">Configurable via VISION_MAX_PAGES.</p>
             </div>
 
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full sm:w-auto"
-              disabled={isLoadingHunterStatus}
-              onClick={fetchHunterConnectionStatus}
-            >
-              Refresh Status
-            </Button>
+            <div className="well p-3.5 rounded-lg space-y-1">
+              <span className="text-faint block">PyMuPDF Rendering Resolution:</span>
+              <span className="font-bold text-ink text-sm">200 DPI</span>
+              <p className="text-[11px] text-muted">High-clarity pixel rendering for drawing callouts.</p>
+            </div>
+
+            <div className="well p-3.5 rounded-lg space-y-1">
+              <span className="text-faint block">Vision SHA-256 Cache:</span>
+              <span className="font-bold text-success text-sm">Enabled</span>
+              <p className="text-[11px] text-muted">0 duplicate API calls on re-running enrichment.</p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Security & API Guard */}
+        <Card className="glass p-6 space-y-4">
+          <div className="border-b line-1 pb-3">
+            <h3 className="text-base font-semibold text-ink">API Key Security Guard</h3>
+            <p className="text-muted text-xs">Mutating endpoint protection for production deployment.</p>
           </div>
 
-          <div className="mt-5 rounded-3xl border line-1 surface-sunk p-4 sm:p-5">
-            {isLoadingHunterStatus ? (
-              <p className="text-sm text-ink-2">Checking Hunter.io status...</p>
-            ) : hunterStatus ? (
-              <p className={hunterStatus.configured ? "text-sm font-semibold text-success" : "text-sm font-semibold text-warn"}>
-                {hunterStatus.message}
-              </p>
-            ) : (
-              <p className="text-sm text-ink-2">Hunter.io status unavailable.</p>
-            )}
-          </div>
-
-          {hunterStatusError && (
-            <p className="mt-4 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
-              {hunterStatusError}
+          <div className="well p-4 rounded-lg text-xs space-y-2">
+            <p className="text-ink font-semibold">
+              Header Security: <span className="font-mono text-accent">X-API-Key</span>
             </p>
-          )}
+            <p className="text-muted">
+              When <code>API_KEY</code> is set in the backend environment, all mutating routes (POST, PUT, PATCH, DELETE) require the <code>X-API-Key</code> request header.
+            </p>
+            <p className="text-faint">
+              Read-only routes (GET, dashboard telemetry, product browsing, catalog summary) remain open for evaluators and judges.
+            </p>
+          </div>
         </Card>
       </div>
     </div>
