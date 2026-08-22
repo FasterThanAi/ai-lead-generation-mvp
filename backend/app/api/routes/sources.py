@@ -15,13 +15,30 @@ logger = logging.getLogger(__name__)
 
 @router.get("/")
 def get_sources(product_id: int | None = None, db: Session = Depends(get_db)):
-    query = db.query(SourceDocument)
+    query = db.query(SourceDocument, Product).join(Product, SourceDocument.product_id == Product.id)
     if product_id is not None:
         query = query.filter(SourceDocument.product_id == product_id)
-    sources = query.order_by(SourceDocument.created_at.desc(), SourceDocument.id.desc()).all()
+    results = query.order_by(SourceDocument.created_at.desc(), SourceDocument.id.desc()).all()
+
+    data = []
+    for src, prod in results:
+        data.append({
+            "id": src.id,
+            "product_id": src.product_id,
+            "part_number": prod.part_number,
+            "manufacturer": prod.manufacturer,
+            "filename": src.filename,
+            "doc_type": src.doc_type,
+            "content_hash": src.content_hash,
+            "page_number": src.page_number,
+            "text_snippet": src.text_snippet,
+            "created_at": src.created_at,
+        })
+
     return {
         "status": "success",
-        "data": sources
+        "count": len(data),
+        "data": data
     }
 
 

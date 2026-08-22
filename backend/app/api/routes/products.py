@@ -275,3 +275,129 @@ def resolve_product_conflict(
         "data": conflict
     }
 
+
+@router.get("/review-queue/items")
+def get_review_queue_items(
+    catalog_id: int | None = None,
+    limit: int = 100,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    query = (
+        db.query(ProductAttribute, Product, SourceDocument)
+        .join(Product, ProductAttribute.product_id == Product.id)
+        .outerjoin(SourceDocument, ProductAttribute.source_id == SourceDocument.id)
+        .filter(ProductAttribute.status.in_(["proposed", "conflicted"]))
+    )
+
+    if catalog_id:
+        query = query.filter(Product.catalog_id == catalog_id)
+
+    # Order by confidence ascending (worst first)
+    total_count = query.count()
+    results = query.order_by(ProductAttribute.confidence.asc(), ProductAttribute.id.asc()).offset(offset).limit(limit).all()
+
+    items = []
+    for attr, prod, src in results:
+        items.append({
+            "id": attr.id,
+            "product_id": prod.id,
+            "part_number": prod.part_number,
+            "manufacturer": prod.manufacturer,
+            "category": prod.category,
+            "catalog_id": prod.catalog_id,
+            "key": attr.key,
+            "value_raw": attr.value_raw,
+            "value_norm": attr.value_norm,
+            "unit": attr.unit,
+            "confidence": attr.confidence,
+            "status": attr.status,
+            "extraction_method": attr.extraction_method,
+            "page_number": attr.page_number or (src.page_number if src else None),
+            "validation_flags": attr.validation_flags,
+            "source_id": attr.source_id,
+            "source_filename": src.filename if src else None,
+            "source_snippet": src.text_snippet if src else None,
+        })
+
+    return {
+        "status": "success",
+        "total": total_count,
+        "count": len(items),
+        "data": items,
+    }
+
+
+@router.patch("/attributes/{attribute_id}")
+def update_attribute_status(
+    attribute_id: int,
+    payload: dict,
+    db: Session = Depends(get_db)
+):
+    attr = db.query(ProductAttribute).filter(ProductAttribute.id == attribute_id).first()
+    if not attr:
+        raise HTTPException(status_code=404, detail=f"Attribute {attribute_id} not found")
+
+    if "status" in payload:
+        attr.status = payload["status"]
+    if "value_norm" in payload:
+        attr.value_norm = str(payload["value_norm"]) if payload["value_norm"] is not None else None
+    if "unit" in payload:
+        attr.unit = payload["unit"]
+
+    attr.reviewed_by = "human_curator"
+    attr.reviewed_at = utc_now()
+    db.commit()
+
+    # Re-compute product quality scores
+    from app.services.quality_service import compute_product_scores
+    scores = compute_product_scores(db, attr.product_id)
+
+    return {
+        "status": "success",
+        "data": attr,
+        "product_scores": scores,
+    }
+
+
+@router.post("/attributes/bulk-approve")
+def bulk_approve_attributes(
+    payload: dict,
+    db: Session = Depends(get_db)
+):
+    attr_ids = payload.get("attribute_ids", [])
+    min_confidence = payload.get("min_confidence")
+    catalog_id = payload.get("catalog_id")
+
+    query = db.query(ProductAttribute).filter(ProductAttribute.status == "proposed")
+
+    if attr_ids:
+        query = query.filter(ProductAttribute.id.in_(attr_ids))
+    elif min_confidence is not None:
+        query = query.filter(ProductAttribute.confidence >= int(min_confidence))
+        if catalog_id:
+            query = query.join(Product).filter(Product.catalog_id == catalog_id)
+
+    attributes_to_approve = query.all()
+    affected_product_ids = set()
+
+    for attr in attributes_to_approve:
+        attr.status = "approved"
+        attr.reviewed_by = "bulk_curator"
+        attr.reviewed_at = utc_now()
+        affected_product_ids.add(attr.product_id)
+
+    db.commit()
+
+    # Re-score all affected products
+    from app.services.quality_service import compute_product_scores
+    for pid in affected_product_ids:
+        compute_product_scores(db, pid)
+
+    return {
+        "status": "success",
+        "approved_count": len(attributes_to_approve),
+        "affected_products": len(affected_product_ids),
+    }
+
+

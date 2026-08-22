@@ -5,20 +5,23 @@ import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import ThemeProvider from "./theme/ThemeProvider";
 import Dashboard from "./pages/Dashboard";
-import Campaigns from "./pages/Campaigns";
-import Opportunities from "./pages/Opportunities";
-import LeadDiscovery from "./pages/LeadDiscovery";
-import Leads from "./pages/Leads";
+import Catalogs from "./pages/Catalogs";
+import Products from "./pages/Products";
+import ProductDetail from "./pages/ProductDetail";
+import Sources from "./pages/Sources";
+import Review from "./pages/Review";
+import Schema from "./pages/Schema";
 import Knowledge from "./pages/Knowledge";
 import Settings from "./pages/Settings";
 
 const pageTitles = {
   "/": "Dashboard",
-  "/campaigns": "Campaigns",
-  "/opportunities": "Opportunities",
-  "/discovery": "Lead Discovery",
-  "/leads": "Leads",
-  "/knowledge": "Knowledge",
+  "/catalogs": "Catalogs",
+  "/products": "Products",
+  "/sources": "Source Documents",
+  "/review": "Review Queue",
+  "/schema": "Schema Editor",
+  "/knowledge": "Knowledge Base",
   "/settings": "Settings",
 };
 
@@ -33,12 +36,13 @@ function AppShell() {
   const location = useLocation();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const pageTitle = useMemo(
-    () => pageTitles[location.pathname] || "AI Lead Generation",
-    [location.pathname]
-  );
+  
+  const pageTitle = useMemo(() => {
+    if (location.pathname.startsWith("/products/")) return "Product Detail";
+    return pageTitles[location.pathname] || "SpecForge";
+  }, [location.pathname]);
 
-  // lock body scroll while the mobile drawer is open
+  // Lock body scroll while the mobile drawer is open
   useEffect(() => {
     document.body.style.overflow = isMobileSidebarOpen ? "hidden" : "";
     return () => {
@@ -90,10 +94,12 @@ function AppShell() {
               <motion.div key={location.pathname} {...pageTransition}>
                 <Routes location={location}>
                   <Route path="/" element={<Dashboard />} />
-                  <Route path="/campaigns" element={<Campaigns />} />
-                  <Route path="/opportunities" element={<Opportunities />} />
-                  <Route path="/discovery" element={<LeadDiscovery />} />
-                  <Route path="/leads" element={<Leads />} />
+                  <Route path="/catalogs" element={<Catalogs />} />
+                  <Route path="/products" element={<Products />} />
+                  <Route path="/products/:id" element={<ProductDetail />} />
+                  <Route path="/sources" element={<Sources />} />
+                  <Route path="/review" element={<Review />} />
+                  <Route path="/schema" element={<Schema />} />
                   <Route path="/knowledge" element={<Knowledge />} />
                   <Route path="/settings" element={<Settings />} />
                 </Routes>

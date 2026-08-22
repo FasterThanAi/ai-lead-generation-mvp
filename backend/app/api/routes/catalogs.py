@@ -225,3 +225,76 @@ def get_catalog_summary(catalog_id: int, db: Session = Depends(get_db)):
             "mean_confidence": round(float(mean_confidence), 1),
         }
     }
+
+
+@router.get("/{catalog_id}/schemas")
+def list_catalog_schemas(catalog_id: int, db: Session = Depends(get_db)):
+    catalog = db.query(Catalog).filter(Catalog.id == catalog_id).first()
+    if not catalog:
+        raise HTTPException(status_code=404, detail=f"Catalog {catalog_id} not found")
+
+    schemas = db.query(AttributeSchema).filter(AttributeSchema.catalog_id == catalog_id).all()
+    return {
+        "status": "success",
+        "count": len(schemas),
+        "data": schemas
+    }
+
+
+@router.post("/{catalog_id}/schemas")
+def create_or_update_schema(
+    catalog_id: int,
+    payload: dict,
+    db: Session = Depends(get_db)
+):
+    catalog = db.query(Catalog).filter(Catalog.id == catalog_id).first()
+    if not catalog:
+        raise HTTPException(status_code=404, detail=f"Catalog {catalog_id} not found")
+
+    category_name = payload.get("category_name")
+    if not category_name:
+        raise HTTPException(status_code=400, detail="Missing category_name")
+
+    attributes = payload.get("attributes", [])
+    if isinstance(attributes, list):
+        attributes_str = json.dumps(attributes)
+    else:
+        attributes_str = str(attributes)
+
+    existing = db.query(AttributeSchema).filter(
+        AttributeSchema.catalog_id == catalog_id,
+        AttributeSchema.category_name.ilike(category_name.strip())
+    ).first()
+
+    if existing:
+        existing.attributes = attributes_str
+        existing.updated_at = utc_now()
+        db.commit()
+        db.refresh(existing)
+        return {"status": "success", "message": "Schema updated", "data": existing}
+    else:
+        new_schema = AttributeSchema(
+            catalog_id=catalog_id,
+            category_name=category_name.strip(),
+            attributes=attributes_str,
+        )
+        db.add(new_schema)
+        db.commit()
+        db.refresh(new_schema)
+        return {"status": "success", "message": "Schema created", "data": new_schema}
+
+
+@router.delete("/{catalog_id}/schemas/{schema_id}")
+def delete_catalog_schema(catalog_id: int, schema_id: int, db: Session = Depends(get_db)):
+    schema = db.query(AttributeSchema).filter(
+        AttributeSchema.id == schema_id,
+        AttributeSchema.catalog_id == catalog_id
+    ).first()
+
+    if not schema:
+        raise HTTPException(status_code=404, detail="Schema not found")
+
+    db.delete(schema)
+    db.commit()
+    return {"status": "success", "message": "Schema deleted successfully"}
+

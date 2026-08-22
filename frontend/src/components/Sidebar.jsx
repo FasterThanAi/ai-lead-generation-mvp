@@ -13,32 +13,37 @@ const navGroups = [
     ],
   },
   {
-    label: "Plan",
+    label: "Catalog",
     items: [
       {
-        to: "/campaigns",
-        label: "Campaigns",
+        to: "/catalogs",
+        label: "Catalogs",
         icon: "M5 5.5A2.5 2.5 0 0 1 7.5 3h9A2.5 2.5 0 0 1 19 5.5v13A2.5 2.5 0 0 1 16.5 21h-9A2.5 2.5 0 0 1 5 18.5v-13ZM8 7h8M8 11h8M8 15h5",
       },
       {
-        to: "/opportunities",
-        label: "Opportunities",
-        icon: "M12 3l1.6 5h5.2l-4.2 3 1.6 5-4.2-3-4.2 3 1.6-5-4.2-3h5.2L12 3Zm-6 16h12",
+        to: "/products",
+        label: "Products",
+        icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
+      },
+      {
+        to: "/sources",
+        label: "Source Documents",
+        icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8",
       },
     ],
   },
   {
-    label: "Source",
+    label: "Curation & Rules",
     items: [
       {
-        to: "/discovery",
-        label: "Lead Discovery",
-        icon: "M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v7A2.5 2.5 0 0 1 17.5 15H13l-4 5v-5H6.5A2.5 2.5 0 0 1 4 12.5v-7Zm4 2.5h8M8 11h5",
+        to: "/review",
+        label: "Review Queue",
+        icon: "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11",
       },
       {
-        to: "/leads",
-        label: "Leads",
-        icon: "M16 11a4 4 0 1 0-8 0m8 0a4 4 0 1 1-8 0m8 0v1a4 4 0 0 1-8 0v-1m-3 9a7 7 0 0 1 14 0",
+        to: "/schema",
+        label: "Schema Editor",
+        icon: "M4 6h16M4 12h16m-7 6h7M7 16l-3 3 3 3",
       },
     ],
   },
@@ -47,7 +52,7 @@ const navGroups = [
     items: [
       {
         to: "/knowledge",
-        label: "Knowledge",
+        label: "Knowledge Base",
         icon: "M5 5.5A2.5 2.5 0 0 1 7.5 3H20v15.5A2.5 2.5 0 0 1 17.5 21h-10A2.5 2.5 0 0 1 5 18.5v-13Zm0 0A2.5 2.5 0 0 1 7.5 8H20M9 12h7M9 15h5",
       },
       {
@@ -90,10 +95,11 @@ function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse }) {
       {/* ---- brand ---- */}
       <div className="flex h-[72px] shrink-0 items-center justify-between gap-3 px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="bg-accent relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-[13px] font-bold shadow-glow"
+          <div
+            className="bg-accent relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-[13px] font-bold shadow-glow"
             style={{ color: "var(--text-on-accent)" }}
           >
-            LA
+            SF
             <span
               aria-hidden="true"
               className="absolute inset-0 rounded-2xl opacity-60 blur-md"
@@ -110,8 +116,8 @@ function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse }) {
                 transition={{ duration: 0.2 }}
                 className="min-w-0"
               >
-                <p className="text-ink truncate text-sm font-semibold tracking-tight">Lead Agent</p>
-                <p className="text-faint truncate text-[11px]">Outreach MVP</p>
+                <p className="text-ink truncate text-sm font-semibold tracking-tight">SpecForge</p>
+                <p className="text-faint truncate text-[11px]">Product Intelligence</p>
               </motion.div>
             )}
           </AnimatePresence>
