@@ -79,7 +79,9 @@ class Settings:
     DB_POOL_TIMEOUT: int = get_int_env("DB_POOL_TIMEOUT", 30)
     DB_POOL_RECYCLE: int = get_int_env("DB_POOL_RECYCLE", 1800)
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "").strip() or "gemini-flash-latest"
+    if GEMINI_MODEL == "gemini-2.5-flash":
+        GEMINI_MODEL = "gemini-flash-latest"
     EMBEDDING_MODEL: str = get_embedding_model_env()
     EMBEDDING_DIMENSION: int = get_embedding_dimension_env(EMBEDDING_MODEL)
     ENABLE_SEMANTIC_RAG: bool = get_bool_env("ENABLE_SEMANTIC_RAG", True)

@@ -12,28 +12,18 @@ if backend_dir not in sys.path:
 
 from app.core.config import settings
 from app.db.database import Base, SessionLocal, engine
-from app.db.database_utils import (
-    ensure_catalog_columns,
-    ensure_attribute_schema_columns,
-    ensure_product_columns,
-    ensure_source_document_columns,
-    ensure_product_attribute_columns,
-    ensure_attribute_conflict_columns,
-    ensure_enrichment_job_columns,
-    ensure_company_knowledge_columns,
-    ensure_knowledge_document_columns,
-    ensure_company_knowledge_embedding_columns,
-)
 from app.db.models import (
     AttributeConflict,
     AttributeSchema,
     Catalog,
+    CompanyKnowledge,
+    EnrichmentJob,
+    KnowledgeDocument,
     Product,
     ProductAttribute,
     SourceDocument,
 )
 from app.services.ingestion_service import ingest_products, parse_product_csv, register_document
-from app.services.extraction_service import enrich_product
 from app.services.quality_service import compute_product_scores, score_catalog
 from app.utils.time_utils import utc_now
 
@@ -44,24 +34,24 @@ logger = logging.getLogger("seed_demo")
 def run_seed(reset: bool = False):
     logger.info("Starting SpecForge Demo Seeding (reset=%s)...", reset)
 
-    if reset:
-        logger.info("Dropping existing tables and rebuilding schema...")
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
-        ensure_catalog_columns(engine)
-        ensure_attribute_schema_columns(engine)
-        ensure_product_columns(engine)
-        ensure_source_document_columns(engine)
-        ensure_product_attribute_columns(engine)
-        ensure_attribute_conflict_columns(engine)
-        ensure_enrichment_job_columns(engine)
-        ensure_company_knowledge_columns(engine)
-        ensure_knowledge_document_columns(engine)
-        ensure_company_knowledge_embedding_columns(engine)
+    # Ensure tables exist
+    Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
 
     try:
+        if reset:
+            logger.info("Resetting existing catalog records...")
+            db.query(AttributeConflict).delete()
+            db.query(ProductAttribute).delete()
+            db.query(SourceDocument).delete()
+            db.query(EnrichmentJob).delete()
+            db.query(Product).delete()
+            db.query(AttributeSchema).delete()
+            db.query(Catalog).delete()
+            db.commit()
+            logger.info("Cleared existing records successfully.")
+
         # 1. Create or Find Catalog
         catalog_name = "Industrial Valves & Fittings"
         catalog = db.query(Catalog).filter(Catalog.name == catalog_name).first()
@@ -134,7 +124,6 @@ def run_seed(reset: bool = False):
             with open(pdf_path, "rb") as f:
                 pdf_bytes = f.read()
 
-            # Match part number in filename
             matched_prod = None
             for sku, prod in prod_map.items():
                 if sku in filename:
@@ -142,7 +131,7 @@ def run_seed(reset: bool = False):
                     break
 
             if matched_prod:
-                source_doc = register_document(
+                register_document(
                     db=db,
                     product_id=matched_prod.id,
                     filename=filename,
@@ -150,9 +139,9 @@ def run_seed(reset: bool = False):
                 )
                 logger.info("Registered Spec Doc '%s' to SKU '%s'", filename, matched_prod.part_number)
 
-        # 5. Run Enrichment Pipeline (or populate rich demo fixtures if GEMINI_API_KEY is unset)
+        # 5. Populate structured product attributes
         demo_attributes_fixture = {
-            "70-104-01": [
+            "MFC-70-104-01": [
                 {"key": "body_material", "value_raw": "Cast Bronze ASTM B584", "value_norm": "bronze", "unit": None, "confidence": 95},
                 {"key": "size_nominal", "value_raw": "1/2 in. (12.7 mm)", "value_norm": "12.7", "unit": "mm", "confidence": 98},
                 {"key": "pressure_rating", "value_raw": "600 CWP", "value_norm": "600", "unit": "psi", "confidence": 95},
@@ -162,14 +151,170 @@ def run_seed(reset: bool = False):
                 {"key": "temp_range_max", "value_raw": "450 deg F", "value_norm": "232.2222", "unit": "C", "confidence": 90},
                 {"key": "actuation_type", "value_raw": "Steel Lever Handle", "value_norm": "lever_handle", "unit": None, "confidence": 88},
             ],
+            "MFC-70-105-01": [
+                {"key": "body_material", "value_raw": "Cast Bronze", "value_norm": "bronze", "unit": None, "confidence": 95},
+                {"key": "size_nominal", "value_raw": "3/4 in", "value_norm": "19.05", "unit": "mm", "confidence": 98},
+                {"key": "pressure_rating", "value_raw": "600 PSI CWP", "value_norm": "600", "unit": "psi", "confidence": 95},
+                {"key": "end_connection", "value_raw": "FNPT", "value_norm": "npt_female", "unit": None, "confidence": 95},
+                {"key": "port_type", "value_raw": "Standard Port", "value_norm": "standard_port", "unit": None, "confidence": 92},
+            ],
+            "MFC-70-106-01": [
+                {"key": "body_material", "value_raw": "Bronze", "value_norm": "bronze", "unit": None, "confidence": 95},
+                {"key": "size_nominal", "value_raw": "1 in", "value_norm": "25.4", "unit": "mm", "confidence": 98},
+                {"key": "pressure_rating", "value_raw": "600 CWP", "value_norm": "600", "unit": "psi", "confidence": 95},
+                {"key": "end_connection", "value_raw": "NPT Female", "value_norm": "npt_female", "unit": None, "confidence": 95},
+                {"key": "port_type", "value_raw": "Standard Port", "value_norm": "standard_port", "unit": None, "confidence": 90},
+            ],
+            "CVW-316-050-F": [
+                {"key": "body_material", "value_raw": "316 Stainless Steel", "value_norm": "stainless_316", "unit": None, "confidence": 96},
+                {"key": "size_nominal", "value_raw": "1/2 in.", "value_norm": "12.7", "unit": "mm", "confidence": 98},
+                {"key": "pressure_rating", "value_raw": "1000 WOG", "value_norm": "1000", "unit": "psi", "confidence": 95},
+                {"key": "end_connection", "value_raw": "NPT Female", "value_norm": "npt_female", "unit": None, "confidence": 95},
+                {"key": "port_type", "value_raw": "Full Port", "value_norm": "full_port", "unit": None, "confidence": 95},
+            ],
+            "CVW-316-075-F": [
+                {"key": "body_material", "value_raw": "316 Stainless Steel", "value_norm": "stainless_316", "unit": None, "confidence": 96},
+                {"key": "size_nominal", "value_raw": "3/4 in.", "value_norm": "19.05", "unit": "mm", "confidence": 98},
+                {"key": "pressure_rating", "value_raw": "1000 WOG", "value_norm": "1000", "unit": "psi", "confidence": 95},
+                {"key": "end_connection", "value_raw": "NPT Female", "value_norm": "npt_female", "unit": None, "confidence": 95},
+                {"key": "port_type", "value_raw": "Full Port", "value_norm": "full_port", "unit": None, "confidence": 95},
+            ],
+            "CVW-316-100-F": [
+                {"key": "body_material", "value_raw": "316 Stainless Steel", "value_norm": "stainless_316", "unit": None, "confidence": 96},
+                {"key": "size_nominal", "value_raw": "1 in.", "value_norm": "25.4", "unit": "mm", "confidence": 98},
+                {"key": "pressure_rating", "value_raw": "1000 WOG", "value_norm": "1000", "unit": "psi", "confidence": 95},
+                {"key": "end_connection", "value_raw": "NPT Female", "value_norm": "npt_female", "unit": None, "confidence": 95},
+                {"key": "port_type", "value_raw": "Full Port", "value_norm": "full_port", "unit": None, "confidence": 95},
+            ],
+            "CVW-CS-200-FL": [
+                {"key": "body_material", "value_raw": "Carbon Steel ASTM A216 WCB", "value_norm": "carbon_steel", "unit": None, "confidence": 95},
+                {"key": "size_nominal", "value_raw": "2 in.", "value_norm": "50.8", "unit": "mm", "confidence": 98},
+                {"key": "pressure_rating", "value_raw": "Class 150 (285 psi)", "value_norm": "285", "unit": "psi", "confidence": 92},
+                {"key": "end_connection", "value_raw": "Flanged 150#", "value_norm": "flanged_150", "unit": None, "confidence": 95},
+            ],
+            "CVW-PVC-150-S": [
+                {"key": "body_material", "value_raw": "Industrial Grade PVC", "value_norm": "pvc", "unit": None, "confidence": 95},
+                {"key": "size_nominal", "value_raw": "1-1/2 in.", "value_norm": "38.1", "unit": "mm", "confidence": 98},
+                {"key": "pressure_rating", "value_raw": "150 PSI @ 73F", "value_norm": "150", "unit": "psi", "confidence": 95},
+                {"key": "end_connection", "value_raw": "Socket Weld", "value_norm": "socket_weld", "unit": None, "confidence": 92},
+            ],
+            "VLI-213-25-030": [
+                {"key": "dial_size", "value_raw": "2.5 in", "value_norm": "63.5", "unit": "mm", "confidence": 95},
+                {"key": "pressure_range_max", "value_raw": "30 psi", "value_norm": "30", "unit": "psi", "confidence": 95},
+                {"key": "connection_size", "value_raw": "1/4 in NPT", "value_norm": "6.35", "unit": "mm", "confidence": 95},
+                {"key": "connection_type", "value_raw": "1/4 in NPT Male", "value_norm": "npt_male", "unit": None, "confidence": 95},
+                {"key": "case_material", "value_raw": "Brass", "value_norm": "brass", "unit": None, "confidence": 92},
+                {"key": "liquid_filled", "value_raw": "false", "value_norm": "false", "unit": None, "confidence": 90},
+            ],
+            "VLI-232-25-100": [
+                {"key": "dial_size", "value_raw": "2.5 in (63 mm)", "value_norm": "63.5", "unit": "mm", "confidence": 95},
+                {"key": "pressure_range_max", "value_raw": "100 psi", "value_norm": "100", "unit": "psi", "confidence": 95},
+                {"key": "connection_size", "value_raw": "1/4 in NPT", "value_norm": "6.35", "unit": "mm", "confidence": 95},
+                {"key": "connection_type", "value_raw": "1/4 in NPT Male", "value_norm": "npt_male", "unit": None, "confidence": 95},
+                {"key": "case_material", "value_raw": "304 Stainless Steel", "value_norm": "stainless_304", "unit": None, "confidence": 95},
+                {"key": "liquid_filled", "value_raw": "Glycerin Fillable", "value_norm": "false", "unit": None, "confidence": 88},
+            ],
+            "VLI-232-25-160": [
+                {"key": "dial_size", "value_raw": "2.5 in", "value_norm": "63.5", "unit": "mm", "confidence": 95},
+                {"key": "pressure_range_max", "value_raw": "160 psi", "value_norm": "160", "unit": "psi", "confidence": 95},
+                {"key": "connection_size", "value_raw": "1/4 in NPT", "value_norm": "6.35", "unit": "mm", "confidence": 95},
+                {"key": "connection_type", "value_raw": "1/4 in NPT Male", "value_norm": "npt_male", "unit": None, "confidence": 95},
+                {"key": "case_material", "value_raw": "304 Stainless Steel", "value_norm": "stainless_304", "unit": None, "confidence": 95},
+            ],
+            "VLI-232-40-300": [
+                {"key": "dial_size", "value_raw": "4.0 in", "value_norm": "101.6", "unit": "mm", "confidence": 95},
+                {"key": "pressure_range_max", "value_raw": "300 psi", "value_norm": "300", "unit": "psi", "confidence": 95},
+                {"key": "connection_size", "value_raw": "1/2 in NPT", "value_norm": "12.7", "unit": "mm", "confidence": 95},
+                {"key": "connection_type", "value_raw": "1/2 in NPT Male", "value_norm": "npt_male", "unit": None, "confidence": 95},
+                {"key": "case_material", "value_raw": "316 Stainless Steel", "value_norm": "stainless_316", "unit": None, "confidence": 95},
+                {"key": "liquid_filled", "value_raw": "Liquid Filled (Glycerin)", "value_norm": "true", "unit": None, "confidence": 95},
+            ],
+            "PPX-100-20-060": [
+                {"key": "dial_size", "value_raw": "2.0 in", "value_norm": "50.8", "unit": "mm", "confidence": 95},
+                {"key": "pressure_range_max", "value_raw": "60 psi", "value_norm": "60", "unit": "psi", "confidence": 95},
+                {"key": "connection_size", "value_raw": "1/4 in NPT", "value_norm": "6.35", "unit": "mm", "confidence": 95},
+                {"key": "connection_type", "value_raw": "1/4 in NPT Male", "value_norm": "npt_male", "unit": None, "confidence": 95},
+            ],
+            "PPX-100-25-200": [
+                {"key": "dial_size", "value_raw": "2.5 in", "value_norm": "63.5", "unit": "mm", "confidence": 95},
+                {"key": "pressure_range_max", "value_raw": "200 psi", "value_norm": "200", "unit": "psi", "confidence": 95},
+                {"key": "connection_size", "value_raw": "1/4 in NPT", "value_norm": "6.35", "unit": "mm", "confidence": 95},
+                {"key": "connection_type", "value_raw": "1/4 in NPT Male", "value_norm": "npt_male", "unit": None, "confidence": 95},
+            ],
+            "PPX-400-40-600": [
+                {"key": "dial_size", "value_raw": "4.0 in", "value_norm": "101.6", "unit": "mm", "confidence": 95},
+                {"key": "pressure_range_max", "value_raw": "600 psi", "value_norm": "600", "unit": "psi", "confidence": 95},
+                {"key": "connection_size", "value_raw": "1/2 in NPT", "value_norm": "12.7", "unit": "mm", "confidence": 95},
+                {"key": "connection_type", "value_raw": "1/2 in NPT Male", "value_norm": "npt_male", "unit": None, "confidence": 95},
+            ],
+            "PPX-VAC-25-030": [
+                {"key": "dial_size", "value_raw": "2.5 in", "value_norm": "63.5", "unit": "mm", "confidence": 95},
+                {"key": "pressure_range_max", "value_raw": "30 psi", "value_norm": "30", "unit": "psi", "confidence": 90},
+                {"key": "connection_size", "value_raw": "1/4 in NPT", "value_norm": "6.35", "unit": "mm", "confidence": 95},
+                {"key": "connection_type", "value_raw": "1/4 in NPT Male", "value_norm": "npt_male", "unit": None, "confidence": 95},
+            ],
+            "IFC-150-EL45-100": [
+                {"key": "fitting_type", "value_raw": "Street Elbow 45 Degree", "value_norm": "street_elbow", "unit": None, "confidence": 95},
+                {"key": "material", "value_raw": "316 Stainless Steel", "value_norm": "stainless_316", "unit": None, "confidence": 95},
+                {"key": "thread_size", "value_raw": "1 in. NPT", "value_norm": "25.4", "unit": "mm", "confidence": 95},
+                {"key": "pressure_class", "value_raw": "150# (300 psi)", "value_norm": "300", "unit": "psi", "confidence": 92},
+                {"key": "end_connection", "value_raw": "Male x Female NPT", "value_norm": "npt_male", "unit": None, "confidence": 95},
+            ],
+            "IFC-150-EL90-050": [
+                {"key": "fitting_type", "value_raw": "90 Degree Pipe Elbow", "value_norm": "street_elbow", "unit": None, "confidence": 95},
+                {"key": "material", "value_raw": "316 Stainless Steel", "value_norm": "stainless_316", "unit": None, "confidence": 95},
+                {"key": "thread_size", "value_raw": "1/2 in. NPT", "value_norm": "12.7", "unit": "mm", "confidence": 95},
+                {"key": "pressure_class", "value_raw": "150# (300 psi)", "value_norm": "300", "unit": "psi", "confidence": 92},
+                {"key": "end_connection", "value_raw": "Female NPT", "value_norm": "npt_female", "unit": None, "confidence": 95},
+            ],
+            "IFC-150-EL90-075": [
+                {"key": "fitting_type", "value_raw": "90 Degree Pipe Elbow", "value_norm": "street_elbow", "unit": None, "confidence": 95},
+                {"key": "material", "value_raw": "316 Stainless Steel", "value_norm": "stainless_316", "unit": None, "confidence": 95},
+                {"key": "thread_size", "value_raw": "3/4 in. NPT", "value_norm": "19.05", "unit": "mm", "confidence": 95},
+                {"key": "pressure_class", "value_raw": "150# (300 psi)", "value_norm": "300", "unit": "psi", "confidence": 92},
+                {"key": "end_connection", "value_raw": "Female NPT", "value_norm": "npt_female", "unit": None, "confidence": 95},
+            ],
+            "IFC-150-TEE-050": [
+                {"key": "fitting_type", "value_raw": "Equal Pipe Tee", "value_norm": "tee", "unit": None, "confidence": 95},
+                {"key": "material", "value_raw": "316 Stainless Steel", "value_norm": "stainless_316", "unit": None, "confidence": 95},
+                {"key": "thread_size", "value_raw": "1/2 in. NPT", "value_norm": "12.7", "unit": "mm", "confidence": 95},
+                {"key": "pressure_class", "value_raw": "150# (300 psi)", "value_norm": "300", "unit": "psi", "confidence": 92},
+                {"key": "end_connection", "value_raw": "Female NPT All Ports", "value_norm": "npt_female", "unit": None, "confidence": 95},
+            ],
+            "IFC-300-TEE-075": [
+                {"key": "fitting_type", "value_raw": "Forged Class 3000 Tee", "value_norm": "tee", "unit": None, "confidence": 95},
+                {"key": "material", "value_raw": "Carbon Steel ASTM A105", "value_norm": "carbon_steel", "unit": None, "confidence": 95},
+                {"key": "thread_size", "value_raw": "3/4 in. NPT", "value_norm": "19.05", "unit": "mm", "confidence": 95},
+                {"key": "pressure_class", "value_raw": "3000 psig", "value_norm": "3000", "unit": "psi", "confidence": 95},
+                {"key": "end_connection", "value_raw": "Female NPT", "value_norm": "npt_female", "unit": None, "confidence": 95},
+            ],
+            "IFC-SS-CPL-050": [
+                {"key": "fitting_type", "value_raw": "Full Hex Coupling", "value_norm": "coupling", "unit": None, "confidence": 95},
+                {"key": "material", "value_raw": "316 Stainless Steel", "value_norm": "stainless_316", "unit": None, "confidence": 95},
+                {"key": "thread_size", "value_raw": "1/2 in. NPT", "value_norm": "12.7", "unit": "mm", "confidence": 95},
+                {"key": "pressure_class", "value_raw": "3000 psig", "value_norm": "3000", "unit": "psi", "confidence": 95},
+                {"key": "end_connection", "value_raw": "Female NPT", "value_norm": "npt_female", "unit": None, "confidence": 95},
+            ],
+            "IFC-SS-UN-100": [
+                {"key": "fitting_type", "value_raw": "Ground Joint Union", "value_norm": "union", "unit": None, "confidence": 95},
+                {"key": "material", "value_raw": "316 Stainless Steel", "value_norm": "stainless_316", "unit": None, "confidence": 95},
+                {"key": "thread_size", "value_raw": "1 in. NPT", "value_norm": "25.4", "unit": "mm", "confidence": 95},
+                {"key": "pressure_class", "value_raw": "3000 psig", "value_norm": "3000", "unit": "psi", "confidence": 95},
+                {"key": "end_connection", "value_raw": "Female NPT", "value_norm": "npt_female", "unit": None, "confidence": 95},
+            ],
+            "70-104-01": [
+                {"key": "body_material", "value_raw": "Cast Bronze ASTM B584", "value_norm": "bronze", "unit": None, "confidence": 95},
+                {"key": "size_nominal", "value_raw": "1/2 in. (12.7 mm)", "value_norm": "12.7", "unit": "mm", "confidence": 98},
+                {"key": "pressure_rating", "value_raw": "600 CWP", "value_norm": "600", "unit": "psi", "confidence": 95},
+                {"key": "end_connection", "value_raw": "FNPT Threaded", "value_norm": "npt_female", "unit": None, "confidence": 95},
+                {"key": "port_type", "value_raw": "Standard Port", "value_norm": "standard_port", "unit": None, "confidence": 92},
+            ],
             "77-104-01": [
                 {"key": "body_material", "value_raw": "Cast Bronze", "value_norm": "bronze", "unit": None, "confidence": 95},
                 {"key": "size_nominal", "value_raw": "1/2 in", "value_norm": "12.7", "unit": "mm", "confidence": 98},
                 {"key": "pressure_rating", "value_raw": "600 PSI CWP", "value_norm": "600", "unit": "psi", "confidence": 95},
                 {"key": "end_connection", "value_raw": "Female NPT", "value_norm": "npt_female", "unit": None, "confidence": 95},
                 {"key": "port_type", "value_raw": "Full Port", "value_norm": "full_port", "unit": None, "confidence": 95},
-                {"key": "temp_range_min", "value_raw": "-20F", "value_norm": "-28.8889", "unit": "C", "confidence": 90},
-                {"key": "temp_range_max", "value_raw": "400F", "value_norm": "204.4444", "unit": "C", "confidence": 90},
             ],
             "T-585-70": [
                 {"key": "body_material", "value_raw": "Cast Bronze Alloy C84400", "value_norm": "bronze", "unit": None, "confidence": 95},
@@ -178,26 +323,12 @@ def run_seed(reset: bool = False):
                 {"key": "end_connection", "value_raw": "NPT Female Threaded", "value_norm": "npt_female", "unit": None, "confidence": 95},
                 {"key": "port_type", "value_raw": "Full Port Two-Piece", "value_norm": "full_port", "unit": None, "confidence": 90},
             ],
-            "SS-44S6": [
-                {"key": "body_material", "value_raw": "316 Stainless Steel", "value_norm": "stainless_316", "unit": None, "confidence": 95},
-                {"key": "size_nominal", "value_raw": "3/8 in.", "value_norm": "9.525", "unit": "mm", "confidence": 95},
-                {"key": "pressure_rating", "value_raw": "2500 psig", "value_norm": "2500", "unit": "psi", "confidence": 95},
-                {"key": "end_connection", "value_raw": "Tube Fitting", "value_norm": "tube_fitting", "unit": None, "confidence": 90},
-            ],
             "232.53-2.5-100": [
                 {"key": "dial_size", "value_raw": "2.5 in (63 mm)", "value_norm": "63.5", "unit": "mm", "confidence": 95},
                 {"key": "pressure_range_max", "value_raw": "100 psi", "value_norm": "100", "unit": "psi", "confidence": 95},
                 {"key": "connection_size", "value_raw": "1/4 in NPT", "value_norm": "6.35", "unit": "mm", "confidence": 95},
                 {"key": "connection_type", "value_raw": "1/4 in NPT Male", "value_norm": "npt_male", "unit": None, "confidence": 95},
                 {"key": "case_material", "value_raw": "304 Stainless Steel", "value_norm": "stainless_304", "unit": None, "confidence": 92},
-                {"key": "liquid_filled", "value_raw": "Dry field fillable", "value_norm": "false", "unit": None, "confidence": 85},
-            ],
-            "233.53-4.0-300": [
-                {"key": "dial_size", "value_raw": "4.0 in", "value_norm": "101.6", "unit": "mm", "confidence": 95},
-                {"key": "pressure_range_max", "value_raw": "300 psi", "value_norm": "300", "unit": "psi", "confidence": 95},
-                {"key": "connection_size", "value_raw": "1/2 in NPT", "value_norm": "12.7", "unit": "mm", "confidence": 95},
-                {"key": "connection_type", "value_raw": "1/2 in NPT Male", "value_norm": "npt_male", "unit": None, "confidence": 95},
-                {"key": "liquid_filled", "value_raw": "Liquid Filled (Glycerin)", "value_norm": "true", "unit": None, "confidence": 95},
             ],
             "SS-4-HN": [
                 {"key": "fitting_type", "value_raw": "Hex Nipple", "value_norm": "hex_nipple", "unit": None, "confidence": 98},
@@ -206,62 +337,43 @@ def run_seed(reset: bool = False):
                 {"key": "pressure_class", "value_raw": "10000 psig", "value_norm": "10000", "unit": "psi", "confidence": 95},
                 {"key": "end_connection", "value_raw": "Male NPT", "value_norm": "npt_male", "unit": None, "confidence": 95},
             ],
-            "SS-8-SE": [
-                {"key": "fitting_type", "value_raw": "Street Elbow 90 Degree", "value_norm": "street_elbow", "unit": None, "confidence": 95},
-                {"key": "material", "value_raw": "316 Stainless Steel", "value_norm": "stainless_316", "unit": None, "confidence": 95},
-                {"key": "thread_size", "value_raw": "1/2 in. NPT", "value_norm": "12.7", "unit": "mm", "confidence": 95},
-                {"key": "end_connection", "value_raw": "Female x Male NPT", "value_norm": "npt_female", "unit": None, "confidence": 95},
-            ],
-            "B-6-HN": [
-                {"key": "fitting_type", "value_raw": "Hex Nipple", "value_norm": "hex_nipple", "unit": None, "confidence": 95},
-                {"key": "material", "value_raw": "Brass", "value_norm": "brass", "unit": None, "confidence": 95},
-                {"key": "thread_size", "value_raw": "3/8 in. Male NPT", "value_norm": "9.525", "unit": "mm", "confidence": 95},
-                {"key": "pressure_class", "value_raw": "4400 psig", "value_norm": "4400", "unit": "psi", "confidence": 95},
-                {"key": "end_connection", "value_raw": "Male NPT", "value_norm": "npt_male", "unit": None, "confidence": 95},
-            ],
         }
 
-        if settings.GEMINI_API_KEY:
-            logger.info("Running live Gemini enrichment pipeline across %d products...", len(products))
-            for p in products:
-                try:
-                    res = enrich_product(db, p.id)
-                    logger.info("Enriched SKU %s: status=%s, attrs=%d", p.part_number, res.get("status"), res.get("attributes_extracted", 0))
-                except Exception as exc:
-                    logger.warning("Live enrichment skipped for SKU %s: %s", p.part_number, exc)
-        else:
-            logger.info("Populating structured demo specifications from fixtures for %d products...", len(products))
-            for p in products:
-                sku_attrs = demo_attributes_fixture.get(p.part_number, [
-                    {"key": "body_material", "value_raw": "Forged Steel", "value_norm": "carbon_steel", "unit": None, "confidence": 90},
-                    {"key": "size_nominal", "value_raw": "1/2 in.", "value_norm": "12.7", "unit": "mm", "confidence": 92},
-                    {"key": "pressure_rating", "value_raw": "600 PSI", "value_norm": "600", "unit": "psi", "confidence": 90},
-                    {"key": "end_connection", "value_raw": "Socket Weld", "value_norm": "socket_weld", "unit": None, "confidence": 88},
-                ])
+        logger.info("Populating structured specifications for %d products...", len(products))
+        doc_map = {doc.product_id: doc for doc in db.query(SourceDocument).all()}
 
-                doc_match = p.source_documents[0] if p.source_documents else None
-                for a_data in sku_attrs:
-                    new_attr = ProductAttribute(
-                        product_id=p.id,
-                        key=a_data["key"],
-                        value_raw=a_data["value_raw"],
-                        value_norm=a_data["value_norm"],
-                        unit=a_data["unit"],
-                        confidence=a_data["confidence"],
-                        status="approved" if a_data["confidence"] >= 85 else "proposed",
-                        source_id=doc_match.id if doc_match else None,
-                        extraction_method="pdf" if doc_match else "html",
-                        page_number=1,
-                        model_used="gemini-2.5-flash",
-                    )
-                    db.add(new_attr)
+        for p in products:
+            sku_attrs = demo_attributes_fixture.get(p.part_number, [
+                {"key": "body_material", "value_raw": "Forged Steel", "value_norm": "carbon_steel", "unit": None, "confidence": 90},
+                {"key": "size_nominal", "value_raw": "1/2 in.", "value_norm": "12.7", "unit": "mm", "confidence": 92},
+                {"key": "pressure_rating", "value_raw": "600 PSI", "value_norm": "600", "unit": "psi", "confidence": 90},
+                {"key": "end_connection", "value_raw": "Socket Weld", "value_norm": "socket_weld", "unit": None, "confidence": 88},
+            ])
 
-                p.status = "needs_review"
-                p.enriched_at = utc_now()
-                p.model_used = settings.GEMINI_MODEL
-                db.commit()
+            doc_match = doc_map.get(p.id)
+            for a_data in sku_attrs:
+                new_attr = ProductAttribute(
+                    product_id=p.id,
+                    key=a_data["key"],
+                    value_raw=a_data["value_raw"],
+                    value_norm=a_data["value_norm"],
+                    unit=a_data["unit"],
+                    confidence=a_data["confidence"],
+                    status="approved" if a_data["confidence"] >= 85 else "proposed",
+                    source_id=doc_match.id if doc_match else None,
+                    extraction_method="pdf" if doc_match else "html",
+                    page_number=1,
+                    model_used="gemini-flash-latest",
+                )
+                db.add(new_attr)
 
-        # 6. Curate Demo State: Approve confidence >= 85, set exactly 2 unresolved conflicts, and 5 review-queue items
+            p.status = "needs_review"
+            p.enriched_at = utc_now()
+            p.model_used = settings.GEMINI_MODEL
+
+        db.commit()
+
+        # 6. Curate Demo State: Approve confidence >= 85, set exactly 2 unresolved conflicts, and review-queue items
         all_attrs = db.query(ProductAttribute).all()
         for a in all_attrs:
             if (a.confidence or 0) >= 85 and not a.validation_flags:
@@ -274,10 +386,10 @@ def run_seed(reset: bool = False):
         db.commit()
 
         # Seed exactly 2 conflicts for demo resolution
-        p_conflict_1 = prod_map.get("70-104-01") or products[0]
-        p_conflict_2 = prod_map.get("232.53-2.5-100") or products[1]
+        p_conflict_1 = prod_map.get("MFC-70-104-01") or prod_map.get("70-104-01") or products[0]
+        p_conflict_2 = prod_map.get("VLI-232-25-100") or prod_map.get("232.53-2.5-100") or products[1]
 
-        # Conflict 1: body_material on 70-104-01
+        # Conflict 1: body_material on MFC-70-104-01
         c1 = db.query(AttributeConflict).filter(AttributeConflict.product_id == p_conflict_1.id, AttributeConflict.key == "body_material").first()
         if not c1:
             c1 = AttributeConflict(
@@ -291,7 +403,7 @@ def run_seed(reset: bool = False):
             )
             db.add(c1)
 
-        # Conflict 2: pressure_range_max on 232.53-2.5-100
+        # Conflict 2: pressure_range_max on VLI-232-25-100
         c2 = db.query(AttributeConflict).filter(AttributeConflict.product_id == p_conflict_2.id, AttributeConflict.key == "pressure_range_max").first()
         if not c2:
             c2 = AttributeConflict(
@@ -307,10 +419,9 @@ def run_seed(reset: bool = False):
 
         db.commit()
 
-        # Ensure exactly 5 proposed/low-confidence attributes in review queue
+        # Ensure review queue has items for demo
         review_attrs = db.query(ProductAttribute).filter(ProductAttribute.status.in_(["proposed", "conflicted"])).all()
         if len(review_attrs) < 5:
-            # Demote 5 attributes to proposed with moderate confidence for the demo
             candidates_to_demote = db.query(ProductAttribute).filter(ProductAttribute.status == "approved").limit(5).all()
             for idx, attr_to_demote in enumerate(candidates_to_demote):
                 attr_to_demote.status = "proposed"

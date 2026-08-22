@@ -79,7 +79,13 @@ def compute_product_scores(db: Session, product_id: int) -> dict:
     if not required_keys:
         required_keys = set(schema_map.keys())
 
-    attributes = db.query(ProductAttribute).filter(ProductAttribute.product_id == product_id).all()
+    from sqlalchemy.orm import joinedload
+    attributes = (
+        db.query(ProductAttribute)
+        .options(joinedload(ProductAttribute.source))
+        .filter(ProductAttribute.product_id == product_id)
+        .all()
+    )
 
     # Determine corroborated keys
     by_key: dict[str, list[ProductAttribute]] = {}

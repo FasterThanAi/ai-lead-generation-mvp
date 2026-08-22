@@ -622,14 +622,23 @@ def ensure_company_knowledge_embedding_columns(engine):
 
     try:
         with engine.begin() as connection:
-            connection.execute(
-                text(
-                    "CREATE INDEX IF NOT EXISTS company_knowledge_embedding_idx "
-                    "ON company_knowledge "
-                    "USING ivfflat (embedding vector_cosine_ops) "
-                    "WITH (lists = 100)"
+            if settings.EMBEDDING_DIMENSION <= 2000:
+                connection.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS company_knowledge_embedding_idx "
+                        "ON company_knowledge "
+                        "USING ivfflat (embedding vector_cosine_ops) "
+                        "WITH (lists = 100)"
+                    )
                 )
-            )
+            else:
+                connection.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS company_knowledge_embedding_idx "
+                        "ON company_knowledge "
+                        "USING hnsw (embedding vector_cosine_ops)"
+                    )
+                )
     except Exception as exc:
         logger.warning("Could not create company_knowledge embedding index. Semantic search can still run without it. %s", exc)
 
