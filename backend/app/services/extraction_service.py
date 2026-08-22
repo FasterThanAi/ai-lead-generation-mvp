@@ -152,76 +152,143 @@ def extract_from_source(
     if not settings.GEMINI_API_KEY:
         raise ValueError("GEMINI_API_KEY is not configured.")
 
-    source_text = source_document.text_snippet or ""
+    active_schema = schema or load_schema(db, product.catalog_id, product.category)
+    doc_type = (source_document.doc_type or "pdf").lower()
 
-    # If text_snippet is empty, try extracting from the saved file on disk
-    if not source_text:
-        ext = f".{source_document.doc_type}" if source_document.doc_type else ".pdf"
-        file_path = os.path.join(
-            settings.STORAGE_DIR,
-            str(product.id),
-            f"{source_document.content_hash}{ext}"
-        )
+    ext = f".{doc_type}" if doc_type else ".pdf"
+    file_path = os.path.join(
+        settings.STORAGE_DIR,
+        str(product.id),
+        f"{source_document.content_hash}{ext}"
+    )
+
+    from app.services.vision_service import (
+        pdf_has_text_layer,
+        render_pdf_pages,
+        extract_from_image,
+    )
+
+    # Path 1: Image files -> direct Vision path
+    if doc_type in {"image", "png", "jpg", "jpeg", "webp"}:
         if os.path.exists(file_path):
-            try:
-                source_text = extract_text_from_file(file_path, source_document.doc_type or "pdf")
-                if source_text:
-                    source_document.text_snippet = source_text[:2000]
-                    db.commit()
-            except Exception as exc:
-                logger.warning("Could not read source file for text extraction: %s", exc)
-
-    if not source_text or len(source_text.strip()) < 10:
-        logger.info("Source document %s has no extractable text; skipping text extraction.", source_document.id)
+            with open(file_path, "rb") as f:
+                img_bytes = f.read()
+            mime = "image/png" if doc_type == "png" else "image/jpeg"
+            return extract_from_image(
+                product=product,
+                schema=active_schema,
+                image_bytes=img_bytes,
+                source_label=source_document.filename or "Product Image",
+                mime_type=mime,
+                content_hash=source_document.content_hash,
+                page_number=1
+            )
         return []
 
-    active_schema = schema or load_schema(db, product.catalog_id, product.category)
-    valid_keys = {attr.get("key") for attr in active_schema if attr.get("key")}
+    # Path 2: PDF files -> Check text layer
+    if doc_type == "pdf":
+        has_text = False
+        if os.path.exists(file_path):
+            has_text = pdf_has_text_layer(file_path)
+        elif source_document.text_snippet and len(source_document.text_snippet.strip()) >= 100:
+            has_text = True
 
-    prompt = build_extraction_prompt(
-        product=product,
-        schema=active_schema,
-        source_text=source_text,
-        source_label=source_document.filename or f"Document #{source_document.id}",
-        db=db
-    )
+        # If scanned PDF (no text layer) and vision is enabled
+        if not has_text and settings.VISION_ENABLED and os.path.exists(file_path):
+            logger.info("PDF %s is a scan; running Vision extraction across pages.", source_document.id)
+            pages = render_pdf_pages(file_path, max_pages=settings.VISION_MAX_PAGES, dpi=settings.VISION_DPI)
+            all_vision_candidates = []
+            for page_num, png_bytes in pages:
+                page_candidates = extract_from_image(
+                    product=product,
+                    schema=active_schema,
+                    image_bytes=png_bytes,
+                    source_label=f"{source_document.filename} (Page {page_num})",
+                    mime_type="image/png",
+                    content_hash=source_document.content_hash,
+                    page_number=page_num
+                )
+                all_vision_candidates.extend(page_candidates)
+            return all_vision_candidates
 
-    client = genai.Client(api_key=settings.GEMINI_API_KEY)
-    response = client.models.generate_content(
-        model=settings.GEMINI_MODEL,
-        contents=prompt,
-    )
-
-    response_text = response.text or ""
-    raw_candidates = extract_json_from_text(response_text)
-
-    if not isinstance(raw_candidates, list):
-        if isinstance(raw_candidates, dict):
-            raw_candidates = [raw_candidates]
-        else:
-            return []
+    # Path 3: Digital text path (PDF with text layer, docx, txt, md, html)
+    source_text = source_document.text_snippet or ""
+    if not source_text and os.path.exists(file_path):
+        try:
+            source_text = extract_text_from_file(file_path, doc_type)
+            if source_text:
+                source_document.text_snippet = source_text[:2000]
+                db.commit()
+        except Exception as exc:
+            logger.warning("Could not read source file for text extraction: %s", exc)
 
     candidates = []
-    for item in raw_candidates:
-        if not isinstance(item, dict):
-            continue
-        key = item.get("key")
-        value_raw = clean_value(item.get("value_raw"))
-        if not key or key not in valid_keys or not value_raw:
-            continue
+    if source_text and len(source_text.strip()) >= 10:
+        valid_keys = {attr.get("key") for attr in active_schema if attr.get("key")}
 
-        raw_conf = item.get("confidence", 80)
-        try:
-            confidence = max(0, min(100, int(raw_conf)))
-        except (ValueError, TypeError):
-            confidence = 80
+        prompt = build_extraction_prompt(
+            product=product,
+            schema=active_schema,
+            source_text=source_text,
+            source_label=source_document.filename or f"Document #{source_document.id}",
+            db=db
+        )
 
-        candidates.append({
-            "key": key,
-            "value_raw": value_raw,
-            "confidence": confidence,
-            "evidence": clean_value(item.get("evidence")),
-        })
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        response = client.models.generate_content(
+            model=settings.GEMINI_MODEL,
+            contents=prompt,
+        )
+
+        response_text = response.text or ""
+        raw_candidates = extract_json_from_text(response_text)
+
+        if isinstance(raw_candidates, dict):
+            raw_candidates = [raw_candidates]
+        elif not isinstance(raw_candidates, list):
+            raw_candidates = []
+
+        for item in raw_candidates:
+            if not isinstance(item, dict):
+                continue
+            key = item.get("key")
+            value_raw = clean_value(item.get("value_raw"))
+            if not key or key not in valid_keys or not value_raw:
+                continue
+
+            raw_conf = item.get("confidence", 80)
+            try:
+                confidence = max(0, min(100, int(raw_conf)))
+            except (ValueError, TypeError):
+                confidence = 80
+
+            candidates.append({
+                "key": key,
+                "value_raw": value_raw,
+                "confidence": confidence,
+                "evidence": clean_value(item.get("evidence")),
+                "extraction_method": "pdf" if doc_type == "pdf" else doc_type,
+                "page_number": None,
+            })
+
+    # Fallback to vision if digital text extracted fewer than 5 attributes
+    if len(candidates) < 5 and doc_type == "pdf" and settings.VISION_ENABLED and os.path.exists(file_path):
+        logger.info("Text extraction yielded few attributes (%d); supplementing with Vision on first 3 pages.", len(candidates))
+        pages = render_pdf_pages(file_path, max_pages=3, dpi=settings.VISION_DPI)
+        for page_num, png_bytes in pages:
+            vision_cands = extract_from_image(
+                product=product,
+                schema=active_schema,
+                image_bytes=png_bytes,
+                source_label=f"{source_document.filename} (Page {page_num})",
+                mime_type="image/png",
+                content_hash=source_document.content_hash,
+                page_number=page_num
+            )
+            existing_keys = {c["key"] for c in candidates}
+            for vc in vision_cands:
+                if vc["key"] not in existing_keys:
+                    candidates.append(vc)
 
     return candidates
 
@@ -233,12 +300,19 @@ def persist_candidates(
     candidates: list[dict[str, Any]]
 ) -> int:
     persisted_count = 0
-    extraction_method = source_document.doc_type or "pdf"
 
+    # Deduplicate candidates by key in this batch, favoring higher confidence
+    deduped_candidates: dict[str, dict[str, Any]] = {}
     for candidate in candidates:
         key = candidate["key"]
+        if key not in deduped_candidates or (candidate.get("confidence", 0) > deduped_candidates[key].get("confidence", 0)):
+            deduped_candidates[key] = candidate
+
+    for key, candidate in deduped_candidates.items():
         value_raw = candidate["value_raw"]
         confidence = candidate["confidence"]
+        extraction_method = candidate.get("extraction_method") or source_document.doc_type or "pdf"
+        page_number = candidate.get("page_number")
 
         existing_attr = db.query(ProductAttribute).filter(
             ProductAttribute.product_id == product.id,
@@ -251,6 +325,7 @@ def persist_candidates(
             existing_attr.confidence = confidence
             existing_attr.status = "proposed"
             existing_attr.extraction_method = extraction_method
+            existing_attr.page_number = page_number
             existing_attr.model_used = settings.GEMINI_MODEL
             existing_attr.updated_at = utc_now()
         else:
@@ -262,6 +337,7 @@ def persist_candidates(
                 status="proposed",
                 source_id=source_document.id,
                 extraction_method=extraction_method,
+                page_number=page_number,
                 model_used=settings.GEMINI_MODEL,
             )
             db.add(new_attr)

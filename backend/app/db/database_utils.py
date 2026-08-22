@@ -323,6 +323,7 @@ def ensure_product_attribute_columns(engine):
         "status": "VARCHAR(20)",
         "source_id": "INTEGER",
         "extraction_method": "VARCHAR(20)",
+        "page_number": "INTEGER",
         "validation_flags": "TEXT",
         "model_used": "VARCHAR(255)",
         "reviewed_by": "VARCHAR(255)",

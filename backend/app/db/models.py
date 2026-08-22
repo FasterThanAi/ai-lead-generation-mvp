@@ -99,6 +99,7 @@ class ProductAttribute(Base):
     status = Column(String(20), default="proposed", nullable=False)  # proposed|approved|rejected|conflicted
     source_id = Column(Integer, ForeignKey("source_documents.id"), nullable=True, index=True)
     extraction_method = Column(String(20), nullable=True)  # html|pdf|vision|inferred
+    page_number = Column(Integer, nullable=True)
     validation_flags = Column(Text, nullable=True)  # JSON array of strings
     model_used = Column(String(255), nullable=True)
     reviewed_by = Column(String(255), nullable=True)
