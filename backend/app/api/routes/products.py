@@ -1,11 +1,19 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query
+import os
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.config import settings
 from app.db.database import get_db
 from app.db.models import Catalog, Product, ProductAttribute, SourceDocument, AttributeConflict
 from app.schemas.product_schema import ProductCreate, ProductResponse
+from app.services.ingestion_service import (
+    ingest_products,
+    parse_product_csv,
+    register_document,
+    sanitize_filename,
+)
 
 router = APIRouter(
     prefix="/products",
@@ -15,27 +23,53 @@ router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
-@router.post("/", response_model=ProductResponse)
-@router.post("/create", response_model=ProductResponse)
-def create_product(product_in: ProductCreate, db: Session = Depends(get_db)):
-    catalog = db.query(Catalog).filter(Catalog.id == product_in.catalog_id).first()
-    if not catalog:
-        raise HTTPException(status_code=404, detail=f"Catalog with id {product_in.catalog_id} was not found")
+def validate_file_safety(filename: str, file_bytes: bytes, allowed_exts: list[str] | None = None):
+    max_bytes = settings.MAX_UPLOAD_MB * 1024 * 1024
+    if len(file_bytes) > max_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File exceeds maximum allowed size of {settings.MAX_UPLOAD_MB} MB."
+        )
 
-    new_product = Product(
-        catalog_id=product_in.catalog_id,
-        part_number=product_in.part_number,
-        manufacturer=product_in.manufacturer,
-        short_description=product_in.short_description,
-        category=product_in.category,
-        canonical_name=product_in.canonical_name,
-        long_description=product_in.long_description,
-        status="pending",
-    )
-    db.add(new_product)
-    db.commit()
-    db.refresh(new_product)
-    return new_product
+    ext = os.path.splitext(filename)[1].lower()
+    valid_exts = allowed_exts or settings.ALLOWED_UPLOAD_EXTENSIONS
+    if ext not in valid_exts:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File extension '{ext}' is not allowed. Allowed extensions: {', '.join(valid_exts)}"
+        )
+
+
+@router.post("/import")
+async def import_products_csv(
+    file: UploadFile = File(...),
+    catalog_id: int = Form(...),
+    db: Session = Depends(get_db)
+):
+    catalog = db.query(Catalog).filter(Catalog.id == catalog_id).first()
+    if not catalog:
+        raise HTTPException(status_code=404, detail=f"Catalog with id {catalog_id} was not found")
+
+    file_bytes = await file.read()
+    filename = sanitize_filename(file.filename)
+    validate_file_safety(filename, file_bytes, allowed_exts=[".csv", ".xlsx", ".xls"])
+
+    parsed = parse_product_csv(file_bytes, filename=filename)
+    valid_rows = parsed["valid"]
+    rejected_rows = parsed["rejected"]
+
+    ingest_result = ingest_products(db, catalog_id, valid_rows)
+
+    return {
+        "status": "success",
+        "message": f"Successfully processed {len(valid_rows) + len(rejected_rows)} rows.",
+        "catalog_id": catalog_id,
+        "created": ingest_result["created"],
+        "updated": ingest_result["updated"],
+        "rejected": len(rejected_rows),
+        "total": len(valid_rows) + len(rejected_rows),
+        "rejected_details": rejected_rows,
+    }
 
 
 @router.get("/")
@@ -61,7 +95,10 @@ def get_products(
         query = query.filter(Product.confidence_score >= min_confidence)
 
     if needs_review is True:
-        query = query.filter(Product.status.in_(["needs_review", "pending"]))
+        # Needs review only matches products in 'needs_review' status
+        query = query.filter(Product.status == "needs_review")
+    elif needs_review is False:
+        query = query.filter(Product.status != "needs_review")
 
     if q:
         search_pattern = f"%{q.strip()}%"
@@ -87,7 +124,7 @@ def get_products(
 
 
 @router.get("/{product_id}")
-def get_product_detail(product_id: int, db: Session = Depends(get_db)):
+def get_product(product_id: int, db: Session = Depends(get_db)):
     product = (
         db.query(Product)
         .options(
@@ -125,6 +162,38 @@ def get_product_detail(product_id: int, db: Session = Depends(get_db)):
             "sources": product.source_documents,
             "conflicts": product.conflicts,
         }
+    }
+
+
+@router.post("/{product_id}/documents")
+async def upload_product_documents(
+    product_id: int,
+    files: list[UploadFile] = File(...),
+    db: Session = Depends(get_db)
+):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail=f"Product with id {product_id} was not found")
+
+    registered_docs = []
+    for file in files:
+        file_bytes = await file.read()
+        filename = sanitize_filename(file.filename)
+        validate_file_safety(filename, file_bytes)
+
+        source_doc = register_document(
+            db=db,
+            product_id=product_id,
+            filename=filename,
+            file_bytes=file_bytes
+        )
+        registered_docs.append(source_doc)
+
+    return {
+        "status": "success",
+        "product_id": product_id,
+        "count": len(registered_docs),
+        "data": registered_docs
     }
 
 
