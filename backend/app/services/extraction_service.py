@@ -325,6 +325,11 @@ def enrich_product(db: Session, product_id: int) -> dict[str, Any]:
             except Exception as exc:
                 logger.warning("Extraction failed for source %s on product %s: %s", source.id, product.id, exc)
 
+        # Pure deterministic normalization immediately after extraction
+        from app.services.normalization_service import normalize_product_attributes
+        norm_result = normalize_product_attributes(db, product.id)
+        logger.info("Normalized attributes for product %s: %s", product.id, norm_result)
+
         product.status = "needs_review"
         product.enriched_at = utc_now()
         product.model_used = settings.GEMINI_MODEL
@@ -335,6 +340,7 @@ def enrich_product(db: Session, product_id: int) -> dict[str, Any]:
             "status": "success",
             "product_id": product_id,
             "attributes_extracted": total_extracted,
+            "normalization": norm_result,
         }
 
     except Exception as exc:
