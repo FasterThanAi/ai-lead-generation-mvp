@@ -5,7 +5,10 @@ from google import genai
 
 from app.core.config import settings
 from app.services.knowledge_service import build_knowledge_context, search_relevant_knowledge
-from app.services.lead_research_service import build_research_context
+
+
+def build_research_context(lead):
+    return ""
 
 
 class AIConfigurationError(RuntimeError):
@@ -72,12 +75,21 @@ def extract_json_from_text(text):
     except json.JSONDecodeError:
         pass
 
-    match = re.search(r"\{.*\}", cleaned_text, flags=re.DOTALL)
+    array_match = re.search(r"\[.*\]", cleaned_text, flags=re.DOTALL)
+    if array_match:
+        try:
+            return json.loads(array_match.group(0))
+        except json.JSONDecodeError:
+            pass
 
-    if not match:
-        raise ValueError("No JSON object found in Gemini response.")
+    object_match = re.search(r"\{.*\}", cleaned_text, flags=re.DOTALL)
+    if object_match:
+        try:
+            return json.loads(object_match.group(0))
+        except json.JSONDecodeError:
+            pass
 
-    return json.loads(match.group(0))
+    raise ValueError("No JSON object or array found in Gemini response.")
 
 
 def build_knowledge_query(campaign, lead):
