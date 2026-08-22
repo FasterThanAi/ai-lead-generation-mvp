@@ -3,7 +3,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.db.models import Campaign, Lead
+from app.db.models import Catalog, Product, ProductAttribute, AttributeConflict
 
 router = APIRouter(
     prefix="/analytics",
@@ -20,122 +20,52 @@ def count_rows(db: Session, model, *filters):
     return query.scalar() or 0
 
 
-def rate_percentage(numerator: int, denominator: int):
-    if denominator <= 0:
-        return 0.0
+@router.get("/catalog/{catalog_id}")
+def get_catalog_analytics(catalog_id: int, db: Session = Depends(get_db)):
+    catalog = db.query(Catalog).filter(Catalog.id == catalog_id).first()
 
-    return round((numerator / denominator) * 100, 1)
-
-
-def serialize_top_ai_lead(lead: Lead):
-    return {
-        "lead_id": lead.id,
-        "company_name": lead.company_name,
-        "lead_email": lead.email,
-        "ai_score": lead.ai_score,
-        "ai_fit_score": lead.ai_fit_score,
-        "ai_contact_confidence_score": lead.ai_contact_confidence_score,
-        "ai_priority": lead.ai_priority,
-        "ai_qualification": lead.ai_qualification,
-        "ai_score_reason": lead.ai_score_reason,
-        "ai_contact_confidence_reason": lead.ai_contact_confidence_reason,
-        "ai_final_priority_reason": lead.ai_final_priority_reason,
-    }
-
-
-@router.get("/campaign/{campaign_id}")
-def get_campaign_analytics(campaign_id: int, db: Session = Depends(get_db)):
-    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-
-    if not campaign:
+    if not catalog:
         raise HTTPException(
             status_code=404,
-            detail=f"Campaign with id {campaign_id} was not found"
+            detail=f"Catalog with id {catalog_id} was not found"
         )
 
-    lead_count = count_rows(db, Lead, Lead.campaign_id == campaign_id)
-    scored_leads = count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_score.isnot(None))
-    researched_leads = count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.research_status == "researched")
-    research_failed = count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.research_status == "failed")
-    average_ai_score = (
-        db.query(func.avg(Lead.ai_score))
+    product_count = count_rows(db, Product, Product.catalog_id == catalog_id)
+    approved_products = count_rows(db, Product, Product.catalog_id == catalog_id, Product.status == "approved")
+    needs_review = count_rows(db, Product, Product.catalog_id == catalog_id, Product.status == "needs_review")
+
+    mean_completeness = (
+        db.query(func.avg(Product.completeness_score))
         .filter(
-            Lead.campaign_id == campaign_id,
-            Lead.ai_score.isnot(None),
+            Product.catalog_id == catalog_id,
+            Product.completeness_score.isnot(None),
         )
         .scalar()
     )
-    average_research_confidence = (
-        db.query(func.avg(Lead.research_confidence))
+    mean_confidence = (
+        db.query(func.avg(Product.confidence_score))
         .filter(
-            Lead.campaign_id == campaign_id,
-            Lead.research_confidence.isnot(None),
+            Product.catalog_id == catalog_id,
+            Product.confidence_score.isnot(None),
         )
         .scalar()
-    )
-    top_ai_leads = (
-        db.query(Lead)
-        .filter(
-            Lead.campaign_id == campaign_id,
-            Lead.ai_score.isnot(None),
-        )
-        .order_by(Lead.ai_score.desc(), Lead.ai_scored_at.desc(), Lead.id.desc())
-        .limit(5)
-        .all()
     )
 
     return {
         "status": "success",
         "data": {
-            "campaign_id": campaign.id,
-            "campaign_name": campaign.campaign_name,
-            "lead_count": lead_count,
-            "draft_count": 0,
-            "generated_count": 0,
-            "approved_count": 0,
-            "rejected_count": 0,
-            "sent_count": 0,
-            "failed_count": 0,
-            "replied_count": 0,
-            "classified_replies": 0,
-            "high_priority_replies": 0,
-            "interested_replies": 0,
-            "pricing_replies": 0,
-            "meeting_request_replies": 0,
-            "not_interested_replies": 0,
-            "unsubscribe_replies": 0,
-            "wrong_person_replies": 0,
-            "out_of_office_replies": 0,
-            "reply_rate": 0.0,
-            "send_success_rate": 0.0,
-            "needs_follow_up_count": 0,
-            "followups_generated_count": 0,
-            "followups_approved_count": 0,
-            "followups_sent_count": 0,
-            "followups_failed_count": 0,
-            "followups_pending_count": 0,
-            "response_drafts_generated": 0,
-            "response_drafts_approved": 0,
-            "response_drafts_sent": 0,
-            "response_drafts_failed": 0,
-            "scored_leads": scored_leads,
-            "unscored_leads": max(lead_count - scored_leads, 0),
-            "average_ai_score": round(float(average_ai_score), 1) if average_ai_score is not None else 0.0,
-            "researched_leads": researched_leads,
-            "research_failed": research_failed,
-            "average_research_confidence": round(float(average_research_confidence), 1) if average_research_confidence is not None else 0.0,
-            "high_priority_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_priority == "High"),
-            "medium_priority_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_priority == "Medium"),
-            "low_priority_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_priority == "Low"),
-            "hot_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_qualification == "Hot"),
-            "warm_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_qualification == "Warm"),
-            "cold_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_qualification == "Cold"),
-            "not_relevant_leads": count_rows(db, Lead, Lead.campaign_id == campaign_id, Lead.ai_qualification == "Not Relevant"),
-            "top_ai_leads": [
-                serialize_top_ai_lead(lead)
-                for lead in top_ai_leads
-            ],
-            "recent_replies": [],
-            "recent_followups": [],
+            "catalog_id": catalog.id,
+            "catalog_name": catalog.name,
+            "product_count": product_count,
+            "approved_products": approved_products,
+            "needs_review": needs_review,
+            "mean_completeness": round(float(mean_completeness), 1) if mean_completeness is not None else 0.0,
+            "mean_confidence": round(float(mean_confidence), 1) if mean_confidence is not None else 0.0,
+            "products_by_grade": {
+                "A": count_rows(db, Product, Product.catalog_id == catalog_id, Product.quality_grade == "A"),
+                "B": count_rows(db, Product, Product.catalog_id == catalog_id, Product.quality_grade == "B"),
+                "C": count_rows(db, Product, Product.catalog_id == catalog_id, Product.quality_grade == "C"),
+                "D": count_rows(db, Product, Product.catalog_id == catalog_id, Product.quality_grade == "D"),
+            },
         }
     }

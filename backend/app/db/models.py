@@ -1,240 +1,151 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 
 from app.db.database import Base
 from app.utils.time_utils import utc_now
 
 
-class Campaign(Base):
-    __tablename__ = "campaigns"
+class Catalog(Base):
+    __tablename__ = "catalogs"
 
     id = Column(Integer, primary_key=True, index=True)
-    campaign_name = Column(String(255), nullable=False)
-    industry = Column(String(255), nullable=False)
-    location = Column(String(255), nullable=False)
-    target_role = Column(String(255), nullable=False)
-    offer = Column(Text, nullable=False)
+    name = Column(String(255), nullable=False)
+    vertical = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=utc_now)
 
-    leads = relationship("Lead", back_populates="campaign", cascade="all, delete-orphan")
-    leads = relationship("Lead", back_populates="campaign", cascade="all, delete-orphan")
-    converted_opportunities = relationship("Opportunity", back_populates="converted_campaign")
-    discovery_jobs = relationship("DiscoveryJob", back_populates="campaign")
-    discovered_leads = relationship("DiscoveredLead", back_populates="campaign")
-    email_extraction_jobs = relationship("EmailExtractionJob", back_populates="campaign", cascade="all, delete-orphan")
-    lead_research_jobs = relationship("LeadResearchJob", back_populates="campaign", cascade="all, delete-orphan")
-    lead_scoring_jobs = relationship("LeadScoringJob", back_populates="campaign", cascade="all, delete-orphan")
+    products = relationship("Product", back_populates="catalog", cascade="all, delete-orphan")
+    attribute_schemas = relationship("AttributeSchema", back_populates="catalog", cascade="all, delete-orphan")
+    enrichment_jobs = relationship("EnrichmentJob", back_populates="catalog", cascade="all, delete-orphan")
 
 
-class Opportunity(Base):
-    __tablename__ = "opportunities"
+class AttributeSchema(Base):
+    __tablename__ = "attribute_schemas"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(255), nullable=False)
-    raw_goal = Column(Text, nullable=False)
-    target_domain = Column(String(255), nullable=True)
-    target_location = Column(String(255), nullable=True)
-    offer = Column(Text, nullable=True)
-    status = Column(String(50), default="draft", nullable=False)
-    ai_summary = Column(Text, nullable=True)
-    target_audience = Column(Text, nullable=True)
-    ideal_roles = Column(Text, nullable=True)
-    industries = Column(Text, nullable=True)
-    locations = Column(Text, nullable=True)
-    pain_points = Column(Text, nullable=True)
-    value_proposition = Column(Text, nullable=True)
-    outreach_angle = Column(Text, nullable=True)
-    search_keywords = Column(Text, nullable=True)
-    lead_source_ideas = Column(Text, nullable=True)
-    email_script = Column(Text, nullable=True)
-    call_script = Column(Text, nullable=True)
-    follow_up_sequence = Column(Text, nullable=True)
-    qualification_criteria = Column(Text, nullable=True)
-    risk_flags = Column(Text, nullable=True)
-    suggested_campaign_name = Column(String(255), nullable=True)
-    suggested_campaign_industry = Column(String(255), nullable=True)
-    suggested_campaign_location = Column(String(255), nullable=True)
-    suggested_campaign_target_role = Column(String(255), nullable=True)
-    suggested_campaign_offer = Column(Text, nullable=True)
-    suggested_discovery_target_type = Column(String(100), nullable=True)
-    suggested_discovery_department = Column(String(255), nullable=True)
-    suggested_discovery_role = Column(String(255), nullable=True)
-    suggested_discovery_queries = Column(Text, nullable=True)
-    ai_model = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=utc_now)
-    updated_at = Column(DateTime, nullable=True, onupdate=utc_now)
-    converted_campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True, index=True)
-
-    converted_campaign = relationship("Campaign", back_populates="converted_opportunities")
-    discovery_jobs = relationship("DiscoveryJob", back_populates="opportunity")
-
-
-class DiscoveryJob(Base):
-    __tablename__ = "discovery_jobs"
-
-    id = Column(Integer, primary_key=True, index=True)
-    opportunity_id = Column(Integer, ForeignKey("opportunities.id"), nullable=True, index=True)
-    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True, index=True)
-    title = Column(String(255), nullable=False)
-    target_type = Column(String(100), nullable=True)
-    department = Column(String(255), nullable=True)
-    location = Column(String(255), nullable=True)
-    target_role = Column(String(255), nullable=True)
-    query_goal = Column(Text, nullable=True)
-    source_mode = Column(String(50), default="manual_urls", nullable=False)
-    source_urls = Column(Text, nullable=True)
-    generated_queries = Column(Text, nullable=True)
-    status = Column(String(50), default="draft", nullable=False)
-    limit = Column(Integer, default=20, nullable=False)
-    pages_attempted = Column(Integer, default=0, nullable=False)
-    contacts_found = Column(Integer, default=0, nullable=False)
-    errors = Column(Text, nullable=True)
+    catalog_id = Column(Integer, ForeignKey("catalogs.id"), nullable=True, index=True)
+    category_name = Column(String(255), nullable=False)
+    attributes = Column(Text, nullable=False)  # JSON array of schema definitions
     created_at = Column(DateTime, default=utc_now)
     updated_at = Column(DateTime, nullable=True, onupdate=utc_now)
 
-    opportunity = relationship("Opportunity", back_populates="discovery_jobs")
-    campaign = relationship("Campaign", back_populates="discovery_jobs")
-    discovered_leads = relationship("DiscoveredLead", back_populates="discovery_job", cascade="all, delete-orphan")
+    catalog = relationship("Catalog", back_populates="attribute_schemas")
 
 
-class DiscoveredLead(Base):
-    __tablename__ = "discovered_leads"
+class Product(Base):
+    __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, index=True)
-    discovery_job_id = Column(Integer, ForeignKey("discovery_jobs.id"), nullable=False, index=True)
-    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True, index=True)
-    name = Column(String(255), nullable=True)
-    organization = Column(String(255), nullable=True)
-    department = Column(String(255), nullable=True)
-    designation = Column(String(255), nullable=True)
-    email = Column(String(255), nullable=True, index=True)
-    phone = Column(String(100), nullable=True)
-    website = Column(String(500), nullable=True)
-    profile_url = Column(String(500), nullable=True)
-    source_url = Column(Text, nullable=False)
-    lead_type = Column(String(100), nullable=True)
-    location = Column(String(255), nullable=True)
-    confidence = Column(Integer, nullable=True)
-    fit_reason = Column(Text, nullable=True)
-    risk_flags = Column(Text, nullable=True)
-    raw_context = Column(Text, nullable=True)
+    catalog_id = Column(Integer, ForeignKey("catalogs.id"), nullable=False, index=True)
+    part_number = Column(String(255), nullable=False, index=True)
+    manufacturer = Column(String(255), nullable=True)
+    short_description = Column(Text, nullable=True)
+    category = Column(String(255), nullable=True)
+    canonical_name = Column(String(500), nullable=True)
+    long_description = Column(Text, nullable=True)
     status = Column(String(50), default="pending", nullable=False)
-    imported_lead_id = Column(Integer, ForeignKey("leads.id"), nullable=True, index=True)
+    completeness_score = Column(Integer, nullable=True)
+    confidence_score = Column(Integer, nullable=True)
+    quality_grade = Column(String(2), nullable=True)
+    enriched_at = Column(DateTime, nullable=True)
+    model_used = Column(String(255), nullable=True)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utc_now)
+
+    catalog = relationship("Catalog", back_populates="products")
+    attributes = relationship("ProductAttribute", back_populates="product", cascade="all, delete-orphan")
+    source_documents = relationship("SourceDocument", back_populates="product", cascade="all, delete-orphan")
+    conflicts = relationship("AttributeConflict", back_populates="product", cascade="all, delete-orphan")
+
+
+class SourceDocument(Base):
+    __tablename__ = "source_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    url = Column(String(1000), nullable=True)
+    filename = Column(String(500), nullable=True)
+    doc_type = Column(String(20), nullable=True)  # html|pdf|image|xlsx|docx
+    fetched_at = Column(DateTime, nullable=True)
+    content_hash = Column(String(64), nullable=True, index=True)
+    text_snippet = Column(Text, nullable=True)
+    page_number = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=utc_now)
     updated_at = Column(DateTime, nullable=True, onupdate=utc_now)
 
-    discovery_job = relationship("DiscoveryJob", back_populates="discovered_leads")
-    campaign = relationship("Campaign", back_populates="discovered_leads")
-    imported_lead = relationship("Lead")
+    product = relationship("Product", back_populates="source_documents")
+    attributes = relationship("ProductAttribute", back_populates="source")
 
 
-class Lead(Base):
-    __tablename__ = "leads"
+class ProductAttribute(Base):
+    __tablename__ = "product_attributes"
 
     id = Column(Integer, primary_key=True, index=True)
-    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
-    company_name = Column(String(255), nullable=False)
-    website = Column(String(255), nullable=True)
-    industry = Column(String(255), nullable=True)
-    location = Column(String(255), nullable=True)
-    contact_name = Column(String(255), nullable=True)
-    contact_role = Column(String(255), nullable=True)
-    email = Column(String(255), nullable=True)
-    phone = Column(String(100), nullable=True)
-    source_url = Column(Text, nullable=True)
-    profile_url = Column(Text, nullable=True)
-    source = Column(String(100), default="CSV")
-    status = Column(String(100), default="new")
-    call_status = Column(String(100), nullable=True)
-    last_call_outcome = Column(String(100), nullable=True)
-    last_called_at = Column(DateTime, nullable=True)
-    do_not_call = Column(Boolean, default=False, nullable=False)
-    ai_score = Column(Integer, nullable=True)
-    ai_fit_score = Column(Integer, nullable=True)
-    ai_contact_confidence_score = Column(Integer, nullable=True)
-    ai_priority = Column(String(50), nullable=True)
-    ai_qualification = Column(String(50), nullable=True)
-    ai_score_reason = Column(Text, nullable=True)
-    ai_contact_confidence_reason = Column(Text, nullable=True)
-    ai_outreach_angle = Column(Text, nullable=True)
-    ai_pain_point = Column(Text, nullable=True)
-    ai_recommended_cta = Column(Text, nullable=True)
-    ai_final_priority_reason = Column(Text, nullable=True)
-    ai_scored_at = Column(DateTime, nullable=True)
-    ai_model_used = Column(String(255), nullable=True)
-    ai_score_error = Column(Text, nullable=True)
-    research_status = Column(String(50), default="not_researched", nullable=False)
-    research_summary = Column(Text, nullable=True)
-    research_business_type = Column(String(255), nullable=True)
-    research_target_customers = Column(Text, nullable=True)
-    research_products_services = Column(Text, nullable=True)
-    research_pain_points = Column(Text, nullable=True)
-    research_use_case_fit = Column(Text, nullable=True)
-    research_outreach_angle = Column(Text, nullable=True)
-    research_risk_flags = Column(Text, nullable=True)
-    research_confidence = Column(Integer, nullable=True)
-    research_sources = Column(Text, nullable=True)
-    research_error = Column(Text, nullable=True)
-    research_used_fallback = Column(Boolean, default=False, nullable=False)
-    researched_at = Column(DateTime, nullable=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    key = Column(String(255), nullable=False, index=True)
+    value_raw = Column(Text, nullable=True)
+    value_norm = Column(Text, nullable=True)
+    unit = Column(String(50), nullable=True)
+    confidence = Column(Integer, nullable=True)  # 0-100
+    status = Column(String(20), default="proposed", nullable=False)  # proposed|approved|rejected|conflicted
+    source_id = Column(Integer, ForeignKey("source_documents.id"), nullable=True, index=True)
+    extraction_method = Column(String(20), nullable=True)  # html|pdf|vision|inferred
+    validation_flags = Column(Text, nullable=True)  # JSON array of strings
+    model_used = Column(String(255), nullable=True)
+    reviewed_by = Column(String(255), nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, nullable=True, onupdate=utc_now)
+
+    __table_args__ = (
+        UniqueConstraint("product_id", "key", "source_id", name="uq_product_attr_source"),
+    )
+
+    product = relationship("Product", back_populates="attributes")
+    source = relationship("SourceDocument", back_populates="attributes")
+
+
+class AttributeConflict(Base):
+    __tablename__ = "attribute_conflicts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    key = Column(String(255), nullable=False, index=True)
+    candidates = Column(Text, nullable=False)  # JSON array [{value, source_id, confidence}]
+    resolution = Column(String(20), default="unresolved", nullable=False)  # unresolved|auto|human
+    resolved_value = Column(Text, nullable=True)
+    resolved_by = Column(String(255), nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=utc_now)
 
-    campaign = relationship("Campaign", back_populates="leads")
+    product = relationship("Product", back_populates="conflicts")
 
 
-class EmailExtractionJob(Base):
-    __tablename__ = "email_extraction_jobs"
+class EnrichmentJob(Base):
+    __tablename__ = "enrichment_jobs"
 
     id = Column(Integer, primary_key=True, index=True)
-    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
+    catalog_id = Column(Integer, ForeignKey("catalogs.id"), nullable=False, index=True)
     status = Column(String(50), default="pending", nullable=False)
-    total_leads = Column(Integer, default=0, nullable=False)
+    total = Column(Integer, default=0, nullable=False)
     processed = Column(Integer, default=0, nullable=False)
-    found = Column(Integer, default=0, nullable=False)
+    succeeded = Column(Integer, default=0, nullable=False)
     skipped = Column(Integer, default=0, nullable=False)
     failed = Column(Integer, default=0, nullable=False)
     started_at = Column(DateTime, default=utc_now)
     finished_at = Column(DateTime, nullable=True)
     error = Column(Text, nullable=True)
 
-    campaign = relationship("Campaign", back_populates="email_extraction_jobs")
-
-
-class LeadResearchJob(Base):
-    __tablename__ = "lead_research_jobs"
-
-    id = Column(Integer, primary_key=True, index=True)
-    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
-    status = Column(String(50), default="pending", nullable=False)
-    total_leads = Column(Integer, default=0, nullable=False)
-    processed = Column(Integer, default=0, nullable=False)
-    researched = Column(Integer, default=0, nullable=False)
-    skipped = Column(Integer, default=0, nullable=False)
-    failed = Column(Integer, default=0, nullable=False)
-    started_at = Column(DateTime, default=utc_now)
-    finished_at = Column(DateTime, nullable=True)
-    error = Column(Text, nullable=True)
-
-    campaign = relationship("Campaign", back_populates="lead_research_jobs")
-
-
-class LeadScoringJob(Base):
-    __tablename__ = "lead_scoring_jobs"
-
-    id = Column(Integer, primary_key=True, index=True)
-    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
-    status = Column(String(50), default="pending", nullable=False)
-    total_leads = Column(Integer, default=0, nullable=False)
-    processed = Column(Integer, default=0, nullable=False)
-    scored = Column(Integer, default=0, nullable=False)
-    skipped = Column(Integer, default=0, nullable=False)
-    failed = Column(Integer, default=0, nullable=False)
-    started_at = Column(DateTime, default=utc_now)
-    finished_at = Column(DateTime, nullable=True)
-    error = Column(Text, nullable=True)
-    force = Column(Boolean, default=False, nullable=False)
-
-    campaign = relationship("Campaign", back_populates="lead_scoring_jobs")
+    catalog = relationship("Catalog", back_populates="enrichment_jobs")
 
 
 class KnowledgeDocument(Base):
@@ -274,4 +185,3 @@ class CompanyKnowledge(Base):
     updated_at = Column(DateTime, nullable=True, onupdate=utc_now)
 
     document = relationship("KnowledgeDocument", back_populates="knowledge_entries")
-

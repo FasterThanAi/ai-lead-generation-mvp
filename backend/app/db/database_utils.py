@@ -8,7 +8,7 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
-def ensure_email_extraction_job_columns(engine):
+def ensure_catalog_columns(engine):
     inspector = inspect(engine)
     table_names = inspector.get_table_names()
     dialect_name = engine.dialect.name
@@ -16,536 +16,477 @@ def ensure_email_extraction_job_columns(engine):
     id_type = "SERIAL PRIMARY KEY" if dialect_name == "postgresql" else "INTEGER PRIMARY KEY AUTOINCREMENT"
     current_timestamp = "NOW()" if dialect_name == "postgresql" else "CURRENT_TIMESTAMP"
 
-    required_columns = {
-        "id": "INTEGER",
-        "campaign_id": "INTEGER",
-        "status": "VARCHAR(50)",
-        "total_leads": "INTEGER",
-        "processed": "INTEGER",
-        "found": "INTEGER",
-        "skipped": "INTEGER",
-        "failed": "INTEGER",
-        "started_at": datetime_type,
-        "finished_at": datetime_type,
-        "error": "TEXT",
-    }
-
-    if "email_extraction_jobs" not in table_names:
+    if "catalogs" not in table_names:
         with engine.begin() as connection:
             connection.execute(
                 text(f"""
-                    CREATE TABLE IF NOT EXISTS email_extraction_jobs (
+                    CREATE TABLE IF NOT EXISTS catalogs (
                         id {id_type},
-                        campaign_id INTEGER NOT NULL,
-                        status VARCHAR(50) DEFAULT 'pending' NOT NULL,
-                        total_leads INTEGER DEFAULT 0 NOT NULL,
-                        processed INTEGER DEFAULT 0 NOT NULL,
-                        found INTEGER DEFAULT 0 NOT NULL,
-                        skipped INTEGER DEFAULT 0 NOT NULL,
-                        failed INTEGER DEFAULT 0 NOT NULL,
-                        started_at {datetime_type} DEFAULT {current_timestamp},
-                        finished_at {datetime_type},
-                        error TEXT
+                        name VARCHAR(255) NOT NULL,
+                        vertical VARCHAR(255),
+                        description TEXT,
+                        created_at {datetime_type} DEFAULT {current_timestamp}
                     )
                 """)
             )
-            connection.execute(
-                text("CREATE INDEX IF NOT EXISTS ix_email_extraction_jobs_campaign_id ON email_extraction_jobs (campaign_id)")
-            )
         return
 
     existing_columns = {
         column["name"]
-        for column in inspector.get_columns("email_extraction_jobs")
-    }
-    missing_columns = [
-        (column_name, column_type)
-        for column_name, column_type in required_columns.items()
-        if column_name not in existing_columns and column_name != "id"
-    ]
-
-    if not missing_columns:
-        return
-
-    with engine.begin() as connection:
-        for column_name, column_type in missing_columns:
-            default_clause = ""
-            if column_name == "status":
-                default_clause = " DEFAULT 'pending'"
-            if column_name in {"total_leads", "processed", "found", "skipped", "failed"}:
-                default_clause = " DEFAULT 0"
-            connection.execute(
-                text(f"ALTER TABLE email_extraction_jobs ADD COLUMN {column_name} {column_type}{default_clause}")
-            )
-
-        connection.execute(text("UPDATE email_extraction_jobs SET status = 'pending' WHERE status IS NULL"))
-        for column_name in ("total_leads", "processed", "found", "skipped", "failed"):
-            connection.execute(text(f"UPDATE email_extraction_jobs SET {column_name} = 0 WHERE {column_name} IS NULL"))
-
-
-def ensure_lead_research_job_columns(engine):
-    inspector = inspect(engine)
-    table_names = inspector.get_table_names()
-    dialect_name = engine.dialect.name
-    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
-    id_type = "SERIAL PRIMARY KEY" if dialect_name == "postgresql" else "INTEGER PRIMARY KEY AUTOINCREMENT"
-    current_timestamp = "NOW()" if dialect_name == "postgresql" else "CURRENT_TIMESTAMP"
-
-    required_columns = {
-        "id": "INTEGER",
-        "campaign_id": "INTEGER",
-        "status": "VARCHAR(50)",
-        "total_leads": "INTEGER",
-        "processed": "INTEGER",
-        "researched": "INTEGER",
-        "skipped": "INTEGER",
-        "failed": "INTEGER",
-        "started_at": datetime_type,
-        "finished_at": datetime_type,
-        "error": "TEXT",
-    }
-
-    if "lead_research_jobs" not in table_names:
-        with engine.begin() as connection:
-            connection.execute(
-                text(f"""
-                    CREATE TABLE IF NOT EXISTS lead_research_jobs (
-                        id {id_type},
-                        campaign_id INTEGER NOT NULL,
-                        status VARCHAR(50) DEFAULT 'pending' NOT NULL,
-                        total_leads INTEGER DEFAULT 0 NOT NULL,
-                        processed INTEGER DEFAULT 0 NOT NULL,
-                        researched INTEGER DEFAULT 0 NOT NULL,
-                        skipped INTEGER DEFAULT 0 NOT NULL,
-                        failed INTEGER DEFAULT 0 NOT NULL,
-                        started_at {datetime_type} DEFAULT {current_timestamp},
-                        finished_at {datetime_type},
-                        error TEXT
-                    )
-                """)
-            )
-            connection.execute(
-                text("CREATE INDEX IF NOT EXISTS ix_lead_research_jobs_campaign_id ON lead_research_jobs (campaign_id)")
-            )
-        return
-
-    existing_columns = {
-        column["name"]
-        for column in inspector.get_columns("lead_research_jobs")
-    }
-    missing_columns = [
-        (column_name, column_type)
-        for column_name, column_type in required_columns.items()
-        if column_name not in existing_columns and column_name != "id"
-    ]
-
-    if not missing_columns:
-        return
-
-    with engine.begin() as connection:
-        for column_name, column_type in missing_columns:
-            default_clause = ""
-            if column_name == "status":
-                default_clause = " DEFAULT 'pending'"
-            if column_name in {"total_leads", "processed", "researched", "skipped", "failed"}:
-                default_clause = " DEFAULT 0"
-            connection.execute(
-                text(f"ALTER TABLE lead_research_jobs ADD COLUMN {column_name} {column_type}{default_clause}")
-            )
-
-        connection.execute(text("UPDATE lead_research_jobs SET status = 'pending' WHERE status IS NULL"))
-        for column_name in ("total_leads", "processed", "researched", "skipped", "failed"):
-            connection.execute(text(f"UPDATE lead_research_jobs SET {column_name} = 0 WHERE {column_name} IS NULL"))
-
-
-def ensure_lead_scoring_job_columns(engine):
-    inspector = inspect(engine)
-    table_names = inspector.get_table_names()
-    dialect_name = engine.dialect.name
-    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
-    id_type = "SERIAL PRIMARY KEY" if dialect_name == "postgresql" else "INTEGER PRIMARY KEY AUTOINCREMENT"
-    current_timestamp = "NOW()" if dialect_name == "postgresql" else "CURRENT_TIMESTAMP"
-    boolean_type = "BOOLEAN"
-
-    required_columns = {
-        "id": "INTEGER",
-        "campaign_id": "INTEGER",
-        "status": "VARCHAR(50)",
-        "total_leads": "INTEGER",
-        "processed": "INTEGER",
-        "scored": "INTEGER",
-        "skipped": "INTEGER",
-        "failed": "INTEGER",
-        "started_at": datetime_type,
-        "finished_at": datetime_type,
-        "error": "TEXT",
-        "force": boolean_type,
-    }
-
-    if "lead_scoring_jobs" not in table_names:
-        with engine.begin() as connection:
-            connection.execute(
-                text(f"""
-                    CREATE TABLE IF NOT EXISTS lead_scoring_jobs (
-                        id {id_type},
-                        campaign_id INTEGER NOT NULL,
-                        status VARCHAR(50) DEFAULT 'pending' NOT NULL,
-                        total_leads INTEGER DEFAULT 0 NOT NULL,
-                        processed INTEGER DEFAULT 0 NOT NULL,
-                        scored INTEGER DEFAULT 0 NOT NULL,
-                        skipped INTEGER DEFAULT 0 NOT NULL,
-                        failed INTEGER DEFAULT 0 NOT NULL,
-                        started_at {datetime_type} DEFAULT {current_timestamp},
-                        finished_at {datetime_type},
-                        error TEXT,
-                        force {boolean_type} DEFAULT FALSE NOT NULL
-                    )
-                """)
-            )
-            connection.execute(
-                text("CREATE INDEX IF NOT EXISTS ix_lead_scoring_jobs_campaign_id ON lead_scoring_jobs (campaign_id)")
-            )
-        return
-
-    existing_columns = {
-        column["name"]
-        for column in inspector.get_columns("lead_scoring_jobs")
-    }
-    missing_columns = [
-        (column_name, column_type)
-        for column_name, column_type in required_columns.items()
-        if column_name not in existing_columns and column_name != "id"
-    ]
-
-    if not missing_columns:
-        return
-
-    with engine.begin() as connection:
-        for column_name, column_type in missing_columns:
-            default_clause = ""
-            if column_name == "status":
-                default_clause = " DEFAULT 'pending'"
-            if column_name in {"total_leads", "processed", "scored", "skipped", "failed"}:
-                default_clause = " DEFAULT 0"
-            if column_name == "force":
-                default_clause = " DEFAULT FALSE"
-            connection.execute(
-                text(f"ALTER TABLE lead_scoring_jobs ADD COLUMN {column_name} {column_type}{default_clause}")
-            )
-
-        connection.execute(text("UPDATE lead_scoring_jobs SET status = 'pending' WHERE status IS NULL"))
-        for column_name in ("total_leads", "processed", "scored", "skipped", "failed"):
-            connection.execute(text(f"UPDATE lead_scoring_jobs SET {column_name} = 0 WHERE {column_name} IS NULL"))
-        connection.execute(text("UPDATE lead_scoring_jobs SET force = FALSE WHERE force IS NULL"))
-
-
-
-
-def ensure_lead_ai_scoring_columns(engine):
-    inspector = inspect(engine)
-
-    if "leads" not in inspector.get_table_names():
-        return
-
-    existing_columns = {
-        column["name"]
-        for column in inspector.get_columns("leads")
-    }
-
-    dialect_name = engine.dialect.name
-    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
-
-    required_columns = {
-        "ai_score": "INTEGER",
-        "ai_fit_score": "INTEGER",
-        "ai_contact_confidence_score": "INTEGER",
-        "ai_priority": "VARCHAR(50)",
-        "ai_qualification": "VARCHAR(50)",
-        "ai_score_reason": "TEXT",
-        "ai_contact_confidence_reason": "TEXT",
-        "ai_outreach_angle": "TEXT",
-        "ai_pain_point": "TEXT",
-        "ai_recommended_cta": "TEXT",
-        "ai_final_priority_reason": "TEXT",
-        "ai_scored_at": datetime_type,
-        "ai_model_used": "VARCHAR(255)",
-        "ai_score_error": "TEXT",
-    }
-
-    missing_columns = [
-        (column_name, column_type)
-        for column_name, column_type in required_columns.items()
-        if column_name not in existing_columns
-    ]
-
-    if not missing_columns:
-        return
-
-    with engine.begin() as connection:
-        for column_name, column_type in missing_columns:
-            connection.execute(
-                text(f"ALTER TABLE leads ADD COLUMN {column_name} {column_type}")
-            )
-
-
-def ensure_lead_research_columns(engine):
-    inspector = inspect(engine)
-
-    if "leads" not in inspector.get_table_names():
-        return
-
-    existing_columns = {
-        column["name"]
-        for column in inspector.get_columns("leads")
-    }
-
-    dialect_name = engine.dialect.name
-    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
-
-    required_columns = {
-        "research_status": "VARCHAR(50)",
-        "research_summary": "TEXT",
-        "research_business_type": "VARCHAR(255)",
-        "research_target_customers": "TEXT",
-        "research_products_services": "TEXT",
-        "research_pain_points": "TEXT",
-        "research_use_case_fit": "TEXT",
-        "research_outreach_angle": "TEXT",
-        "research_risk_flags": "TEXT",
-        "research_confidence": "INTEGER",
-        "research_sources": "TEXT",
-        "research_error": "TEXT",
-        "research_used_fallback": "BOOLEAN",
-        "researched_at": datetime_type,
-    }
-
-    missing_columns = [
-        (column_name, column_type)
-        for column_name, column_type in required_columns.items()
-        if column_name not in existing_columns
-    ]
-
-    with engine.begin() as connection:
-        for column_name, column_type in missing_columns:
-            default_clause = " DEFAULT 'not_researched'" if column_name == "research_status" else ""
-            if column_name == "research_used_fallback":
-                default_clause = " DEFAULT FALSE"
-            connection.execute(
-                text(f"ALTER TABLE leads ADD COLUMN {column_name} {column_type}{default_clause}")
-            )
-
-        if "research_status" in existing_columns or any(column_name == "research_status" for column_name, _ in missing_columns):
-            connection.execute(
-                text("UPDATE leads SET research_status = 'not_researched' WHERE research_status IS NULL")
-            )
-
-        if "research_used_fallback" in existing_columns or any(column_name == "research_used_fallback" for column_name, _ in missing_columns):
-            connection.execute(
-                text("UPDATE leads SET research_used_fallback = FALSE WHERE research_used_fallback IS NULL")
-            )
-
-
-def ensure_lead_discovery_source_columns(engine):
-    inspector = inspect(engine)
-
-    if "leads" not in inspector.get_table_names():
-        return
-
-    existing_columns = {
-        column["name"]
-        for column in inspector.get_columns("leads")
+        for column in inspector.get_columns("catalogs")
     }
 
     required_columns = {
-        "source_url": "TEXT",
-        "profile_url": "TEXT",
-    }
-
-    missing_columns = [
-        (column_name, column_type)
-        for column_name, column_type in required_columns.items()
-        if column_name not in existing_columns
-    ]
-
-    if not missing_columns:
-        return
-
-    with engine.begin() as connection:
-        for column_name, column_type in missing_columns:
-            connection.execute(
-                text(f"ALTER TABLE leads ADD COLUMN {column_name} {column_type}")
-            )
-
-
-
-
-def ensure_opportunity_columns(engine):
-    inspector = inspect(engine)
-    dialect_name = engine.dialect.name
-    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
-
-    required_columns = {
-        "id": "INTEGER",
-        "title": "VARCHAR(255)",
-        "raw_goal": "TEXT",
-        "target_domain": "VARCHAR(255)",
-        "target_location": "VARCHAR(255)",
-        "offer": "TEXT",
-        "status": "VARCHAR(50)",
-        "ai_summary": "TEXT",
-        "target_audience": "TEXT",
-        "ideal_roles": "TEXT",
-        "industries": "TEXT",
-        "locations": "TEXT",
-        "pain_points": "TEXT",
-        "value_proposition": "TEXT",
-        "outreach_angle": "TEXT",
-        "search_keywords": "TEXT",
-        "lead_source_ideas": "TEXT",
-        "email_script": "TEXT",
-        "call_script": "TEXT",
-        "follow_up_sequence": "TEXT",
-        "qualification_criteria": "TEXT",
-        "risk_flags": "TEXT",
-        "suggested_campaign_name": "VARCHAR(255)",
-        "suggested_campaign_industry": "VARCHAR(255)",
-        "suggested_campaign_location": "VARCHAR(255)",
-        "suggested_campaign_target_role": "VARCHAR(255)",
-        "suggested_campaign_offer": "TEXT",
-        "suggested_discovery_target_type": "VARCHAR(100)",
-        "suggested_discovery_department": "VARCHAR(255)",
-        "suggested_discovery_role": "VARCHAR(255)",
-        "suggested_discovery_queries": "TEXT",
-        "ai_model": "VARCHAR(255)",
-        "created_at": datetime_type,
-        "updated_at": datetime_type,
-        "converted_campaign_id": "INTEGER",
-    }
-
-    if "opportunities" not in inspector.get_table_names():
-        return
-
-    existing_columns = {
-        column["name"]
-        for column in inspector.get_columns("opportunities")
-    }
-    missing_columns = [
-        (column_name, column_type)
-        for column_name, column_type in required_columns.items()
-        if column_name not in existing_columns and column_name != "id"
-    ]
-
-    with engine.begin() as connection:
-        for column_name, column_type in missing_columns:
-            default_clause = " DEFAULT 'draft'" if column_name == "status" else ""
-            connection.execute(
-                text(f"ALTER TABLE opportunities ADD COLUMN {column_name} {column_type}{default_clause}")
-            )
-
-        if "status" in existing_columns or any(column_name == "status" for column_name, _ in missing_columns):
-            connection.execute(
-                text("UPDATE opportunities SET status = 'draft' WHERE status IS NULL")
-            )
-
-
-def ensure_discovery_columns(engine):
-    inspector = inspect(engine)
-    dialect_name = engine.dialect.name
-    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
-
-    discovery_job_columns = {
-        "id": "INTEGER",
-        "opportunity_id": "INTEGER",
-        "campaign_id": "INTEGER",
-        "title": "VARCHAR(255)",
-        "target_type": "VARCHAR(100)",
-        "department": "VARCHAR(255)",
-        "location": "VARCHAR(255)",
-        "target_role": "VARCHAR(255)",
-        "query_goal": "TEXT",
-        "source_mode": "VARCHAR(50)",
-        "source_urls": "TEXT",
-        "generated_queries": "TEXT",
-        "status": "VARCHAR(50)",
-        "limit": "INTEGER",
-        "pages_attempted": "INTEGER",
-        "contacts_found": "INTEGER",
-        "errors": "TEXT",
-        "created_at": datetime_type,
-        "updated_at": datetime_type,
-    }
-    discovered_lead_columns = {
-        "id": "INTEGER",
-        "discovery_job_id": "INTEGER",
-        "campaign_id": "INTEGER",
         "name": "VARCHAR(255)",
-        "organization": "VARCHAR(255)",
-        "department": "VARCHAR(255)",
-        "designation": "VARCHAR(255)",
-        "email": "VARCHAR(255)",
-        "phone": "VARCHAR(100)",
-        "website": "VARCHAR(500)",
-        "profile_url": "VARCHAR(500)",
-        "source_url": "TEXT",
-        "lead_type": "VARCHAR(100)",
-        "location": "VARCHAR(255)",
-        "confidence": "INTEGER",
-        "fit_reason": "TEXT",
-        "risk_flags": "TEXT",
-        "raw_context": "TEXT",
-        "status": "VARCHAR(50)",
-        "imported_lead_id": "INTEGER",
+        "vertical": "VARCHAR(255)",
+        "description": "TEXT",
+        "created_at": datetime_type,
+    }
+
+    missing_columns = [
+        (column_name, column_type)
+        for column_name, column_type in required_columns.items()
+        if column_name not in existing_columns and column_name != "id"
+    ]
+
+    if not missing_columns:
+        return
+
+    with engine.begin() as connection:
+        for column_name, column_type in missing_columns:
+            connection.execute(
+                text(f"ALTER TABLE catalogs ADD COLUMN {column_name} {column_type}")
+            )
+
+
+def ensure_attribute_schema_columns(engine):
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+    dialect_name = engine.dialect.name
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+    id_type = "SERIAL PRIMARY KEY" if dialect_name == "postgresql" else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    current_timestamp = "NOW()" if dialect_name == "postgresql" else "CURRENT_TIMESTAMP"
+
+    if "attribute_schemas" not in table_names:
+        with engine.begin() as connection:
+            connection.execute(
+                text(f"""
+                    CREATE TABLE IF NOT EXISTS attribute_schemas (
+                        id {id_type},
+                        catalog_id INTEGER,
+                        category_name VARCHAR(255) NOT NULL,
+                        attributes TEXT NOT NULL,
+                        created_at {datetime_type} DEFAULT {current_timestamp},
+                        updated_at {datetime_type}
+                    )
+                """)
+            )
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_attribute_schemas_catalog_id ON attribute_schemas (catalog_id)")
+            )
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("attribute_schemas")
+    }
+
+    required_columns = {
+        "catalog_id": "INTEGER",
+        "category_name": "VARCHAR(255)",
+        "attributes": "TEXT",
         "created_at": datetime_type,
         "updated_at": datetime_type,
     }
-    table_columns = {
-        "discovery_jobs": discovery_job_columns,
-        "discovered_leads": discovered_lead_columns,
+
+    missing_columns = [
+        (column_name, column_type)
+        for column_name, column_type in required_columns.items()
+        if column_name not in existing_columns and column_name != "id"
+    ]
+
+    if not missing_columns:
+        return
+
+    with engine.begin() as connection:
+        for column_name, column_type in missing_columns:
+            connection.execute(
+                text(f"ALTER TABLE attribute_schemas ADD COLUMN {column_name} {column_type}")
+            )
+
+
+def ensure_product_columns(engine):
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+    dialect_name = engine.dialect.name
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+    id_type = "SERIAL PRIMARY KEY" if dialect_name == "postgresql" else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    current_timestamp = "NOW()" if dialect_name == "postgresql" else "CURRENT_TIMESTAMP"
+
+    if "products" not in table_names:
+        with engine.begin() as connection:
+            connection.execute(
+                text(f"""
+                    CREATE TABLE IF NOT EXISTS products (
+                        id {id_type},
+                        catalog_id INTEGER NOT NULL,
+                        part_number VARCHAR(255) NOT NULL,
+                        manufacturer VARCHAR(255),
+                        short_description TEXT,
+                        category VARCHAR(255),
+                        canonical_name VARCHAR(500),
+                        long_description TEXT,
+                        status VARCHAR(50) DEFAULT 'pending' NOT NULL,
+                        completeness_score INTEGER,
+                        confidence_score INTEGER,
+                        quality_grade VARCHAR(2),
+                        enriched_at {datetime_type},
+                        model_used VARCHAR(255),
+                        error TEXT,
+                        created_at {datetime_type} DEFAULT {current_timestamp}
+                    )
+                """)
+            )
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_products_catalog_id ON products (catalog_id)")
+            )
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_products_part_number ON products (part_number)")
+            )
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("products")
     }
 
+    required_columns = {
+        "catalog_id": "INTEGER",
+        "part_number": "VARCHAR(255)",
+        "manufacturer": "VARCHAR(255)",
+        "short_description": "TEXT",
+        "category": "VARCHAR(255)",
+        "canonical_name": "VARCHAR(500)",
+        "long_description": "TEXT",
+        "status": "VARCHAR(50)",
+        "completeness_score": "INTEGER",
+        "confidence_score": "INTEGER",
+        "quality_grade": "VARCHAR(2)",
+        "enriched_at": datetime_type,
+        "model_used": "VARCHAR(255)",
+        "error": "TEXT",
+        "created_at": datetime_type,
+    }
+
+    missing_columns = [
+        (column_name, column_type)
+        for column_name, column_type in required_columns.items()
+        if column_name not in existing_columns and column_name != "id"
+    ]
+
+    if not missing_columns:
+        return
+
+    with engine.begin() as connection:
+        for column_name, column_type in missing_columns:
+            default_clause = " DEFAULT 'pending'" if column_name == "status" else ""
+            connection.execute(
+                text(f"ALTER TABLE products ADD COLUMN {column_name} {column_type}{default_clause}")
+            )
+
+
+def ensure_source_document_columns(engine):
+    inspector = inspect(engine)
     table_names = inspector.get_table_names()
+    dialect_name = engine.dialect.name
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+    id_type = "SERIAL PRIMARY KEY" if dialect_name == "postgresql" else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    current_timestamp = "NOW()" if dialect_name == "postgresql" else "CURRENT_TIMESTAMP"
 
-    for table_name, required_columns in table_columns.items():
-        if table_name not in table_names:
-            continue
-
-        existing_columns = {
-            column["name"]
-            for column in inspector.get_columns(table_name)
-        }
-        missing_columns = [
-            (column_name, column_type)
-            for column_name, column_type in required_columns.items()
-            if column_name not in existing_columns and column_name != "id"
-        ]
-
+    if "source_documents" not in table_names:
         with engine.begin() as connection:
-            for column_name, column_type in missing_columns:
-                column_sql = f'"{column_name}"' if column_name == "limit" else column_name
-                default_clause = ""
-                if table_name == "discovery_jobs" and column_name == "source_mode":
-                    default_clause = " DEFAULT 'manual_urls'"
-                if table_name == "discovery_jobs" and column_name == "status":
-                    default_clause = " DEFAULT 'draft'"
-                if table_name == "discovery_jobs" and column_name in {"limit", "pages_attempted", "contacts_found"}:
-                    default_value = 20 if column_name == "limit" else 0
-                    default_clause = f" DEFAULT {default_value}"
-                if table_name == "discovered_leads" and column_name == "status":
-                    default_clause = " DEFAULT 'pending'"
-                connection.execute(
-                    text(f"ALTER TABLE {table_name} ADD COLUMN {column_sql} {column_type}{default_clause}")
-                )
+            connection.execute(
+                text(f"""
+                    CREATE TABLE IF NOT EXISTS source_documents (
+                        id {id_type},
+                        product_id INTEGER NOT NULL,
+                        url VARCHAR(1000),
+                        filename VARCHAR(500),
+                        doc_type VARCHAR(20),
+                        fetched_at {datetime_type},
+                        content_hash VARCHAR(64),
+                        text_snippet TEXT,
+                        page_number INTEGER,
+                        created_at {datetime_type} DEFAULT {current_timestamp},
+                        updated_at {datetime_type}
+                    )
+                """)
+            )
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_source_documents_product_id ON source_documents (product_id)")
+            )
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_source_documents_content_hash ON source_documents (content_hash)")
+            )
+        return
 
-            if table_name == "discovery_jobs":
-                connection.execute(text("UPDATE discovery_jobs SET source_mode = 'manual_urls' WHERE source_mode IS NULL"))
-                connection.execute(text("UPDATE discovery_jobs SET status = 'draft' WHERE status IS NULL"))
-                connection.execute(text('UPDATE discovery_jobs SET "limit" = 20 WHERE "limit" IS NULL'))
-                connection.execute(text("UPDATE discovery_jobs SET pages_attempted = 0 WHERE pages_attempted IS NULL"))
-                connection.execute(text("UPDATE discovery_jobs SET contacts_found = 0 WHERE contacts_found IS NULL"))
-            if table_name == "discovered_leads":
-                connection.execute(text("UPDATE discovered_leads SET status = 'pending' WHERE status IS NULL"))
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("source_documents")
+    }
+
+    required_columns = {
+        "product_id": "INTEGER",
+        "url": "VARCHAR(1000)",
+        "filename": "VARCHAR(500)",
+        "doc_type": "VARCHAR(20)",
+        "fetched_at": datetime_type,
+        "content_hash": "VARCHAR(64)",
+        "text_snippet": "TEXT",
+        "page_number": "INTEGER",
+        "created_at": datetime_type,
+        "updated_at": datetime_type,
+    }
+
+    missing_columns = [
+        (column_name, column_type)
+        for column_name, column_type in required_columns.items()
+        if column_name not in existing_columns and column_name != "id"
+    ]
+
+    if not missing_columns:
+        return
+
+    with engine.begin() as connection:
+        for column_name, column_type in missing_columns:
+            connection.execute(
+                text(f"ALTER TABLE source_documents ADD COLUMN {column_name} {column_type}")
+            )
 
 
+def ensure_product_attribute_columns(engine):
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+    dialect_name = engine.dialect.name
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+    id_type = "SERIAL PRIMARY KEY" if dialect_name == "postgresql" else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    current_timestamp = "NOW()" if dialect_name == "postgresql" else "CURRENT_TIMESTAMP"
+
+    if "product_attributes" not in table_names:
+        with engine.begin() as connection:
+            connection.execute(
+                text(f"""
+                    CREATE TABLE IF NOT EXISTS product_attributes (
+                        id {id_type},
+                        product_id INTEGER NOT NULL,
+                        key VARCHAR(255) NOT NULL,
+                        value_raw TEXT,
+                        value_norm TEXT,
+                        unit VARCHAR(50),
+                        confidence INTEGER,
+                        status VARCHAR(20) DEFAULT 'proposed' NOT NULL,
+                        source_id INTEGER,
+                        extraction_method VARCHAR(20),
+                        validation_flags TEXT,
+                        model_used VARCHAR(255),
+                        reviewed_by VARCHAR(255),
+                        reviewed_at {datetime_type},
+                        created_at {datetime_type} DEFAULT {current_timestamp},
+                        updated_at {datetime_type},
+                        CONSTRAINT uq_product_attr_source UNIQUE (product_id, key, source_id)
+                    )
+                """)
+            )
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_product_attributes_product_id ON product_attributes (product_id)")
+            )
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_product_attributes_key ON product_attributes (key)")
+            )
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_product_attributes_source_id ON product_attributes (source_id)")
+            )
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("product_attributes")
+    }
+
+    required_columns = {
+        "product_id": "INTEGER",
+        "key": "VARCHAR(255)",
+        "value_raw": "TEXT",
+        "value_norm": "TEXT",
+        "unit": "VARCHAR(50)",
+        "confidence": "INTEGER",
+        "status": "VARCHAR(20)",
+        "source_id": "INTEGER",
+        "extraction_method": "VARCHAR(20)",
+        "validation_flags": "TEXT",
+        "model_used": "VARCHAR(255)",
+        "reviewed_by": "VARCHAR(255)",
+        "reviewed_at": datetime_type,
+        "created_at": datetime_type,
+        "updated_at": datetime_type,
+    }
+
+    missing_columns = [
+        (column_name, column_type)
+        for column_name, column_type in required_columns.items()
+        if column_name not in existing_columns and column_name != "id"
+    ]
+
+    if not missing_columns:
+        return
+
+    with engine.begin() as connection:
+        for column_name, column_type in missing_columns:
+            default_clause = " DEFAULT 'proposed'" if column_name == "status" else ""
+            connection.execute(
+                text(f"ALTER TABLE product_attributes ADD COLUMN {column_name} {column_type}{default_clause}")
+            )
+
+
+def ensure_attribute_conflict_columns(engine):
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+    dialect_name = engine.dialect.name
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+    id_type = "SERIAL PRIMARY KEY" if dialect_name == "postgresql" else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    current_timestamp = "NOW()" if dialect_name == "postgresql" else "CURRENT_TIMESTAMP"
+
+    if "attribute_conflicts" not in table_names:
+        with engine.begin() as connection:
+            connection.execute(
+                text(f"""
+                    CREATE TABLE IF NOT EXISTS attribute_conflicts (
+                        id {id_type},
+                        product_id INTEGER NOT NULL,
+                        key VARCHAR(255) NOT NULL,
+                        candidates TEXT NOT NULL,
+                        resolution VARCHAR(20) DEFAULT 'unresolved' NOT NULL,
+                        resolved_value TEXT,
+                        resolved_by VARCHAR(255),
+                        resolved_at {datetime_type},
+                        created_at {datetime_type} DEFAULT {current_timestamp}
+                    )
+                """)
+            )
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_attribute_conflicts_product_id ON attribute_conflicts (product_id)")
+            )
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_attribute_conflicts_key ON attribute_conflicts (key)")
+            )
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("attribute_conflicts")
+    }
+
+    required_columns = {
+        "product_id": "INTEGER",
+        "key": "VARCHAR(255)",
+        "candidates": "TEXT",
+        "resolution": "VARCHAR(20)",
+        "resolved_value": "TEXT",
+        "resolved_by": "VARCHAR(255)",
+        "resolved_at": datetime_type,
+        "created_at": datetime_type,
+    }
+
+    missing_columns = [
+        (column_name, column_type)
+        for column_name, column_type in required_columns.items()
+        if column_name not in existing_columns and column_name != "id"
+    ]
+
+    if not missing_columns:
+        return
+
+    with engine.begin() as connection:
+        for column_name, column_type in missing_columns:
+            default_clause = " DEFAULT 'unresolved'" if column_name == "resolution" else ""
+            connection.execute(
+                text(f"ALTER TABLE attribute_conflicts ADD COLUMN {column_name} {column_type}{default_clause}")
+            )
+
+
+def ensure_enrichment_job_columns(engine):
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+    dialect_name = engine.dialect.name
+    datetime_type = "TIMESTAMP" if dialect_name == "postgresql" else "DATETIME"
+    id_type = "SERIAL PRIMARY KEY" if dialect_name == "postgresql" else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    current_timestamp = "NOW()" if dialect_name == "postgresql" else "CURRENT_TIMESTAMP"
+
+    required_columns = {
+        "id": "INTEGER",
+        "catalog_id": "INTEGER",
+        "status": "VARCHAR(50)",
+        "total": "INTEGER",
+        "processed": "INTEGER",
+        "succeeded": "INTEGER",
+        "skipped": "INTEGER",
+        "failed": "INTEGER",
+        "started_at": datetime_type,
+        "finished_at": datetime_type,
+        "error": "TEXT",
+    }
+
+    if "enrichment_jobs" not in table_names:
+        with engine.begin() as connection:
+            connection.execute(
+                text(f"""
+                    CREATE TABLE IF NOT EXISTS enrichment_jobs (
+                        id {id_type},
+                        catalog_id INTEGER NOT NULL,
+                        status VARCHAR(50) DEFAULT 'pending' NOT NULL,
+                        total INTEGER DEFAULT 0 NOT NULL,
+                        processed INTEGER DEFAULT 0 NOT NULL,
+                        succeeded INTEGER DEFAULT 0 NOT NULL,
+                        skipped INTEGER DEFAULT 0 NOT NULL,
+                        failed INTEGER DEFAULT 0 NOT NULL,
+                        started_at {datetime_type} DEFAULT {current_timestamp},
+                        finished_at {datetime_type},
+                        error TEXT
+                    )
+                """)
+            )
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_enrichment_jobs_catalog_id ON enrichment_jobs (catalog_id)")
+            )
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("enrichment_jobs")
+    }
+    missing_columns = [
+        (column_name, column_type)
+        for column_name, column_type in required_columns.items()
+        if column_name not in existing_columns and column_name != "id"
+    ]
+
+    if not missing_columns:
+        return
+
+    with engine.begin() as connection:
+        for column_name, column_type in missing_columns:
+            default_clause = ""
+            if column_name == "status":
+                default_clause = " DEFAULT 'pending'"
+            if column_name in {"total", "processed", "succeeded", "skipped", "failed"}:
+                default_clause = " DEFAULT 0"
+            connection.execute(
+                text(f"ALTER TABLE enrichment_jobs ADD COLUMN {column_name} {column_type}{default_clause}")
+            )
+
+        connection.execute(text("UPDATE enrichment_jobs SET status = 'pending' WHERE status IS NULL"))
+        for column_name in ("total", "processed", "succeeded", "skipped", "failed"):
+            connection.execute(text(f"UPDATE enrichment_jobs SET {column_name} = 0 WHERE {column_name} IS NULL"))
 
 
 def ensure_company_knowledge_columns(engine):
@@ -584,6 +525,9 @@ def ensure_company_knowledge_columns(engine):
         for column_name, column_type in required_columns.items()
         if column_name not in existing_columns
     ]
+
+    if not missing_columns:
+        return
 
     with engine.begin() as connection:
         for column_name, column_type in missing_columns:
