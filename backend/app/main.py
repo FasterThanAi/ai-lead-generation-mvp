@@ -75,6 +75,8 @@ async def api_key_guard_middleware(request, call_next):
     return await call_next(request)
 
 
+from app.api.routes import health
+app.include_router(health.router)
 app.include_router(api_router, prefix="/api")
 
 

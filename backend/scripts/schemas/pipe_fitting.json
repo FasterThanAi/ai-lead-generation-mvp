@@ -1,0 +1,52 @@
+[
+  {
+    "key": "fitting_type",
+    "label": "Fitting Type",
+    "data_type": "enum",
+    "unit_family": "none",
+    "allowed_values": ["hex_nipple", "street_elbow", "tee", "coupling", "union", "cross", "bushing", "plug"],
+    "required": true,
+    "min": null,
+    "max": null
+  },
+  {
+    "key": "material",
+    "label": "Fitting Material",
+    "data_type": "string",
+    "unit_family": "none",
+    "allowed_values": ["stainless_304", "stainless_316", "brass", "carbon_steel", "malleable_iron"],
+    "required": true,
+    "min": null,
+    "max": null
+  },
+  {
+    "key": "thread_size",
+    "label": "Thread Size Nominal",
+    "data_type": "number",
+    "unit_family": "length",
+    "allowed_values": [],
+    "required": true,
+    "min": 1.0,
+    "max": 200.0
+  },
+  {
+    "key": "pressure_class",
+    "label": "Pressure Class Rating",
+    "data_type": "number",
+    "unit_family": "pressure",
+    "allowed_values": [],
+    "required": true,
+    "min": 0.0,
+    "max": 10000.0
+  },
+  {
+    "key": "end_connection",
+    "label": "End Style",
+    "data_type": "string",
+    "unit_family": "none",
+    "allowed_values": ["npt_male", "npt_female", "socket_weld", "butt_weld"],
+    "required": true,
+    "min": null,
+    "max": null
+  }
+]

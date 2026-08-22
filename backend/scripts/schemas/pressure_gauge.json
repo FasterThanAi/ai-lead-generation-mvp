@@ -1,0 +1,62 @@
+[
+  {
+    "key": "dial_size",
+    "label": "Dial Diameter",
+    "data_type": "number",
+    "unit_family": "length",
+    "allowed_values": [],
+    "required": true,
+    "min": 10.0,
+    "max": 500.0
+  },
+  {
+    "key": "pressure_range_max",
+    "label": "Max Pressure Range",
+    "data_type": "number",
+    "unit_family": "pressure",
+    "allowed_values": [],
+    "required": true,
+    "min": 0.0,
+    "max": 50000.0
+  },
+  {
+    "key": "connection_size",
+    "label": "Process Connection Size",
+    "data_type": "number",
+    "unit_family": "length",
+    "allowed_values": [],
+    "required": true,
+    "min": 1.0,
+    "max": 100.0
+  },
+  {
+    "key": "connection_type",
+    "label": "Connection Type",
+    "data_type": "string",
+    "unit_family": "none",
+    "allowed_values": ["npt_male", "npt_female", "bsp_male", "flanged"],
+    "required": true,
+    "min": null,
+    "max": null
+  },
+  {
+    "key": "case_material",
+    "label": "Case Material",
+    "data_type": "string",
+    "unit_family": "none",
+    "allowed_values": ["stainless_304", "stainless_316", "brass", "polycarbonate"],
+    "required": false,
+    "min": null,
+    "max": null
+  },
+  {
+    "key": "liquid_filled",
+    "label": "Liquid Filled (Glycerin)",
+    "data_type": "boolean",
+    "unit_family": "none",
+    "allowed_values": ["true", "false"],
+    "required": false,
+    "min": null,
+    "max": null
+  }
+]

@@ -1,0 +1,82 @@
+[
+  {
+    "key": "body_material",
+    "label": "Body Material",
+    "data_type": "string",
+    "unit_family": "none",
+    "allowed_values": ["bronze", "brass", "stainless_304", "stainless_316", "carbon_steel", "cast_iron", "pvc"],
+    "required": true,
+    "min": null,
+    "max": null
+  },
+  {
+    "key": "size_nominal",
+    "label": "Nominal Pipe Size",
+    "data_type": "number",
+    "unit_family": "length",
+    "allowed_values": [],
+    "required": true,
+    "min": 1.0,
+    "max": 1000.0
+  },
+  {
+    "key": "pressure_rating",
+    "label": "Pressure Rating (CWP / WOG)",
+    "data_type": "number",
+    "unit_family": "pressure",
+    "allowed_values": [],
+    "required": true,
+    "min": 0.0,
+    "max": 15000.0
+  },
+  {
+    "key": "end_connection",
+    "label": "End Connection Type",
+    "data_type": "string",
+    "unit_family": "none",
+    "allowed_values": ["npt_female", "npt_male", "flanged_150", "flanged_300", "socket_weld", "butt_weld", "tri_clamp"],
+    "required": true,
+    "min": null,
+    "max": null
+  },
+  {
+    "key": "port_type",
+    "label": "Port Construction",
+    "data_type": "enum",
+    "unit_family": "none",
+    "allowed_values": ["standard_port", "full_port", "reduced_port", "v_port"],
+    "required": false,
+    "min": null,
+    "max": null
+  },
+  {
+    "key": "temp_range_min",
+    "label": "Min Operating Temperature",
+    "data_type": "number",
+    "unit_family": "temperature",
+    "allowed_values": [],
+    "required": false,
+    "min": -273.15,
+    "max": 1000.0
+  },
+  {
+    "key": "temp_range_max",
+    "label": "Max Operating Temperature",
+    "data_type": "number",
+    "unit_family": "temperature",
+    "allowed_values": [],
+    "required": false,
+    "min": -273.15,
+    "max": 1000.0
+  },
+  {
+    "key": "actuation_type",
+    "label": "Actuator / Handle",
+    "data_type": "string",
+    "unit_family": "none",
+    "allowed_values": ["lever_handle", "oval_handle", "gear_operated", "pneumatic_actuator", "electric_actuator", "bare_stem"],
+    "required": false,
+    "min": null,
+    "max": null
+  }
+]
