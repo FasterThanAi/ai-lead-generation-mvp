@@ -43,21 +43,6 @@ const navGroups = [
     ],
   },
   {
-    label: "Engage",
-    items: [
-      {
-        to: "/calls",
-        label: "Calls",
-        icon: "M6.6 4.8 9 7.2 7.5 9c.8 1.7 2.1 3 3.8 3.8l1.8-1.5 2.4 2.4c.3.3.4.8.2 1.2-.7 1.4-2.1 2.3-3.7 2.3C12.7 17.2 6.8 11.3 6.8 5c0-1.6.9-3 2.3-3.7.4-.2.9-.1 1.2.2Z",
-      },
-      {
-        to: "/emails",
-        label: "Emails",
-        icon: "M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5v-9Zm2-.5 6 5 6-5",
-      },
-    ],
-  },
-  {
     label: "System",
     items: [
       {
@@ -236,9 +221,9 @@ function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse }) {
 
           {showLabels && (
             <>
-              <p className="text-ink mt-3 text-xs font-semibold">Manual control</p>
+              <p className="text-ink mt-3 text-xs font-semibold">SpecForge Core</p>
               <p className="text-faint mt-1 text-[11px] leading-5">
-                Emails and follow-ups send only after approval.
+                Every attribute, with a receipt.
               </p>
             </>
           )}

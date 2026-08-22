@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session, joinedload
 from app.db.database import SessionLocal, get_db
 from app.db.models import Campaign, EmailExtractionJob, Lead
 from app.schemas.lead_schema import LeadCreate
-from app.services.email_guesser_service import find_email_for_website
 from app.services.lead_research_service import (
     LeadResearchError,
     research_lead,
@@ -265,8 +264,8 @@ def _run_extraction_job(job_id: int, campaign_id: int, limit: int):
 
         for lead in leads:
             try:
-                time.sleep(1)
-                extraction_result = find_email_for_website(lead.website, lead.contact_name)
+                time.sleep(0.1)
+                extraction_result = {"emails": [lead.email] if lead.email else [], "source": "existing"}
                 apply_extraction_result_to_lead(lead, extraction_result)
                 update_job_counts_for_lead(job, lead)
             except Exception as exc:
@@ -677,123 +676,16 @@ async def upload_leads_csv(
 
 @router.post("/extract-email/{lead_id}")
 def extract_email_for_lead(lead_id: int, db: Session = Depends(get_db)):
-    lead = get_lead_or_404(lead_id, db)
-
-    if not clean_optional(lead.website):
-        lead.status = "website_missing"
-        db.commit()
-
-        raise HTTPException(
-            status_code=400,
-            detail="Lead website is missing"
-        )
-
-    extraction_result = find_email_for_website(lead.website, lead.contact_name)
-    saved_email = apply_extraction_result_to_lead(lead, extraction_result)
-
-    db.commit()
-    db.refresh(lead)
-
-    return {
-        "status": "success",
-        "message": "Email extraction completed",
-        "lead_id": lead.id,
-        "found_emails": extraction_result.get("emails", []),
-        "saved_email": saved_email,
-        "pages_checked": extraction_result.get("pages_checked", []),
-        "source": extraction_result.get("source"),
-        "method": extraction_result.get("method"),
-        "verification": extraction_result.get("verification"),
-        "lead_status": lead.status,
-        "error": extraction_result.get("error")
-    }
+    raise HTTPException(
+        status_code=501,
+        detail="Email extraction is deprecated. Use SpecForge product intelligence pipeline."
+    )
 
 
 @router.post("/extract-emails/campaign/{campaign_id}")
 def extract_emails_for_campaign(campaign_id: int, db: Session = Depends(get_db)):
-    get_campaign_or_404(campaign_id, db)
-
-    leads = (
-        db.query(Lead)
-        .filter(Lead.campaign_id == campaign_id)
-        .order_by(Lead.created_at.desc())
-        .all()
+    raise HTTPException(
+        status_code=501,
+        detail="Email extraction is deprecated. Use SpecForge product intelligence pipeline."
     )
 
-    if not leads:
-        return {
-            "status": "success",
-            "message": "No leads found for this campaign",
-            "campaign_id": campaign_id,
-            "total_leads": 0,
-            "processed": 0,
-            "email_found": 0,
-            "email_not_found": 0,
-            "website_missing": 0,
-            "extraction_failed": 0,
-            "results": []
-        }
-
-    summary = {
-        "email_found": 0,
-        "email_not_found": 0,
-        "website_missing": 0,
-        "extraction_failed": 0,
-    }
-    results = []
-
-    for lead in leads:
-        website = clean_optional(lead.website)
-        found_emails = []
-        saved_email = lead.email
-        pages_checked = []
-        extraction_error = None
-        extraction_result = None
-
-        if not website:
-            lead.status = "website_missing"
-            summary["website_missing"] += 1
-        elif clean_optional(lead.email):
-            lead.status = "email_found"
-            summary["email_found"] += 1
-        else:
-            try:
-                extraction_result = find_email_for_website(website, lead.contact_name)
-                found_emails = extraction_result.get("emails", [])
-                pages_checked = extraction_result.get("pages_checked", [])
-                extraction_error = extraction_result.get("error")
-                saved_email = apply_extraction_result_to_lead(lead, extraction_result)
-                summary[lead.status] += 1
-            except Exception as exc:
-                lead.status = "extraction_failed"
-                extraction_error = str(exc)
-                summary["extraction_failed"] += 1
-
-        results.append({
-            "lead_id": lead.id,
-            "company_name": lead.company_name,
-            "website": lead.website,
-            "found_emails": found_emails,
-            "saved_email": saved_email,
-            "status": lead.status,
-            "pages_checked": pages_checked,
-            "source": extraction_result.get("source") if extraction_result else None,
-            "method": extraction_result.get("method") if extraction_result else None,
-            "verification": extraction_result.get("verification") if extraction_result else None,
-            "error": extraction_error,
-        })
-
-    db.commit()
-
-    return {
-        "status": "success",
-        "message": "Campaign email extraction completed",
-        "campaign_id": campaign_id,
-        "total_leads": len(leads),
-        "processed": len(results),
-        "email_found": summary["email_found"],
-        "email_not_found": summary["email_not_found"],
-        "website_missing": summary["website_missing"],
-        "extraction_failed": summary["extraction_failed"],
-        "results": results
-    }

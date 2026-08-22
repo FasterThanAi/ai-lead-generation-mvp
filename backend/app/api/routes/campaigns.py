@@ -6,7 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.db.database import SessionLocal, get_db
-from app.db.models import Campaign, EmailDraft, Lead, LeadResearchJob
+from app.db.models import Campaign, Lead, LeadResearchJob
 from app.schemas.campaign_schema import CampaignCreate
 from app.services.lead_research_service import research_lead
 from app.utils.time_utils import utc_now
@@ -398,36 +398,11 @@ def get_campaign_summary(campaign_id: int, db: Session = Depends(get_db)):
                 Lead.email.isnot(None),
                 Lead.email != "",
             ),
-            "draft_count": count_rows(db, EmailDraft, EmailDraft.campaign_id == campaign_id),
-            "generated_count": count_rows(
-                db,
-                EmailDraft,
-                EmailDraft.campaign_id == campaign_id,
-                EmailDraft.status == "generated",
-            ),
-            "approved_count": count_rows(
-                db,
-                EmailDraft,
-                EmailDraft.campaign_id == campaign_id,
-                EmailDraft.status == "approved",
-            ),
-            "sent_count": count_rows(
-                db,
-                EmailDraft,
-                EmailDraft.campaign_id == campaign_id,
-                EmailDraft.status.in_(("sent", "replied")),
-            ),
-            "failed_count": count_rows(
-                db,
-                EmailDraft,
-                EmailDraft.campaign_id == campaign_id,
-                EmailDraft.status == "failed",
-            ),
-            "replied_count": count_rows(
-                db,
-                EmailDraft,
-                EmailDraft.campaign_id == campaign_id,
-                EmailDraft.status == "replied",
-            ),
+            "draft_count": 0,
+            "generated_count": 0,
+            "approved_count": 0,
+            "sent_count": 0,
+            "failed_count": 0,
+            "replied_count": 0,
         }
     }

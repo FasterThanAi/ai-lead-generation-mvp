@@ -3,7 +3,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.database import get_db
-from app.db.models import Campaign, EmailDraft, FollowUpDraft, GmailToken, Lead, ReplyResponseDraft
+from app.db.models import Campaign, Lead
 
 router = APIRouter(
     prefix="/dashboard",
@@ -39,32 +39,6 @@ def serialize_campaign(campaign: Campaign):
     }
 
 
-def serialize_recent_email_draft(email_draft: EmailDraft):
-    lead = email_draft.lead
-    campaign = email_draft.campaign
-
-    return {
-        "id": email_draft.id,
-        "campaign_id": email_draft.campaign_id,
-        "lead_id": email_draft.lead_id,
-        "subject": email_draft.subject,
-        "status": email_draft.status,
-        "sent_at": email_draft.sent_at,
-        "send_error": email_draft.send_error,
-        "gmail_message_id": email_draft.gmail_message_id,
-        "reply_intent": email_draft.reply_intent,
-        "reply_sentiment": email_draft.reply_sentiment,
-        "reply_priority": email_draft.reply_priority,
-        "reply_summary": email_draft.reply_summary,
-        "reply_next_action": email_draft.reply_next_action,
-        "reply_classified_at": email_draft.reply_classified_at,
-        "created_at": email_draft.created_at,
-        "campaign_name": campaign.campaign_name if campaign else None,
-        "lead_company_name": lead.company_name if lead else None,
-        "lead_email": lead.email if lead else None,
-    }
-
-
 def serialize_top_ai_lead(lead: Lead):
     campaign = lead.campaign
 
@@ -84,38 +58,6 @@ def serialize_top_ai_lead(lead: Lead):
 
 @router.get("/stats")
 def get_dashboard_stats(db: Session = Depends(get_db)):
-    emails_sent = count_rows(db, EmailDraft, EmailDraft.status.in_(("sent", "replied")))
-    emails_replied = count_rows(db, EmailDraft, EmailDraft.status == "replied")
-    total_classified_replies = count_rows(
-        db,
-        EmailDraft,
-        EmailDraft.status == "replied",
-        EmailDraft.reply_intent.isnot(None),
-    )
-    high_priority_replies = count_rows(
-        db,
-        EmailDraft,
-        EmailDraft.status == "replied",
-        EmailDraft.reply_priority == "High",
-    )
-    interested_replies = count_rows(
-        db,
-        EmailDraft,
-        EmailDraft.status == "replied",
-        EmailDraft.reply_intent == "Interested",
-    )
-    pricing_replies = count_rows(
-        db,
-        EmailDraft,
-        EmailDraft.status == "replied",
-        EmailDraft.reply_intent == "Asked for Pricing",
-    )
-    meeting_request_replies = count_rows(
-        db,
-        EmailDraft,
-        EmailDraft.status == "replied",
-        EmailDraft.reply_intent == "Meeting Request",
-    )
     average_ai_score = (
         db.query(func.avg(Lead.ai_score))
         .filter(Lead.ai_score.isnot(None))
@@ -129,13 +71,6 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     latest_campaigns = (
         db.query(Campaign)
         .order_by(Campaign.created_at.desc(), Campaign.id.desc())
-        .limit(5)
-        .all()
-    )
-    recent_email_drafts = (
-        db.query(EmailDraft)
-        .options(joinedload(EmailDraft.lead), joinedload(EmailDraft.campaign))
-        .order_by(EmailDraft.created_at.desc(), EmailDraft.id.desc())
         .limit(5)
         .all()
     )
@@ -153,21 +88,21 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "data": {
             "total_campaigns": count_rows(db, Campaign),
             "total_leads": count_rows(db, Lead),
-            "emails_generated": count_rows(db, EmailDraft, EmailDraft.status == "generated"),
-            "emails_approved": count_rows(db, EmailDraft, EmailDraft.status == "approved"),
-            "emails_sent": emails_sent,
-            "emails_failed": count_rows(db, EmailDraft, EmailDraft.status == "failed"),
-            "emails_replied": emails_replied,
-            "reply_rate": rate_percentage(emails_replied, emails_sent),
-            "total_classified_replies": total_classified_replies,
-            "high_priority_replies": high_priority_replies,
-            "interested_replies": interested_replies,
-            "pricing_replies": pricing_replies,
-            "meeting_request_replies": meeting_request_replies,
-            "total_followups_generated": count_rows(db, FollowUpDraft, FollowUpDraft.status == "generated"),
-            "total_followups_sent": count_rows(db, FollowUpDraft, FollowUpDraft.status == "sent"),
-            "total_response_drafts": count_rows(db, ReplyResponseDraft),
-            "response_drafts_sent": count_rows(db, ReplyResponseDraft, ReplyResponseDraft.status == "sent"),
+            "emails_generated": 0,
+            "emails_approved": 0,
+            "emails_sent": 0,
+            "emails_failed": 0,
+            "emails_replied": 0,
+            "reply_rate": 0.0,
+            "total_classified_replies": 0,
+            "high_priority_replies": 0,
+            "interested_replies": 0,
+            "pricing_replies": 0,
+            "meeting_request_replies": 0,
+            "total_followups_generated": 0,
+            "total_followups_sent": 0,
+            "total_response_drafts": 0,
+            "response_drafts_sent": 0,
             "total_scored_leads": count_rows(db, Lead, Lead.ai_score.isnot(None)),
             "average_ai_score": round(float(average_ai_score), 1) if average_ai_score is not None else 0.0,
             "researched_leads": count_rows(db, Lead, Lead.research_status == "researched"),
@@ -175,12 +110,10 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             "average_research_confidence": round(float(average_research_confidence), 1) if average_research_confidence is not None else 0.0,
             "high_priority_leads": count_rows(db, Lead, Lead.ai_priority == "High"),
             "hot_leads": count_rows(db, Lead, Lead.ai_qualification == "Hot"),
-            "gmail_connected": db.query(GmailToken.id).first() is not None,
+            "gmail_connected": False,
             "latest_campaigns": [serialize_campaign(campaign) for campaign in latest_campaigns],
-            "recent_email_drafts": [
-                serialize_recent_email_draft(email_draft)
-                for email_draft in recent_email_drafts
-            ],
+            "recent_email_drafts": [],
             "top_ai_leads": [serialize_top_ai_lead(lead) for lead in top_ai_leads],
         }
     }
+
