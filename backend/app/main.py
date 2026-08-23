@@ -78,6 +78,7 @@ async def api_key_guard_middleware(request, call_next):
 from app.api.routes import health
 app.include_router(health.router)
 app.include_router(api_router, prefix="/api")
+app.include_router(api_router)
 
 
 @app.get("/")
