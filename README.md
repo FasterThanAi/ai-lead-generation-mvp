@@ -1,6 +1,11 @@
 # AI Lead Generation MVP
 
 For web-team integration notes, screenshot requirements, AI architecture, LLM workflow, and roadmap, see [`docs/team-handover-current-mvp.md`](docs/team-handover-current-mvp.md).
+Project Links
+GitHub Repository  :    https://github.com/FasterThanAi/ai-lead-generation-mvp 
+Prototype Link  :           https://specforge-core.vercel.app 
+Demo Video :Upcoming
+Solution Overview : https://docs.google.com/document/d/1OXv00oOHoQgofl3bjHk0f5aTLeXKK2Xr/edit?usp=sharing&ouid=110872591461450870617&rtpof=true&sd=true 
 
 ## 1. Project Overview
 
