@@ -6,13 +6,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#05070f" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#f6f8ff" media="(prefers-color-scheme: light)" />
-    <meta name="description" content="AI Lead Generation — campaigns, discovery, research, scoring and approved outreach." />
-    <title>Lead Agent — AI Lead Generation</title>
+    
+    <!-- Primary Meta Tags -->
+    <title>SpecForge — Industrial Product Spec Extraction & Intelligence</title>
+    <meta name="title" content="SpecForge — Industrial Product Spec Extraction & Intelligence" />
+    <meta name="description" content="SpecForge transforms messy industrial PDFs, scanned drawings, and supplier datasheets into structured, verified specifications with full provenance receipts." />
+
+    <!-- Open Graph / Facebook / WhatsApp -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="SpecForge — Industrial Product Spec Extraction & Intelligence" />
+    <meta property="og:description" content="Autonomous multimodal specification extraction, deterministic normalization, unit reasoning, and conflict resolution with proof receipts." />
+    <meta property="og:site_name" content="SpecForge Core" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="SpecForge — Industrial Product Spec Extraction & Intelligence" />
+    <meta name="twitter:description" content="Autonomous multimodal specification extraction, deterministic normalization, unit reasoning, and conflict resolution with proof receipts." />
+
     <script>
       // Resolve the theme before first paint so there is no white flash.
       (function () {
         try {
-          var stored = localStorage.getItem("leadagent-theme");
+          var stored = localStorage.getItem("specforge-theme") || localStorage.getItem("leadagent-theme");
           var theme = stored === "light" || stored === "dark" ? stored : "dark";
           var root = document.documentElement;
           root.classList.remove("light", "dark");
@@ -28,5 +43,4 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
-  </html>
-
+</html>
