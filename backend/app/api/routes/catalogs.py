@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal, get_db
-from app.db.models import Catalog, EnrichmentJob, Product
+from app.db.models import AttributeSchema, Catalog, EnrichmentJob, Product
 from app.schemas.catalog_schema import CatalogCreate, CatalogResponse
 from app.services.extraction_service import enrich_product
 from app.utils.time_utils import utc_now
@@ -234,10 +234,20 @@ def list_catalog_schemas(catalog_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=f"Catalog {catalog_id} not found")
 
     schemas = db.query(AttributeSchema).filter(AttributeSchema.catalog_id == catalog_id).all()
+    schema_list = []
+    for s in schemas:
+        schema_list.append({
+            "id": s.id,
+            "catalog_id": s.catalog_id,
+            "category_name": s.category_name,
+            "attributes": s.attributes,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+            "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+        })
     return {
         "status": "success",
-        "count": len(schemas),
-        "data": schemas
+        "count": len(schema_list),
+        "data": schema_list
     }
 
 
@@ -271,7 +281,15 @@ def create_or_update_schema(
         existing.updated_at = utc_now()
         db.commit()
         db.refresh(existing)
-        return {"status": "success", "message": "Schema updated", "data": existing}
+        data = {
+            "id": existing.id,
+            "catalog_id": existing.catalog_id,
+            "category_name": existing.category_name,
+            "attributes": existing.attributes,
+            "created_at": existing.created_at.isoformat() if existing.created_at else None,
+            "updated_at": existing.updated_at.isoformat() if existing.updated_at else None,
+        }
+        return {"status": "success", "message": "Schema updated", "data": data}
     else:
         new_schema = AttributeSchema(
             catalog_id=catalog_id,
@@ -281,7 +299,15 @@ def create_or_update_schema(
         db.add(new_schema)
         db.commit()
         db.refresh(new_schema)
-        return {"status": "success", "message": "Schema created", "data": new_schema}
+        data = {
+            "id": new_schema.id,
+            "catalog_id": new_schema.catalog_id,
+            "category_name": new_schema.category_name,
+            "attributes": new_schema.attributes,
+            "created_at": new_schema.created_at.isoformat() if new_schema.created_at else None,
+            "updated_at": new_schema.updated_at.isoformat() if new_schema.updated_at else None,
+        }
+        return {"status": "success", "message": "Schema created", "data": data}
 
 
 @router.delete("/{catalog_id}/schemas/{schema_id}")

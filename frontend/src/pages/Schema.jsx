@@ -130,8 +130,10 @@ function Schema() {
   };
 
   // Create new category schema
+  const [generatingAi, setGeneratingAi] = useState(false);
+
   const handleCreateCategory = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!newCatName.trim() || !selectedCatalogId) return;
     try {
       await api.post(`/catalogs/${selectedCatalogId}/schemas`, {
@@ -147,6 +149,32 @@ function Schema() {
       fetchSchemas();
     } catch (err) {
       console.error("Create category schema failed:", err);
+      alert("Failed creating schema.");
+    }
+  };
+
+  // Generate category schema using Gemini AI
+  const handleAiGenerate = async () => {
+    if (!newCatName.trim() || !selectedCatalogId) return;
+    try {
+      setGeneratingAi(true);
+      const res = await api.post("/schemas/generate", {
+        catalog_id: selectedCatalogId,
+        category_name: newCatName.trim(),
+      });
+      const generatedAttrs = res.data?.attributes || [];
+      if (generatedAttrs.length > 0) {
+        setNewCatName("");
+        setShowNewCatModal(false);
+        await fetchSchemas();
+        alert(`✓ Gemini generated ${generatedAttrs.length} schema attributes!`);
+      }
+    } catch (err) {
+      console.error("AI schema generation failed:", err);
+      alert("AI generation failed, creating baseline schema.");
+      handleCreateCategory({ preventDefault: () => {} });
+    } finally {
+      setGeneratingAi(false);
     }
   };
 
@@ -413,12 +441,21 @@ function Schema() {
                   autoFocus
                 />
               </div>
-              <div className="flex justify-end gap-2">
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <Button type="button" variant="ghost" onClick={() => setShowNewCatModal(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary">
-                  Create Category
+                <Button type="submit" variant="secondary" disabled={generatingAi}>
+                  Create Empty
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={handleAiGenerate}
+                  disabled={generatingAi || !newCatName.trim()}
+                  className="bg-accent"
+                >
+                  {generatingAi ? "✨ Generating with Gemini..." : "✨ AI Generate"}
                 </Button>
               </div>
             </form>
