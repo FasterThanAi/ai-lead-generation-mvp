@@ -8,7 +8,7 @@ SpecForge is an industrial-grade product data intelligence platform that ingests
 
 ---
 
-
+## Architecture Overview
 
 ```mermaid
 flowchart TD
