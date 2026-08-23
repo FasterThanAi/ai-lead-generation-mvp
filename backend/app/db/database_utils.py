@@ -620,9 +620,9 @@ def ensure_company_knowledge_embedding_columns(engine):
             logger.warning("Could not verify or update embedding column dimension. Keyword fallback will remain available. %s", exc)
             return
 
-    try:
-        with engine.begin() as connection:
-            if settings.EMBEDDING_DIMENSION <= 2000:
+    if settings.EMBEDDING_DIMENSION <= 2000:
+        try:
+            with engine.begin() as connection:
                 connection.execute(
                     text(
                         "CREATE INDEX IF NOT EXISTS company_knowledge_embedding_idx "
@@ -631,16 +631,8 @@ def ensure_company_knowledge_embedding_columns(engine):
                         "WITH (lists = 100)"
                     )
                 )
-            else:
-                connection.execute(
-                    text(
-                        "CREATE INDEX IF NOT EXISTS company_knowledge_embedding_idx "
-                        "ON company_knowledge "
-                        "USING hnsw (embedding vector_cosine_ops)"
-                    )
-                )
-    except Exception as exc:
-        logger.warning("Could not create company_knowledge embedding index. Semantic search can still run without it. %s", exc)
+        except Exception as exc:
+            logger.info("Index creation skipped: %s", exc)
 
 
 def ensure_knowledge_document_columns(engine):
