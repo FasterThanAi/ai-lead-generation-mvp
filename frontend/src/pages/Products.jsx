@@ -35,6 +35,7 @@ function Products() {
   // Async Enrichment Job Polling
   const [activeJob, setActiveJob] = useState(null);
   const [enrichingCatalog, setEnrichingCatalog] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const pollIntervalRef = useRef(null);
 
   // Fetch catalogs
@@ -152,6 +153,33 @@ function Products() {
     }
   };
 
+  const handleDownloadUnilog = async (format = "csv") => {
+    if (!selectedCatalogId) return;
+    try {
+      setExporting(true);
+      const res = await api.get(`/catalogs/${selectedCatalogId}/export/unilog.${format}?approved_only=false`, {
+        responseType: "blob",
+      });
+      const mimeType = format === "xlsx"
+        ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        : "text/csv;charset=utf-8;";
+      const blob = new Blob([res.data], { type: mimeType });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `catalog_${selectedCatalogId}_unilog_delivery.${format}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export download failed:", err);
+      alert("Export download failed. Please ensure products exist in this catalog.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const toggleSelectAll = () => {
     if (selectedIds.size === products.length) {
       setSelectedIds(new Set());
@@ -189,6 +217,31 @@ function Products() {
         description="Unified industrial product catalog with automated spec extraction, confidence, and provenance."
         action={
           <div className="flex items-center gap-2">
+            {/* Download Delivery Format Split Button */}
+            <div className="inline-flex rounded-lg shadow-sm">
+              <button
+                type="button"
+                onClick={() => handleDownloadUnilog("csv")}
+                disabled={!selectedCatalogId || exporting}
+                className="btn btn-secondary rounded-r-none border-r border-line-1 flex items-center gap-1.5 text-xs font-semibold px-3 py-2"
+                title="Download 252-Column Unilog Delivery Format (CSV)"
+              >
+                <svg className="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>{exporting ? "Exporting..." : "Delivery CSV"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDownloadUnilog("xlsx")}
+                disabled={!selectedCatalogId || exporting}
+                className="btn btn-secondary rounded-l-none flex items-center gap-1 text-xs font-semibold px-2.5 py-2"
+                title="Download 252-Column Unilog Delivery Format (Excel XLSX)"
+              >
+                <span>XLSX</span>
+              </button>
+            </div>
+
             <Button onClick={() => { setImportResult(null); setShowImportModal(true); }} variant="secondary">
               <svg className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />

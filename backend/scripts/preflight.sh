@@ -53,6 +53,8 @@ CAT_ID="${CAT_ID:-1}"
 
 check_endpoint "/api/catalogs/${CAT_ID}/export.csv"
 check_endpoint "/api/catalogs/${CAT_ID}/export.json"
+check_endpoint "/api/catalogs/${CAT_ID}/export/unilog.csv?approved_only=false"
+check_endpoint "/api/catalogs/${CAT_ID}/export/unilog.xlsx?approved_only=false"
 
 echo "----------------------------------------------------------------"
 echo "  Summary: ${PASSED}/${TOTAL} endpoints passed (${FAILED} failed)"

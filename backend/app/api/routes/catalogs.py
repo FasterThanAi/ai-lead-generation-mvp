@@ -367,3 +367,46 @@ def export_catalog_as_json(
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+@router.get("/{catalog_id}/export/unilog.csv")
+def export_catalog_unilog_csv(
+    catalog_id: int,
+    approved_only: bool = False,
+    db: Session = Depends(get_db)
+):
+    from fastapi.responses import Response
+    from app.services.export_service import export_unilog
+
+    try:
+        csv_bytes = export_unilog(db, catalog_id, approved_only=approved_only, fmt="csv")
+        filename = f"catalog_{catalog_id}_unilog_delivery.csv"
+        return Response(
+            content=csv_bytes,
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.get("/{catalog_id}/export/unilog.xlsx")
+def export_catalog_unilog_xlsx(
+    catalog_id: int,
+    approved_only: bool = False,
+    db: Session = Depends(get_db)
+):
+    from fastapi.responses import Response
+    from app.services.export_service import export_unilog
+
+    try:
+        xlsx_bytes = export_unilog(db, catalog_id, approved_only=approved_only, fmt="xlsx")
+        filename = f"catalog_{catalog_id}_unilog_delivery.xlsx"
+        return Response(
+            content=xlsx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+

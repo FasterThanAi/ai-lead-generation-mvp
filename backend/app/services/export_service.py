@@ -192,3 +192,136 @@ def export_catalog_json(db: Session, catalog_id: int, approved_only: bool = True
     }
 
     return json.dumps(payload, indent=2).encode("utf-8")
+
+
+def export_unilog(db: Session, catalog_id: int, approved_only: bool = False, fmt: str = "csv") -> bytes:
+    """
+    Exports a catalog to the 252-column Unilog B2B PIM delivery format.
+    Validates output headers with unilog_format.validate() before returning.
+    """
+    from sqlalchemy.orm import joinedload
+    from app.services.unilog_format import build_row, write_csv, write_xlsx, validate
+
+    catalog = db.query(Catalog).filter(Catalog.id == catalog_id).first()
+    if not catalog:
+        raise ValueError(f"Catalog {catalog_id} not found")
+
+    products = (
+        db.query(Product)
+        .options(
+            joinedload(Product.attributes).joinedload(ProductAttribute.source),
+            joinedload(Product.source_documents)
+        )
+        .filter(Product.catalog_id == catalog_id)
+        .order_by(Product.id.asc())
+        .all()
+    )
+
+    unilog_rows = []
+    for p in products:
+        # Attributes sorted by confidence descending
+        valid_attrs = []
+        for a in p.attributes:
+            if approved_only and a.status != "approved":
+                continue
+            valid_attrs.append(a)
+
+        sorted_attrs = sorted(valid_attrs, key=lambda x: (x.confidence or 0), reverse=True)
+        attr_payloads = []
+        for a in sorted_attrs:
+            val = a.value_norm if a.value_norm is not None else a.value_raw
+            attr_payloads.append({
+                "key": a.key,
+                "label": a.key.replace("_", " ").title(),
+                "value": val,
+                "uom": a.unit,
+                "confidence": a.confidence
+            })
+
+        # Features & Approvals
+        features_list = []
+        if p.item_features:
+            try:
+                features_list = json.loads(p.item_features) if isinstance(p.item_features, str) else p.item_features
+            except Exception:
+                features_list = [str(p.item_features)]
+
+        approvals_list = []
+        if p.approvals:
+            try:
+                approvals_list = json.loads(p.approvals) if isinstance(p.approvals, str) else p.approvals
+            except Exception:
+                approvals_list = [str(p.approvals)]
+
+        # Documents
+        doc_payloads = []
+        for d in p.source_documents:
+            doc_payloads.append({
+                "filename": d.filename,
+                "doc_type": d.doc_type,
+                "url": d.url
+            })
+
+        source_row = {
+            "part_number": p.part_number,
+            "short_description": p.short_description,
+            "e1_brand": p.e1_brand,
+            "unilog_brand": p.unilog_brand,
+            "dib_brand": p.dib_brand,
+            "part_manuf": p.part_manuf,
+        }
+
+        taxonomy = {
+            "dept": p.dept,
+            "class_name": p.class_name,
+            "fine": p.fine,
+            "classpath": p.classpath,
+        }
+
+        descriptions = {
+            "product_name": p.product_name,
+            "short_desc": p.short_description,
+            "mobile_desc": p.mobile_desc,
+            "invoice_desc": p.invoice_desc,
+            "long_desc": p.long_desc,
+            "retail_desc": p.retail_desc,
+            "marketing_desc": p.marketing_desc,
+        }
+
+        quality = {
+            "completeness_score": p.completeness_score,
+            "confidence_score": p.confidence_score,
+            "quality_grade": p.quality_grade,
+            "status": p.status,
+            "model_used": p.model_used,
+            "enriched_at": p.enriched_at.isoformat() if p.enriched_at else "",
+        }
+
+        row_dict = build_row(
+            source_row=source_row,
+            taxonomy=taxonomy,
+            descriptions=descriptions,
+            attributes=attr_payloads,
+            features=features_list,
+            approvals=approvals_list,
+            documents=doc_payloads,
+            identifiers={
+                "part_number": p.part_number,
+                "manufacturer": p.manufacturer,
+                "canonical_name": p.canonical_name,
+            },
+            quality=quality,
+        )
+        unilog_rows.append(row_dict)
+
+    if fmt.lower() == "xlsx":
+        output_bytes = write_xlsx(unilog_rows)
+    else:
+        output_bytes = write_csv(unilog_rows)
+        # Validate produced CSV output
+        val_res = validate(output_bytes)
+        logger.info("Unilog export validation result: %s", val_res)
+        if not val_res.get("headers_exact_match"):
+            raise ValueError(f"Unilog delivery export schema validation failed: {val_res.get('mismatches')}")
+
+    return output_bytes

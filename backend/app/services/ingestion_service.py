@@ -22,7 +22,8 @@ HEADER_ALIASES = {
         "part", "partno", "part no", "part_no", "part-no", "sku", "item",
         "item number", "item_number", "item no", "mfr part", "mfr_part",
         "mfr part number", "mfr_part_no", "mpn", "part #", "model", "model number",
-        "partnumber", "product code", "item #"
+        "partnumber", "product code", "item #", "mfg_part_num", "mfg part num",
+        "mfg_part_number", "mfg part number", "mfgpartnum"
     },
     "manufacturer": {
         "brand", "mfr", "mfg", "make", "vendor", "supplier", "manufacturer",
@@ -31,7 +32,20 @@ HEADER_ALIASES = {
     "short_description": {
         "description", "desc", "short desc", "short_desc", "short description",
         "name", "title", "product name", "product_name", "item description",
-        "product description", "item desc"
+        "product description", "item desc", "part_desc", "part desc", "part description",
+        "partdesc"
+    },
+    "e1_brand": {
+        "e1_brand", "e1 brand", "e1brand", "e1"
+    },
+    "unilog_brand": {
+        "unilog_brand", "unilog brand", "unilogbrand", "unilog"
+    },
+    "dib_brand": {
+        "dib_brand", "dib brand", "dibbrand", "dib"
+    },
+    "part_manuf": {
+        "part_manuf", "part manuf", "part manufacturer", "part_manufacturer", "partmanuf"
     },
     "category": {
         "category", "product category", "type", "product type", "item category",
@@ -185,20 +199,34 @@ def parse_product_csv(file_bytes: bytes, filename: str = "") -> dict[str, list[d
 
     for index, row in enumerate(raw_rows):
         part_number = row.get("part_number")
-        if not part_number:
+        if not part_number or not str(part_number).strip():
             rejected_rows.append({
                 "row_number": index + 2,
                 "data": row,
-                "reason": "Missing required field: part_number"
+                "reason": "Missing required field: Mfg_Part_Num / part_number"
             })
         else:
+            part_manuf_raw = row.get("part_manuf")
+            raw_mfr = row.get("manufacturer")
+            if raw_mfr:
+                mfr_clean = str(raw_mfr).strip()
+            elif part_manuf_raw:
+                from app.services.unilog_format import strip_vendor_code
+                mfr_clean = strip_vendor_code(part_manuf_raw)
+            else:
+                mfr_clean = None
+
             valid_rows.append({
                 "part_number": str(part_number).strip(),
-                "manufacturer": row.get("manufacturer"),
+                "manufacturer": mfr_clean,
                 "short_description": row.get("short_description"),
                 "category": row.get("category"),
                 "canonical_name": row.get("canonical_name"),
                 "long_description": row.get("long_description"),
+                "e1_brand": row.get("e1_brand"),
+                "unilog_brand": row.get("unilog_brand"),
+                "dib_brand": row.get("dib_brand"),
+                "part_manuf": row.get("part_manuf"),
             })
 
     return {
@@ -214,7 +242,7 @@ def ingest_products(db: Session, catalog_id: int, rows: list[dict[str, Any]]) ->
 
     for row in rows:
         part_number = row.get("part_number")
-        if not part_number:
+        if not part_number or not str(part_number).strip():
             rejected += 1
             continue
 
@@ -235,6 +263,14 @@ def ingest_products(db: Session, catalog_id: int, rows: list[dict[str, Any]]) ->
                 existing.canonical_name = row.get("canonical_name")
             if row.get("long_description") is not None:
                 existing.long_description = row.get("long_description")
+            if row.get("e1_brand") is not None:
+                existing.e1_brand = row.get("e1_brand")
+            if row.get("unilog_brand") is not None:
+                existing.unilog_brand = row.get("unilog_brand")
+            if row.get("dib_brand") is not None:
+                existing.dib_brand = row.get("dib_brand")
+            if row.get("part_manuf") is not None:
+                existing.part_manuf = row.get("part_manuf")
             updated += 1
         else:
             new_product = Product(
@@ -245,6 +281,10 @@ def ingest_products(db: Session, catalog_id: int, rows: list[dict[str, Any]]) ->
                 category=row.get("category"),
                 canonical_name=row.get("canonical_name"),
                 long_description=row.get("long_description"),
+                e1_brand=row.get("e1_brand"),
+                unilog_brand=row.get("unilog_brand"),
+                dib_brand=row.get("dib_brand"),
+                part_manuf=row.get("part_manuf"),
                 status="pending",
             )
             db.add(new_product)

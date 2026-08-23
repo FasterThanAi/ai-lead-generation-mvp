@@ -367,8 +367,149 @@ def enrich_product(db: Session, product_id: int) -> dict[str, Any]:
         db.commit()
         return {"status": "failed", "product_id": product_id, "error": error_msg}
 
+def generate_description_family(db: Session, product: Product) -> dict[str, Any]:
+    """
+    Generates structured commercial description family grounded in extracted attributes:
+    - mobile_desc: "Manufacturer Brand, Product, Series, Part Number"
+    - invoice_desc: ALL CAPS, abbreviated, under ~40 chars
+    - short_desc: Clean one-liner
+    - long_desc: Brand + product + full attribute run-on
+    - retail_desc: Consumer/end-user friendly summary
+    - marketing_desc: Value propositions and engineering benefits
+    - product_name: Clean catalog product title
+    - item_features: List of up to 20 key bullet points
+    - approvals: List of regulatory standards & certifications
+    """
+    attrs_text = []
+    if product.attributes:
+        for a in product.attributes:
+            val = a.value_norm or a.value_raw
+            if val:
+                unit_str = f" {a.unit}" if a.unit else ""
+                attrs_text.append(f"- {a.key.replace('_', ' ').title()}: {val}{unit_str}")
+
+    specs_block = "\n".join(attrs_text) if attrs_text else "No specific extracted attributes."
+
+    family = {
+        "short_desc": product.short_description or product.part_number,
+        "mobile_desc": f"{product.manufacturer or ''} {product.product_name or product.part_number}".strip(),
+        "invoice_desc": (product.short_description or product.part_number)[:35].upper(),
+        "long_desc": product.long_description or product.short_description or "",
+        "retail_desc": product.short_description or "",
+        "marketing_desc": product.short_description or "",
+        "product_name": product.product_name or product.canonical_name or product.part_number,
+        "item_features": [],
+        "approvals": [],
+    }
+
+    if settings.GEMINI_API_KEY:
+        try:
+            client = genai.Client(api_key=settings.GEMINI_API_KEY)
+            prompt = f"""You are SpecForge's Industrial Catalog Copywriter and Master Data Steward.
+Generate the complete commercial description family for this industrial product, STRICTLY GROUNDED in the provided verified specifications. DO NOT invent fictitious ratings, dimensions, or certifications.
+
+Product Context:
+- Part Number: {product.part_number}
+- Brand / Manufacturer: {product.manufacturer or product.part_manuf or ''}
+- Taxonomy: {product.classpath or product.category or ''}
+- Source Description: {product.short_description or ''}
+
+Extracted Technical Attributes:
+{specs_block}
+
+### Rules for Description Family:
+1. `invoice_desc`: ALL CAPS, abbreviated, strictly under 40 characters suitable for ERP/EDI invoice lines (e.g. "FREUD 1/2X18 150G SAND BELT 6PK").
+2. `mobile_desc`: Concise mobile card title in the format "Manufacturer Brand, Product, Series, Part Number".
+3. `short_desc`: Crisp standard distributor catalog one-liner.
+4. `long_desc`: Comprehensive description containing brand, product type, and full attribute run-on.
+5. `retail_desc`: E-commerce catalog buyer summary.
+6. `marketing_desc`: Professional paragraph highlighting engineering benefits, durable construction, and intended applications.
+7. `product_name`: Standardized clean product title.
+8. `item_features`: JSON list of up to 20 concise engineering feature bullet strings.
+9. `approvals`: JSON list of industry standards or approvals present in the specs (e.g. "ANSI B7.1", "UL Listed", "NSF/ANSI 61", "OSHA Compliant"). If none, return [].
+
+Respond STRICTLY with a valid JSON object:
+{{
+  "product_name": "...",
+  "short_desc": "...",
+  "mobile_desc": "...",
+  "invoice_desc": "...",
+  "long_desc": "...",
+  "retail_desc": "...",
+  "marketing_desc": "...",
+  "item_features": ["feature 1", "feature 2"],
+  "approvals": ["approval 1"]
+}}
+"""
+            response = client.models.generate_content(
+                model=settings.GEMINI_MODEL,
+                contents=prompt,
+            )
+            parsed = extract_json_from_text(response.text or "")
+            if isinstance(parsed, dict):
+                for k in ["product_name", "short_desc", "mobile_desc", "invoice_desc", "long_desc", "retail_desc", "marketing_desc"]:
+                    if parsed.get(k):
+                        family[k] = str(parsed[k]).strip()
+                if isinstance(parsed.get("item_features"), list):
+                    family["item_features"] = [str(x).strip() for x in parsed["item_features"][:20]]
+                if isinstance(parsed.get("approvals"), list):
+                    family["approvals"] = [str(x).strip() for x in parsed["approvals"][:10]]
+        except Exception as exc:
+            logger.warning("Gemini description family generation failed for product %s: %s", product.id, exc)
+
+    # Persist to product columns
+    product.product_name = family["product_name"]
+    product.short_description = family["short_desc"]
+    product.mobile_desc = family["mobile_desc"]
+    product.invoice_desc = family["invoice_desc"]
+    product.long_desc = family["long_desc"]
+    product.long_description = family["long_desc"]
+    product.retail_desc = family["retail_desc"]
+    product.marketing_desc = family["marketing_desc"]
+    product.item_features = json.dumps(family["item_features"])
+    product.approvals = json.dumps(family["approvals"])
+    db.commit()
+
+    return family
+
+
+def enrich_product(db: Session, product_id: int) -> dict[str, Any]:
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        return {"status": "error", "error": "Product not found"}
+
+    product.status = "enriching"
+    product.error = None
+    db.commit()
+
+    if not settings.GEMINI_API_KEY:
+        error_msg = "Gemini API key is not configured. Enrichment cannot proceed."
+        logger.warning(error_msg)
+        product.status = "failed"
+        product.error = error_msg
+        product.enriched_at = utc_now()
+        product.model_used = settings.GEMINI_MODEL
+        db.commit()
+        return {"status": "failed", "product_id": product_id, "error": error_msg}
+
     try:
-        schema = load_schema(db, product.catalog_id, product.category)
+        # Dynamic Taxonomy Classification & Cached Schema Generation
+        try:
+            from app.services.taxonomy_service import classify_product, get_or_create_schema
+            if not product.classpath or not product.dept:
+                classify_product(db, product)
+
+            schema = get_or_create_schema(
+                db=db,
+                catalog_id=product.catalog_id,
+                dept=product.dept,
+                class_name=product.class_name,
+                fine=product.fine
+            )
+        except Exception as exc:
+            logger.warning("Taxonomy/Schema dynamic resolution fallback for product %s: %s", product.id, exc)
+            schema = load_schema(db, product.catalog_id, product.category)
+
         sources = (
             db.query(SourceDocument)
             .filter(SourceDocument.product_id == product.id)
@@ -423,11 +564,16 @@ def enrich_product(db: Session, product_id: int) -> dict[str, Any]:
         conflicts = detect_conflicts(db, product.id)
         logger.info("Conflicts for product %s: %d detected", product.id, len(conflicts))
 
-        # 5. Quality scoring (completeness %, confidence %, grade A-D)
+        # 5. Description Family generation (Task 4)
+        desc_family = generate_description_family(db, product)
+        logger.info("Generated description family for product %s", product.id)
+
+        # 6. Quality scoring (completeness %, confidence %, grade A-D)
         from app.services.quality_service import compute_product_scores
         quality_scores = compute_product_scores(db, product.id)
         logger.info("Quality scores for product %s: %s", product.id, quality_scores)
 
+        product.status = "enriched"
         product.enriched_at = utc_now()
         product.model_used = settings.GEMINI_MODEL
         product.error = None
@@ -441,6 +587,7 @@ def enrich_product(db: Session, product_id: int) -> dict[str, Any]:
             "validation": val_result,
             "plausibility": plaus_result,
             "conflicts_count": len(conflicts),
+            "descriptions": desc_family,
             "quality": quality_scores,
         }
 

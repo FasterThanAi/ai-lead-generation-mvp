@@ -51,7 +51,31 @@ class Product(Base):
     short_description = Column(Text, nullable=True)
     category = Column(String(255), nullable=True)
     canonical_name = Column(String(500), nullable=True)
+    # 6-column evaluation input verbatim storage
+    e1_brand = Column(String(255), nullable=True)
+    unilog_brand = Column(String(255), nullable=True)
+    dib_brand = Column(String(255), nullable=True)
+    part_manuf = Column(String(255), nullable=True)
+
+    # 3-tier dynamic taxonomy
+    dept = Column(String(255), nullable=True)
+    class_name = Column(String(255), nullable=True)
+    fine = Column(String(255), nullable=True)
+    classpath = Column(Text, nullable=True)
+
+    # Description family
+    product_name = Column(Text, nullable=True)
+    mobile_desc = Column(Text, nullable=True)
+    invoice_desc = Column(Text, nullable=True)
+    long_desc = Column(Text, nullable=True)
     long_description = Column(Text, nullable=True)
+    retail_desc = Column(Text, nullable=True)
+    marketing_desc = Column(Text, nullable=True)
+
+    # Bullets & Approvals (JSON arrays)
+    item_features = Column(Text, nullable=True)
+    approvals = Column(Text, nullable=True)
+
     status = Column(String(50), default="pending", nullable=False)
     completeness_score = Column(Integer, nullable=True)
     confidence_score = Column(Integer, nullable=True)
