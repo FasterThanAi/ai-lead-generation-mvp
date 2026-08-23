@@ -21,7 +21,14 @@ def export_catalog_csv(db: Session, catalog_id: int, approved_only: bool = True)
     if not catalog:
         raise ValueError(f"Catalog {catalog_id} not found")
 
-    products = db.query(Product).filter(Product.catalog_id == catalog_id).order_by(Product.id.asc()).all()
+    from sqlalchemy.orm import joinedload
+    products = (
+        db.query(Product)
+        .options(joinedload(Product.attributes).joinedload(ProductAttribute.source))
+        .filter(Product.catalog_id == catalog_id)
+        .order_by(Product.id.asc())
+        .all()
+    )
 
     # Collect all distinct attribute keys from schemas or product attributes
     all_keys = set()
@@ -118,7 +125,14 @@ def export_catalog_json(db: Session, catalog_id: int, approved_only: bool = True
     if not catalog:
         raise ValueError(f"Catalog {catalog_id} not found")
 
-    products = db.query(Product).filter(Product.catalog_id == catalog_id).order_by(Product.id.asc()).all()
+    from sqlalchemy.orm import joinedload
+    products = (
+        db.query(Product)
+        .options(joinedload(Product.attributes).joinedload(ProductAttribute.source))
+        .filter(Product.catalog_id == catalog_id)
+        .order_by(Product.id.asc())
+        .all()
+    )
 
     export_products = []
     for p in products:

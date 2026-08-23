@@ -47,9 +47,12 @@ check_endpoint "/api/dashboard/stats"
 check_endpoint "/api/catalogs/"
 check_endpoint "/api/products/"
 
-# 4. Export Engine
-check_endpoint "/api/catalogs/1/export.csv"
-check_endpoint "/api/catalogs/1/export.json"
+# 4. Export Engine (dynamically find first catalog id)
+CAT_ID=$(curl -s "${BASE_URL}/api/catalogs/" | grep -o '"id":[0-9]*' | head -n 1 | cut -d':' -f2)
+CAT_ID="${CAT_ID:-1}"
+
+check_endpoint "/api/catalogs/${CAT_ID}/export.csv"
+check_endpoint "/api/catalogs/${CAT_ID}/export.json"
 
 echo "----------------------------------------------------------------"
 echo "  Summary: ${PASSED}/${TOTAL} endpoints passed (${FAILED} failed)"
