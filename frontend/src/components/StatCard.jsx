@@ -100,15 +100,15 @@ function StatCard({ title, value, eyebrow, tone = "primary", helper }) {
 
   return (
     <motion.div
-      whileHover={{ y: -5 }}
+      whileHover={{ y: -2 }}
       transition={spring.snappy}
       style={{ "--tone": accent }}
-      className="glass rounded-panel group relative overflow-hidden p-5"
+      className="glass rounded-panel relative overflow-hidden p-5"
     >
-      {/* tone wash that intensifies on hover */}
+      {/* tone bloom — static; it identifies the card, it does not react */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full opacity-40 blur-2xl transition-opacity duration-500 group-hover:opacity-80"
+        className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full opacity-40 blur-2xl"
         style={{ background: "rgb(var(--tone) / 0.5)" }}
       />
 
@@ -124,7 +124,7 @@ function StatCard({ title, value, eyebrow, tone = "primary", helper }) {
         </div>
 
         <span
-          className="line-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6"
+          className="line-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border"
           style={{ backgroundColor: "rgb(var(--tone) / 0.14)", color: "rgb(var(--tone))" }}
         >
           <svg
@@ -143,13 +143,6 @@ function StatCard({ title, value, eyebrow, tone = "primary", helper }) {
       </div>
 
       {helper && <p className="text-faint relative mt-4 text-xs font-medium">{helper}</p>}
-
-      {/* bottom accent rail */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 h-px scale-x-0 transition-transform duration-500 group-hover:scale-x-100"
-        style={{ background: "linear-gradient(90deg, transparent, rgb(var(--tone)), transparent)" }}
-      />
     </motion.div>
   );
 }

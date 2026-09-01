@@ -358,7 +358,7 @@ function Dashboard() {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ ...spring.snappy, delay: index * 0.04 }}
-                      className="group rounded-2xl border line-1 surface-sunk p-4 transition hover:-translate-y-1 hover:line-2 hover:surface-3 hover:elev-2"
+                      className="group rounded-2xl border line-1 surface-sunk p-4 transition hover:-translate-y-0.5 hover:line-2 hover:surface-3 hover:elev-1"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
