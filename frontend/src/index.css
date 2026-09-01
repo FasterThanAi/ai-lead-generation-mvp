@@ -710,6 +710,12 @@ textarea {
 
   .btn:active:not(:disabled) {
     transform: scale(0.975);
+    /* Feedback lives on the press, and it has to be instant. The moment lag
+       appears here the sense of direct manipulation falls off a cliff, so the
+       squash goes down fast and only the release eases back out. */
+    transition: transform 0.1s cubic-bezier(0.3, 0, 0.2, 1),
+      box-shadow 0.25s ease, background-color 0.25s ease, border-color 0.25s ease,
+      opacity 0.2s ease;
   }
 
   .btn:disabled {
@@ -805,6 +811,11 @@ textarea {
   .nav-item:hover {
     color: var(--text-1);
     background-color: var(--glass-2);
+  }
+
+  .nav-item:active {
+    transform: scale(0.985);
+    transition: transform 0.1s cubic-bezier(0.3, 0, 0.2, 1);
   }
 
   .nav-item-active {
@@ -933,6 +944,76 @@ textarea {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Reduced transparency: the whole surface language here is translucency, so
+   this setting has to actually land somewhere. Frost the glass into a solid
+   surface and drop the blur rather than ignoring the request. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-raised,
+  .well,
+  .surface-1,
+  .surface-2,
+  .surface-3 {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .glass,
+  .glass-raised {
+    background-color: var(--bg-2);
+  }
+
+  html.light .glass,
+  html.light .glass-raised {
+    background-color: #ffffff;
+  }
+
+  /* the specular edge and the drifting aurora both rely on translucency */
+  .glass::before {
+    opacity: 0.35;
+  }
+
+  body::before,
+  body::after {
+    opacity: 0.25;
+    animation: none;
+  }
+}
+
+/* Increased contrast: near-solid backgrounds with a defined, contrasting
+   border, so every panel edge is unambiguous. */
+@media (prefers-contrast: more) {
+  :root {
+    --line-1: rgba(255, 255, 255, 0.34);
+    --line-2: rgba(255, 255, 255, 0.48);
+    --line-3: rgba(255, 255, 255, 0.66);
+    --glass-blur: 8px;
+  }
+
+  html.light {
+    --line-1: rgba(15, 23, 42, 0.32);
+    --line-2: rgba(15, 23, 42, 0.46);
+    --line-3: rgba(15, 23, 42, 0.64);
+  }
+
+  .glass,
+  .glass-raised {
+    background-color: var(--bg-2);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  html.light .glass,
+  html.light .glass-raised {
+    background-color: #ffffff;
+  }
+
+  body::before,
+  body::after {
+    opacity: 0.15;
   }
 }
 

@@ -1,0 +1,5 @@
+The AI training video platform helps HR and operations teams convert onboarding documents, SOPs, policies, and training material into short video lessons.
+
+The system can include quizzes, doubt support, completion tracking, learner progress visibility, and HR analytics dashboards.
+
+Managers can track employee progress, completion rates, engagement, and training gaps from the analytics view.

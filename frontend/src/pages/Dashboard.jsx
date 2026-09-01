@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import spring from "../motion/springs";
 import {
   Area,
   AreaChart,
@@ -192,7 +193,7 @@ function Dashboard() {
               <motion.div
                 key={label}
                 whileHover={{ y: -2 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                transition={spring.snappy}
                 className="rounded-panel border line-1 surface-2 p-4 elev-1 backdrop-blur transition hover:elev-2"
               >
                 <div className="flex items-center justify-between gap-3">
@@ -317,7 +318,7 @@ function Dashboard() {
                       key={campaign.id}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.04, duration: 0.2 }}
+                      transition={{ ...spring.snappy, delay: index * 0.04 }}
                       className="rounded-2xl border line-1 surface-sunk p-4 transition hover:-translate-y-0.5 hover:line-2 hover:surface-3 hover:elev-1"
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -356,7 +357,7 @@ function Dashboard() {
                       key={lead.lead_id || lead.id}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.04, duration: 0.2 }}
+                      transition={{ ...spring.snappy, delay: index * 0.04 }}
                       className="group rounded-2xl border line-1 surface-sunk p-4 transition hover:-translate-y-1 hover:line-2 hover:surface-3 hover:elev-2"
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -405,7 +406,7 @@ function Dashboard() {
                       key={draft.id}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.04, duration: 0.2 }}
+                      transition={{ ...spring.snappy, delay: index * 0.04 }}
                       className="rounded-2xl border line-1 surface-sunk p-4 transition hover:-translate-y-0.5 hover:line-2 hover:surface-3 hover:elev-1"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

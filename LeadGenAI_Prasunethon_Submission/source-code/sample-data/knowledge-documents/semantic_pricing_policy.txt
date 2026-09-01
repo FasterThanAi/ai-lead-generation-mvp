@@ -1,0 +1,5 @@
+Pricing depends on the number of employees, number of training modules, analytics requirements, and any customization or rollout support needed.
+
+For an MVP pilot, we usually recommend starting with one department and 3 to 5 training modules before scaling to the wider organization.
+
+Exact pricing should not be quoted until the team size, module count, analytics needs, and pilot scope are understood.

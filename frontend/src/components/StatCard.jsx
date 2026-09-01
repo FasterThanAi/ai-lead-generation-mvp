@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
+import spring from "../motion/springs";
 
 /**
  * StatCard — API unchanged (title, value, eyebrow, tone, helper).
@@ -100,7 +101,7 @@ function StatCard({ title, value, eyebrow, tone = "primary", helper }) {
   return (
     <motion.div
       whileHover={{ y: -5 }}
-      transition={{ type: "spring", stiffness: 380, damping: 26 }}
+      transition={spring.snappy}
       style={{ "--tone": accent }}
       className="glass rounded-panel group relative overflow-hidden p-5"
     >

@@ -1,0 +1,4 @@
+company_name,website,industry,location,contact_name,contact_role,email,source
+Example Manufacturing,https://example.com,Manufacturing,India,Asha Sharma,Owner,,CSV
+Demo SaaS,https://example.org,SaaS,United States,Alex Morgan,Founder,,CSV
+Sample Consulting,https://example.net,Consulting,United Kingdom,Sam Taylor,Managing Director,,CSV

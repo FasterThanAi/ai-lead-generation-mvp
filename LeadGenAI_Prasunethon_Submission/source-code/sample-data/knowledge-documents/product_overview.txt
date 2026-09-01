@@ -1,0 +1,5 @@
+Our AI training video system converts onboarding documents, SOPs, and training materials into short videos, quizzes, doubt support, and HR analytics.
+
+Teams can use it to turn static training content into interactive learning flows for new employees, frontline teams, and role-specific refreshers.
+
+The demo shows how training material becomes videos, quizzes, learner doubt support, and analytics that help HR teams understand completion and engagement.
