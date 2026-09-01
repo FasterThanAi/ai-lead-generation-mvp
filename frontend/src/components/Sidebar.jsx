@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import spring from "../motion/springs";
 
 const navGroups = [
   {
@@ -122,7 +123,7 @@ function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse }) {
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -8 }}
-                transition={{ duration: 0.2 }}
+                transition={spring.snappy}
                 className="min-w-0"
               >
                 <p className="text-ink truncate text-sm font-semibold tracking-tight">Lead Agent</p>
@@ -188,7 +189,7 @@ function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse }) {
                       {isActive && (
                         <motion.span
                           layoutId="nav-active-pill"
-                          transition={{ type: "spring", stiffness: 460, damping: 38 }}
+                          transition={spring.snappy}
                           aria-hidden="true"
                           className="bg-accent-soft line-2 absolute inset-0 rounded-[inherit] border"
                         />
@@ -208,7 +209,7 @@ function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse }) {
                       {isActive && showLabels && (
                         <motion.span
                           layoutId="nav-active-dot"
-                          transition={{ type: "spring", stiffness: 460, damping: 38 }}
+                          transition={spring.snappy}
                           aria-hidden="true"
                           className="bg-accent relative z-10 ml-auto h-1.5 w-1.5 rounded-full"
                         />

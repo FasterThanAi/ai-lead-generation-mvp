@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import ThemeProvider from "./theme/ThemeProvider";
+import spring from "./motion/springs";
 import Dashboard from "./pages/Dashboard";
 import Campaigns from "./pages/Campaigns";
 import Opportunities from "./pages/Opportunities";
@@ -26,11 +27,14 @@ const pageTitles = {
   "/settings": "Settings",
 };
 
+// A page leaves along the path it arrived on: in from below, out to below.
+// Entering one way and exiting another breaks the spatial relationship between
+// the two screens and reads as two unrelated events instead of one movement.
 const pageTransition = {
-  initial: { opacity: 0, y: 12 },
+  initial: { opacity: 0, y: 10 },
   animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -8 },
-  transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] },
+  exit: { opacity: 0, y: 10 },
+  transition: spring.snappy,
 };
 
 function AppShell() {
@@ -59,7 +63,7 @@ function AppShell() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={spring.fade}
             type="button"
             aria-label="Close navigation"
             className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm lg:hidden"
@@ -115,9 +119,11 @@ function AppShell() {
 function App() {
   return (
     <ThemeProvider>
-      <BrowserRouter>
-        <AppShell />
-      </BrowserRouter>
+      <MotionConfig reducedMotion="user">
+        <BrowserRouter>
+          <AppShell />
+        </BrowserRouter>
+      </MotionConfig>
     </ThemeProvider>
   );
 }

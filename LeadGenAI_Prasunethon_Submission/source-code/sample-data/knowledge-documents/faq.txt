@@ -1,0 +1,13 @@
+FAQ
+
+Q: What content can be uploaded?
+A: Teams can start with onboarding documents, SOPs, internal training notes, policy documents, and role-specific learning material.
+
+Q: What does the system create?
+A: The system creates short training videos, quizzes, doubt support, and HR analytics from the provided material.
+
+Q: Is a pilot recommended?
+A: Yes. A pilot with one department is recommended before a larger rollout.
+
+Q: Does pricing depend on requirements?
+A: Yes. Pricing depends on employees, training modules, analytics needs, and support requirements.

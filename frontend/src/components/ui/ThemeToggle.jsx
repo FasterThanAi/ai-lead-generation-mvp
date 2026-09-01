@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import spring from "../../motion/springs";
 import { useTheme } from "../../theme/useTheme";
 
 function ThemeToggle({ className = "" }) {
@@ -17,7 +18,7 @@ function ThemeToggle({ className = "" }) {
     >
       <motion.span
         layout
-        transition={{ type: "spring", stiffness: 500, damping: 32 }}
+        transition={spring.drawer}
         className={[
           "bg-accent flex h-8 w-8 items-center justify-center rounded-full",
           isDark ? "ml-0" : "ml-auto",
@@ -28,7 +29,7 @@ function ThemeToggle({ className = "" }) {
           key={isDark ? "moon" : "sun"}
           initial={{ rotate: -90, opacity: 0, scale: 0.6 }}
           animate={{ rotate: 0, opacity: 1, scale: 1 }}
-          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          transition={spring.rotation}
           viewBox="0 0 24 24"
           className="h-[18px] w-[18px]"
           fill="none"

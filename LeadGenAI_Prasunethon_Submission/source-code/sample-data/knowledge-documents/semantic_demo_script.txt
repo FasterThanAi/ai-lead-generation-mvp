@@ -1,0 +1,5 @@
+A short product walkthrough should show how a team uploads training documents or SOPs, reviews the generated video lesson, adds or checks quizzes, and views analytics dashboards.
+
+The demo should highlight how managers can see completion, employee progress, and training engagement.
+
+If the prospect asks for a quick walkthrough, keep the demo focused on document upload, video lesson generation, quizzes, and analytics.
