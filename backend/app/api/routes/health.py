@@ -3,7 +3,9 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.database import get_db
+from app.utils.time_utils import utc_now
 
 router = APIRouter()
 
@@ -11,7 +13,10 @@ router = APIRouter()
 def health_check():
     return {
         "status": "success",
-        "message": "Backend is connected successfully"
+        "message": "Backend is connected successfully",
+        "app_name": settings.APP_NAME,
+        "environment": settings.APP_ENV,
+        "server_time": utc_now().isoformat(),
     }
 
 
