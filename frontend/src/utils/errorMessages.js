@@ -11,12 +11,24 @@ function getBackendDetail(err) {
 }
 
 export function getFriendlyErrorMessage(err, fallbackMessage = DEFAULT_ERROR_MESSAGE, context = "") {
+  if (err?.code === "ECONNABORTED" || err?.code === "ETIMEDOUT") {
+    return "The request timed out.";
+  }
+
   if (!err?.response) {
     return "Backend is not reachable. Please check server status.";
   }
 
   const detail = getBackendDetail(err);
   const normalizedMessage = `${context} ${detail}`.toLowerCase();
+
+  if (err.response.status === 429) {
+    if (normalizedMessage.includes("daily limit reached")) {
+      return `${detail} Please try again tomorrow.`;
+    }
+
+    return "Too many requests. Please wait a moment and try again.";
+  }
 
   if (normalizedMessage.includes("replace placeholders")) {
     return "Please replace placeholders before sending.";
