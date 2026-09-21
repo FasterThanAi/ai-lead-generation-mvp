@@ -83,13 +83,35 @@ const toneByVariant = {
   not_researched: "neutral",
   researching: "warn",
   researched: "success",
+
+  /* processing + results returned by the backend */
+  created: "info",
+  processing: "warn",
+  processed: "success",
+  classified: "violet",
+  skipped: "neutral",
+  found: "success",
+  not_found: "warn",
+  error: "danger",
 };
 
-const dotTones = new Set(["running", "in_progress", "ringing", "sending", "researching", "queued"]);
+const dotTones = new Set(["running", "in_progress", "ringing", "sending", "researching", "queued", "processing"]);
+
+// Accept "In Progress", "email-found" and "email_found" alike.
+function resolveVariant(variant) {
+  const normalized = String(variant || "neutral").trim().toLowerCase();
+
+  if (Object.hasOwn(toneByVariant, normalized)) {
+    return normalized;
+  }
+
+  const snakeCased = normalized.replace(/[\s-]+/g, "_");
+  return Object.hasOwn(toneByVariant, snakeCased) ? snakeCased : normalized;
+}
 
 function Badge({ children, variant = "neutral", className = "" }) {
-  const normalizedVariant = String(variant || "neutral").toLowerCase();
-  const tone = toneByVariant[normalizedVariant] || "neutral";
+  const normalizedVariant = resolveVariant(variant);
+  const tone = Object.hasOwn(toneByVariant, normalizedVariant) ? toneByVariant[normalizedVariant] : "neutral";
 
   return (
     <span className={["tone", `tone-${tone}`, className].join(" ")}>
