@@ -3,9 +3,11 @@ import { Link } from "react-router-dom";
 import api from "../services/api";
 import { formatDateTimeIST } from "../utils/dateUtils";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
+import Badge from "./ui/Badge";
 import Button from "./ui/Button";
 import Card from "./ui/Card";
 import EmptyState from "./ui/EmptyState";
+import Skeleton from "./ui/Skeleton";
 
 function CampaignList({ refreshKey }) {
   const [campaigns, setCampaigns] = useState([]);
@@ -40,11 +42,30 @@ function CampaignList({ refreshKey }) {
             View all saved outreach campaigns.
           </p>
         </div>
+
+        {!isLoading && !error && campaigns.length > 0 && (
+          <Badge variant="info">
+            {campaigns.length} {campaigns.length === 1 ? "campaign" : "campaigns"}
+          </Badge>
+        )}
       </div>
 
       {isLoading && (
-        <div className="rounded-2xl border line-1 surface-sunk p-5 text-sm text-ink-2">
-          Loading campaigns...
+        <div role="status" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <span className="sr-only">Loading campaigns...</span>
+          {[0, 1].map((index) => (
+            <div key={index} className="rounded-3xl border line-1 surface-2 p-5">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="mt-3 h-5 w-2/3" />
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Skeleton className="h-14" />
+                <Skeleton className="h-14" />
+                <Skeleton className="h-14" />
+              </div>
+              <Skeleton className="mt-4 h-4 w-full" />
+              <Skeleton className="mt-2 h-4 w-4/5" />
+            </div>
+          ))}
         </div>
       )}
 
