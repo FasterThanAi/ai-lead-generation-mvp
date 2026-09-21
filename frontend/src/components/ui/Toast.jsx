@@ -14,10 +14,12 @@ const icons = {
   neutral: "M12 16v-5M12 8.5v.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
 };
 
-function Toast({ tone = "neutral", children, className = "" }) {
+function Toast({ tone = "neutral", children, className = "", onClose }) {
+  const role = tone === "danger" || tone === "warning" ? "alert" : "status";
+
   return (
     <div
-      role="status"
+      role={role}
       className={[
         "animate-rise flex items-start gap-2.5 rounded-2xl border px-4 py-3 text-sm font-medium",
         toneClasses[tone] || toneClasses.neutral,
@@ -36,7 +38,17 @@ function Toast({ tone = "neutral", children, className = "" }) {
       >
         <path d={icons[tone] || icons.neutral} />
       </svg>
-      <span className="min-w-0 break-anywhere">{children}</span>
+      <span className="min-w-0 flex-1 break-anywhere">{children}</span>
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Dismiss notification"
+          className="shrink-0 rounded-md px-1 text-lg leading-none text-ink-2 transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          ×
+        </button>
+      )}
     </div>
   );
 }
