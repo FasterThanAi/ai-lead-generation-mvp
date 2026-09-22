@@ -42,7 +42,8 @@ class EmailDraftResponse(BaseModel):
     lead_ai_contact_confidence_score: int | None = None
     lead_ai_priority: str | None = None
     lead_ai_qualification: str | None = None
-     class Config:
+
+    class Config:
         from_attributes = True
 
 
