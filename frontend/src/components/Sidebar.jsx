@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import spring from "../motion/springs";
@@ -95,6 +96,23 @@ function Icon({ path }) {
 function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse }) {
   const showLabels = !collapsed || mobileOpen;
 
+  // Let keyboard users close the mobile drawer with Escape, the same way they
+  // would dismiss any other overlay.
+  useEffect(() => {
+    if (!mobileOpen) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        onCloseMobile();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileOpen, onCloseMobile]);
+
   return (
     <aside
       className={[
@@ -159,7 +177,7 @@ function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse }) {
       <div className="divider mx-4 shrink-0" />
 
       {/* ---- nav ---- */}
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4">
+      <nav aria-label="Main navigation" className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4">
         {navGroups.map((group) => (
           <div key={group.label} className="mb-4 last:mb-0">
             {showLabels ? (
