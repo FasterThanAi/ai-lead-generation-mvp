@@ -4,6 +4,18 @@ import { getFriendlyErrorMessage } from "../utils/errorMessages";
 import Button from "./ui/Button";
 import Card from "./ui/Card";
 
+function formatFileSize(bytes) {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function LeadUpload({ campaignId, onUploadComplete }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [inputKey, setInputKey] = useState(0);
@@ -12,9 +24,26 @@ function LeadUpload({ campaignId, onUploadComplete }) {
   const [error, setError] = useState("");
 
   const handleFileChange = (e) => {
-    setSelectedFile(e.target.files?.[0] || null);
+    const file = e.target.files?.[0] || null;
     setMessage("");
     setError("");
+
+    // Catch the two most common mistakes before a request is ever sent.
+    if (file && !file.name.toLowerCase().endsWith(".csv")) {
+      setSelectedFile(null);
+      setInputKey((currentKey) => currentKey + 1);
+      setError("Please choose a .csv file.");
+      return;
+    }
+
+    if (file && file.size === 0) {
+      setSelectedFile(null);
+      setInputKey((currentKey) => currentKey + 1);
+      setError("The selected CSV file is empty.");
+      return;
+    }
+
+    setSelectedFile(file);
   };
 
   const handleSubmit = async (e) => {
@@ -79,10 +108,11 @@ function LeadUpload({ campaignId, onUploadComplete }) {
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 lg:flex-row lg:items-end">
         <div className="flex-1">
-          <label className="mb-2 block text-sm font-medium text-ink-2">
+          <label htmlFor="lead-csv-file" className="mb-2 block text-sm font-medium text-ink-2">
             CSV File
           </label>
           <input
+            id="lead-csv-file"
             key={inputKey}
             type="file"
             accept=".csv,text/csv"
@@ -90,6 +120,17 @@ function LeadUpload({ campaignId, onUploadComplete }) {
             className="min-h-12 w-full rounded-2xl border line-1 surface-2 p-3 text-sm elev-1 file:mr-3 file:rounded-xl file:border-0 file:surface-sunk file:px-3 file:py-2 file:text-sm file:font-semibold file:text-ink-2"
             disabled={!campaignId || isUploading}
           />
+          {selectedFile ? (
+            <p className="mt-2 text-xs text-muted">
+              Selected: <span className="font-medium text-ink-2">{selectedFile.name}</span>{" "}
+              ({formatFileSize(selectedFile.size)})
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-muted">
+              Required column: <code>company_name</code>. Optional: website, industry, location,
+              contact_name, contact_role, email, phone, source.
+            </p>
+          )}
         </div>
 
         <Button
