@@ -5,20 +5,30 @@ __pycache__/
 *.pyd
 .Python
 venv/
-.env
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 leadgen.db
 *.db
+*.sqlite3
+
+# Environment files
+.env
+.env.*
+!.env.example
 
 # Node
 node_modules/
 dist/
-.env
 
-# VS Code
+# IDEs
 .vscode/
+.idea/
 
 # OS
 .DS_Store
+Thumbs.db
 
 # Logs
 *.log
