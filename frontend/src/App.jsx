@@ -14,6 +14,7 @@ import Calls from "./pages/Calls";
 import Emails from "./pages/Emails";
 import Knowledge from "./pages/Knowledge";
 import Settings from "./pages/Settings";
+import NotFound from "./pages/NotFound";
 
 const pageTitles = {
   "/": "Dashboard",
@@ -42,7 +43,10 @@ function AppShell() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const pageTitle = useMemo(
-    () => pageTitles[location.pathname] || "AI Lead Generation",
+    () => {
+      const path = location.pathname.replace(/\/$/, "") || "/";
+      return pageTitles[path] || "Page not found";
+    },
     [location.pathname]
   );
 
@@ -106,6 +110,7 @@ function AppShell() {
                   <Route path="/emails" element={<Emails />} />
                   <Route path="/knowledge" element={<Knowledge />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
               </motion.div>
             </AnimatePresence>
