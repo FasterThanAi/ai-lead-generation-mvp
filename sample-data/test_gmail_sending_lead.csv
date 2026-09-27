@@ -1,2 +1,2 @@
-company_name,website,industry,location,contact_name,contact_role,email,source
-Test Gmail Lead,https://example.com,Testing,India,Your Name,Owner,your-email@example.com,CSV
+company_name,website,industry,location,contact_name,contact_role,email,phone,source
+Test Gmail Lead,https://example.com,Testing,India,Your Name,Owner,your-email@example.com,+91 90000 00003,CSV
