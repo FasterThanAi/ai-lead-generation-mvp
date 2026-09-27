@@ -42,6 +42,24 @@ npm run dev
 - Backend: http://127.0.0.1:8000 (API docs at `/docs`)
 - Frontend: http://localhost:5173
 
+## Checking your work
+
+Frontend, from `frontend/`:
+
+```bash
+npm run build      # must pass
+npm run lint       # no new errors
+npm test           # unit tests in src/
+```
+
+Backend, from the repository root:
+
+```bash
+python -m compileall -q backend/app     # catches syntax errors
+```
+
+With the backend running, http://127.0.0.1:8000/docs lets you try any endpoint you changed.
+
 ## Before opening a pull request
 
 - [ ] One issue per pull request. Keep changes small and focused.
@@ -49,6 +67,7 @@ npm run dev
 - [ ] For frontend changes, `npm run build` passes in `frontend/`.
 - [ ] Add a screenshot for any visible UI change.
 - [ ] **Never commit** `.env` files, API keys, OAuth tokens or real lead data.
+- [ ] Don't open placeholder pull requests to reserve an issue. Comment on the issue instead, and open the PR when the change is ready.
 
 ## Commit messages
 
