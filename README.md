@@ -1,7 +1,21 @@
 # AI Lead Generation MVP
 
+**[Live demo](https://ai-lead-generation-mvp.vercel.app/)** · **[API docs](https://ai-lead-generation-mvp.onrender.com/docs)** · **[Good first issues](https://github.com/FasterThanAi/ai-lead-generation-mvp/contribute)**
+
+> The API runs on Render's free tier and sleeps when idle, so the first request after a pause can take up to a minute to wake it.
+
 For web-team integration notes, screenshot requirements, AI architecture, LLM workflow, and roadmap, see [`docs/team-handover-current-mvp.md`](docs/team-handover-current-mvp.md).
 Project Links
+
+## Screenshots
+
+| Dashboard | Campaigns |
+|---|---|
+| ![Dashboard with campaign throughput, reply rate and AI scoring health](docs/screenshots/01-dashboard.jpg) | ![Campaign creation form and saved campaigns](docs/screenshots/02-campaigns.jpg) |
+
+| Opportunities | Leads |
+|---|---|
+| ![Turning a rough outreach idea into a reviewable strategy](docs/screenshots/03-opportunities.jpg) | ![Lead upload, enrichment and scoring](docs/screenshots/04-leads.jpg) |
 
 ## 1. Project Overview
 
