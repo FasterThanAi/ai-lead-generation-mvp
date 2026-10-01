@@ -4,17 +4,17 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class OpportunityCreate(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True, str_min_length=1)
+    model_config = ConfigDict(str_strip_whitespace=True)
 
-    title: str = Field(max_length=255)
-    raw_goal: str
+    title: str = Field(min_length=1, max_length=255)
+    raw_goal: str = Field(min_length=1)
     target_domain: str | None = None
     target_location: str | None = None
     offer: str | None = None
 
 
 class OpportunityUpdate(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True, str_min_length=1)
+    model_config = ConfigDict(str_strip_whitespace=True)
 
     title: str | None = Field(None, max_length=255)
     raw_goal: str | None = None
