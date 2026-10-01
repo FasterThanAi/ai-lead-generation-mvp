@@ -1,10 +1,12 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class OpportunityCreate(BaseModel):
-    title: str
+    model_config = ConfigDict(str_strip_whitespace=True, str_min_length=1)
+
+    title: str = Field(max_length=255)
     raw_goal: str
     target_domain: str | None = None
     target_location: str | None = None
@@ -12,7 +14,9 @@ class OpportunityCreate(BaseModel):
 
 
 class OpportunityUpdate(BaseModel):
-    title: str | None = None
+    model_config = ConfigDict(str_strip_whitespace=True, str_min_length=1)
+
+    title: str | None = Field(None, max_length=255)
     raw_goal: str | None = None
     target_domain: str | None = None
     target_location: str | None = None
