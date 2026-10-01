@@ -181,9 +181,10 @@ function Settings() {
               variant="secondary"
               className="w-full sm:w-auto"
               disabled={isLoadingStatus}
+              loading={isLoadingStatus}
               onClick={fetchGmailStatus}
             >
-              Refresh Status
+              {isLoadingStatus ? "Refreshing..." : "Refresh Status"}
             </Button>
           </div>
 
@@ -277,9 +278,10 @@ function Settings() {
               variant="secondary"
               className="w-full sm:w-auto"
               disabled={isLoadingHunterStatus}
+              loading={isLoadingHunterStatus}
               onClick={fetchHunterConnectionStatus}
             >
-              Refresh Status
+              {isLoadingHunterStatus ? "Refreshing..." : "Refresh Status"}
             </Button>
           </div>
 
