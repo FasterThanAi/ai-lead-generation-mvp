@@ -460,6 +460,8 @@ function LeadTable({
   isLoading,
   error,
   hasSelectedCampaign,
+  hasActiveFilters,
+  onClearFilters,
   onExtractEmail,
   extractingLeadId,
   onHunterEnrichLead,
@@ -507,10 +509,21 @@ function LeadTable({
       )}
 
       {hasSelectedCampaign && !isLoading && !error && leads.length === 0 && (
-        <EmptyState
-          title="No leads found for this campaign"
-          description="Upload a CSV to get started."
-        />
+        hasActiveFilters ? (
+          <EmptyState
+            title="No leads match your filters"
+            description="Try a different search term or clear the filters."
+          >
+            <Button variant="secondary" size="sm" onClick={onClearFilters}>
+              Clear filters
+            </Button>
+          </EmptyState>
+        ) : (
+          <EmptyState
+            title="No leads found for this campaign"
+            description="Upload a CSV to get started."
+          />
+        )
       )}
 
       {hasSelectedCampaign && !isLoading && !error && leads.length > 0 && (
