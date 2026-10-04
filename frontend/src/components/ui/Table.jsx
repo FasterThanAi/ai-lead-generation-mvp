@@ -1,13 +1,16 @@
 /**
- * Table — API unchanged (columns, children, className).
+ * Table — props: columns, children, className, caption.
+ * caption is an optional screen-reader-only description of the table; it adds
+ * no visible UI.
  * Wrapper handles horizontal scroll on narrow screens without clipping the
  * panel's rounded corners.
  */
-function Table({ columns = [], children, className = "" }) {
+function Table({ columns = [], children, className = "", caption = "" }) {
   return (
     <div className={["glass rounded-panel overflow-hidden", className].join(" ")}>
       <div className="scroll-x">
         <table className="min-w-full text-left text-sm">
+          {caption && <caption className="sr-only">{caption}</caption>}
           {columns.length > 0 && (
             <thead className="t-head">
               <tr>
