@@ -50,6 +50,11 @@ function AppShell() {
     [location.pathname]
   );
 
+  // keep the browser tab title in step with the current page
+  useEffect(() => {
+    document.title = `${pageTitle} | Lead Agent`;
+  }, [pageTitle]);
+
   // lock body scroll while the mobile drawer is open
   useEffect(() => {
     document.body.style.overflow = isMobileSidebarOpen ? "hidden" : "";
