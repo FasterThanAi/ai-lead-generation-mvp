@@ -1,6 +1,6 @@
 function EmptyState({ title, description, children, icon = null }) {
   return (
-    <div className="animate-rise rounded-panel line-1 surface-sunk border border-dashed px-6 py-10 text-center">
+    <div role="status" className="animate-rise rounded-panel line-1 surface-sunk border border-dashed px-6 py-10 text-center">
       <div className="bg-accent-soft line-1 mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border">
         {icon || (
           <svg
