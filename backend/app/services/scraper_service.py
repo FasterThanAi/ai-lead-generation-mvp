@@ -1,4 +1,6 @@
+import ipaddress
 import re
+import socket
 from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
 
@@ -6,6 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 
 REQUEST_TIMEOUT_SECONDS = 8
+MAX_REDIRECTS = 4
 USER_AGENT = "Mozilla/5.0"
 CANDIDATE_PATHS = [
     "",
@@ -72,6 +75,34 @@ def extract_emails_from_text(text: str) -> list[str]:
     return emails
 
 
+def is_public_http_url(url: str) -> bool:
+    """Return True only for http(s) URLs whose host resolves to public addresses."""
+    parsed_url = urlparse(url)
+    host = (parsed_url.hostname or "").lower()
+
+    if parsed_url.scheme not in {"http", "https"} or not host:
+        return False
+
+    if host == "localhost" or host.endswith(".localhost"):
+        return False
+
+    try:
+        address_infos = socket.getaddrinfo(host, None)
+    except (socket.gaierror, UnicodeError):
+        return False
+
+    for address_info in address_infos:
+        try:
+            ip_address = ipaddress.ip_address(address_info[4][0].split("%")[0])
+        except ValueError:
+            return False
+
+        if not ip_address.is_global or ip_address.is_multicast:
+            return False
+
+    return True
+
+
 def is_allowed_by_robots(url: str) -> tuple[bool, str | None]:
     parsed_url = urlparse(url)
 
@@ -89,9 +120,10 @@ def is_allowed_by_robots(url: str) -> tuple[bool, str | None]:
                 robots_url,
                 timeout=REQUEST_TIMEOUT_SECONDS,
                 headers={"User-Agent": USER_AGENT},
+                allow_redirects=False,
             )
 
-            if response.status_code >= 400:
+            if response.status_code >= 300:
                 robots_cache[robots_url] = None
             else:
                 parser.parse(response.text.splitlines())
@@ -111,19 +143,39 @@ def is_allowed_by_robots(url: str) -> tuple[bool, str | None]:
 
 
 def fetch_page_html(url: str) -> tuple[str, str | None]:
-    allowed, robots_error = is_allowed_by_robots(url)
-
-    if not allowed:
-        return "", robots_error
+    current_url = url
 
     try:
-        response = requests.get(
-            url,
-            timeout=REQUEST_TIMEOUT_SECONDS,
-            headers={"User-Agent": USER_AGENT},
-        )
-        response.raise_for_status()
-        return response.text, None
+        # Redirects are followed by hand so every hop is checked, otherwise a
+        # public site could bounce the request to an internal address.
+        for _ in range(MAX_REDIRECTS + 1):
+            if not is_public_http_url(current_url):
+                return "", "Website URL is not allowed"
+
+            allowed, robots_error = is_allowed_by_robots(current_url)
+
+            if not allowed:
+                return "", robots_error
+
+            response = requests.get(
+                current_url,
+                timeout=REQUEST_TIMEOUT_SECONDS,
+                headers={"User-Agent": USER_AGENT},
+                allow_redirects=False,
+            )
+
+            if not (response.is_redirect or response.is_permanent_redirect):
+                response.raise_for_status()
+                return response.text, None
+
+            redirect_location = response.headers.get("Location")
+
+            if not redirect_location:
+                return "", "Website redirected without a location"
+
+            current_url = urljoin(current_url, redirect_location)
+
+        return "", "Website redirected too many times"
     except requests.RequestException as exc:
         return "", str(exc)
 
