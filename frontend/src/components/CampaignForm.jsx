@@ -28,12 +28,22 @@ function CampaignForm({ onCampaignCreated }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
     setMessage("");
     setError("");
 
+    const trimmedData = Object.fromEntries(
+      Object.entries(formData).map(([name, value]) => [name, value.trim()])
+    );
+
+    if (Object.values(trimmedData).some((value) => !value)) {
+      setError("Please fill in every field.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
-      const res = await api.post("/campaigns/create", formData);
+      const res = await api.post("/campaigns/create", trimmedData);
       setMessage(res.data.message);
       setFormData({
         campaign_name: "",
@@ -72,31 +82,43 @@ function CampaignForm({ onCampaignCreated }) {
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {[
-          ["campaign_name", "Campaign name"],
-          ["industry", "Target industry, e.g. Manufacturing"],
-          ["location", "Location, e.g. India"],
-          ["target_role", "Target role, e.g. HR / CTO"],
-        ].map(([name, placeholder]) => (
-          <input
-            key={name}
-            name={name}
-            value={formData[name]}
-            onChange={handleChange}
-            placeholder={placeholder}
-            className="field"
-            required
-          />
+          ["campaign_name", "Campaign name", "Campaign name"],
+          ["industry", "Target industry", "e.g. Manufacturing"],
+          ["location", "Location", "e.g. India"],
+          ["target_role", "Target role", "e.g. HR / CTO"],
+        ].map(([name, label, placeholder]) => (
+          <div key={name}>
+            <label htmlFor={`campaign-${name}`} className="label">
+              {label}
+            </label>
+            <input
+              id={`campaign-${name}`}
+              name={name}
+              value={formData[name]}
+              onChange={handleChange}
+              placeholder={placeholder}
+              maxLength={255}
+              className="field"
+              required
+            />
+          </div>
         ))}
 
-        <textarea
-          name="offer"
-          value={formData.offer}
-          onChange={handleChange}
-          placeholder="What are you offering?"
-          className="field min-h-32 md:col-span-2"
-          rows="4"
-          required
-        />
+        <div className="md:col-span-2">
+          <label htmlFor="campaign-offer" className="label">
+            Offer
+          </label>
+          <textarea
+            id="campaign-offer"
+            name="offer"
+            value={formData.offer}
+            onChange={handleChange}
+            placeholder="What are you offering?"
+            className="field min-h-32"
+            rows="4"
+            required
+          />
+        </div>
 
         <div className="md:col-span-2">
           <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
