@@ -44,7 +44,11 @@ def create_campaign(campaign: CampaignCreate, db: Session = Depends(get_db)):
 
 @router.get("/")
 def get_campaigns(db: Session = Depends(get_db)):
-    campaigns = db.query(Campaign).all()
+    campaigns = (
+        db.query(Campaign)
+        .order_by(Campaign.created_at.desc(), Campaign.id.desc())
+        .all()
+    )
 
     return {
         "status": "success",
