@@ -681,6 +681,7 @@ function Leads() {
 
         {selectedCampaign && (
           <LeadAgentLauncher
+            key={selectedCampaign.id}
             campaign={selectedCampaign}
             onLeadsFound={refreshLeads}
           />
