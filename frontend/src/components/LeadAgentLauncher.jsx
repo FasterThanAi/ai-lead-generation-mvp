@@ -95,18 +95,29 @@ function LeadAgentLauncher({ campaign, onLeadsFound }) {
   };
 
   useEffect(() => {
-    stopPolling();
-    setSuccess(null);
-    setError("");
-    setStatus(null);
-    setBaseline(null);
-    hasRefreshedForRunRef.current = false;
+    const campaignId = campaign?.id;
+    let isCancelled = false;
 
-    if (campaign?.id) {
-      pollStatus(null);
+    const loadInitialStatus = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/lead-agent/status/${campaignId}`);
+
+        if (!isCancelled) {
+          setStatus(response.data);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    if (campaignId) {
+      loadInitialStatus();
     }
 
-    return () => stopPolling();
+    return () => {
+      isCancelled = true;
+      stopPolling();
+    };
   }, [campaign?.id]);
 
   const handleStart = async () => {
