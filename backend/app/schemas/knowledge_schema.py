@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 KNOWLEDGE_CATEGORIES = {
@@ -17,6 +17,8 @@ KNOWLEDGE_CATEGORIES = {
 
 
 class CompanyKnowledgeCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     title: str = Field(..., min_length=1, max_length=255)
     category: str = Field(..., min_length=1, max_length=100)
     content: str = Field(..., min_length=1, max_length=10000)
@@ -25,6 +27,8 @@ class CompanyKnowledgeCreate(BaseModel):
 
 
 class CompanyKnowledgeUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     title: str | None = Field(None, min_length=1, max_length=255)
     category: str | None = Field(None, min_length=1, max_length=100)
     content: str | None = Field(None, min_length=1, max_length=10000)
