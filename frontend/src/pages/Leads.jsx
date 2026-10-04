@@ -12,6 +12,17 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import PageHeader from "../components/ui/PageHeader";
 
+const SEARCHABLE_LEAD_FIELDS = [
+  "company_name",
+  "contact_name",
+  "contact_role",
+  "email",
+  "website",
+  "industry",
+  "location",
+  "phone",
+];
+
 function Leads() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [campaigns, setCampaigns] = useState([]);
@@ -51,6 +62,7 @@ function Leads() {
   const [callScriptsByLead, setCallScriptsByLead] = useState({});
   const [callMessage, setCallMessage] = useState("");
   const [callError, setCallError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("All");
   const [qualificationFilter, setQualificationFilter] = useState("All");
   const [sortByScore, setSortByScore] = useState(true);
@@ -99,12 +111,21 @@ function Leads() {
     return confidenceValues.reduce((total, value) => total + Number(value), 0) / confidenceValues.length;
   }, [leads]);
 
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() || priorityFilter !== "All" || qualificationFilter !== "All"
+  );
+
   const visibleLeads = useMemo(() => {
+    const searchTerm = searchQuery.trim().toLowerCase();
+
     const filteredLeads = leads.filter((lead) => {
       const priorityMatches = priorityFilter === "All" || lead.ai_priority === priorityFilter;
       const qualificationMatches = qualificationFilter === "All" || lead.ai_qualification === qualificationFilter;
+      const searchMatches = !searchTerm || SEARCHABLE_LEAD_FIELDS.some((field) => (
+        String(lead[field] ?? "").toLowerCase().includes(searchTerm)
+      ));
 
-      return priorityMatches && qualificationMatches;
+      return priorityMatches && qualificationMatches && searchMatches;
     });
 
     if (!sortByScore) {
@@ -114,7 +135,13 @@ function Leads() {
     return [...filteredLeads].sort((a, b) => (
       (b.ai_score ?? -1) - (a.ai_score ?? -1)
     ));
-  }, [leads, priorityFilter, qualificationFilter, sortByScore]);
+  }, [leads, searchQuery, priorityFilter, qualificationFilter, sortByScore]);
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setPriorityFilter("All");
+    setQualificationFilter("All");
+  };
 
   useEffect(() => {
     const fetchCampaigns = async () => {
@@ -281,6 +308,7 @@ function Leads() {
     setCallMessage("");
     setCallError("");
     setCallScriptsByLead({});
+    setSearchQuery("");
     setPriorityFilter("All");
     setQualificationFilter("All");
   };
@@ -763,6 +791,17 @@ function Leads() {
             )}
 
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+              <label className="text-sm md:col-span-3">
+                <span className="mb-1 block font-medium text-ink-2">Search leads</span>
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Company, contact, email, website, industry or location"
+                  className="field"
+                />
+              </label>
+
               <label className="text-sm">
                 <span className="mb-1 block font-medium text-ink-2">Priority</span>
                 <select
@@ -801,6 +840,17 @@ function Leads() {
                 />
                 Sort by final AI score
               </label>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted" role="status">
+                Showing {visibleLeads.length} of {leads.length} {leads.length === 1 ? "lead" : "leads"}
+              </p>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              )}
             </div>
           </Card>
         )}
@@ -1043,6 +1093,8 @@ function Leads() {
           isLoading={isLoadingLeads}
           error={leadsError}
           hasSelectedCampaign={Boolean(selectedCampaignId)}
+          hasActiveFilters={hasActiveFilters && leads.length > 0}
+          onClearFilters={clearFilters}
           onExtractEmail={handleExtractLeadEmail}
           extractingLeadId={extractingLeadId}
           onHunterEnrichLead={handleHunterEnrichLead}
