@@ -40,5 +40,12 @@
     "tags": "demo, walkthrough",
     "is_active": true,
     "content": "A short demo should show how source material becomes a training video, how quizzes check understanding, and how HR or operations teams can review progress analytics."
+  },
+  {
+    "title": "Objection Handling — Pricing Pushback",
+    "category": "Objection Handling",
+    "tags": "objection, pricing, discount, pushback, ROI",
+    "is_active": true,
+    "content": "When a prospect pushes back on price, anchor to the cost of the problem it solves rather than to the tool itself. Acknowledge the concern, restate the pilot ROI, and offer to start with a smaller, time-boxed pilot before committing to the full plan."
   }
 ]
