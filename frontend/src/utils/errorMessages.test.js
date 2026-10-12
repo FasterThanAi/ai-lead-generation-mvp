@@ -33,3 +33,41 @@ test("uses a timeout message for Axios timeout errors", () => {
     "The request timed out.",
   );
 });
+test("reports an unreachable backend when there is no response at all", () => {
+  assert.equal(
+    getFriendlyErrorMessage(new Error("socket hang up")),
+    "Backend is not reachable. Please check server status.",
+  );
+});
+
+test("tells the user Gmail is not connected", () => {
+  assert.equal(
+    getFriendlyErrorMessage(backendError(500, "Gmail is not connected")),
+    "Gmail is not connected. Please connect Gmail in Settings.",
+  );
+});
+
+test("flags a Gemini quota error in the lead-scoring context", () => {
+  assert.equal(
+    getFriendlyErrorMessage(backendError(500, "Gemini quota exceeded"), "Lead scoring failed.", "lead-scoring"),
+    "Gemini API key may be missing or quota may be exceeded.",
+  );
+});
+
+test("describes the upload size limit", () => {
+  assert.equal(
+    getFriendlyErrorMessage(backendError(400, "File too large, max size is 5 MB")),
+    "File is too large. Max size is 5 MB.",
+  );
+});
+
+test("falls back to the supplied or default message for unknown errors", () => {
+  assert.equal(
+    getFriendlyErrorMessage(backendError(500, "An unusual failure.")),
+    "Something went wrong. Please try again.",
+  );
+  assert.equal(
+    getFriendlyErrorMessage(backendError(500, "An unusual failure."), "Could not load campaigns."),
+    "Could not load campaigns.",
+  );
+});
