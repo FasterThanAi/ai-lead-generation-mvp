@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { motion, useInView } from "framer-motion";
+import { motion, useInView, useReducedMotion } from "framer-motion";
 import spring from "../motion/springs";
 
 /**
@@ -49,10 +49,16 @@ function CountUp({ value }) {
   const parsed = parseValue(value);
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
-  const [display, setDisplay] = useState(() => (parsed ? 0 : null));
+  const reducedMotion = useReducedMotion();
+  const [display, setDisplay] = useState(() => (parsed ? (reducedMotion ? parsed.numeric : 0) : null));
 
   useEffect(() => {
     if (!parsed || !inView) {
+      return undefined;
+    }
+
+    if (reducedMotion) {
+      setDisplay(parsed.numeric);
       return undefined;
     }
 
@@ -74,7 +80,7 @@ function CountUp({ value }) {
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inView, parsed?.numeric]);
+  }, [inView, parsed?.numeric, reducedMotion]);
 
   if (!parsed) {
     return <span ref={ref}>{value}</span>;
