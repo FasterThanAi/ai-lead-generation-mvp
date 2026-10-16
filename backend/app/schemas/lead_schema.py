@@ -1,10 +1,12 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class LeadBase(BaseModel):
-    company_name: str
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    company_name: str = Field(min_length=1, max_length=255)
     website: str | None = None
     industry: str | None = None
     location: str | None = None
