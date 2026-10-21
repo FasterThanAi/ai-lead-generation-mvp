@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { formatDateTimeIST } from "../utils/dateUtils";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
+import Skeleton from "../components/ui/Skeleton";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
@@ -721,7 +722,11 @@ function LeadDiscovery() {
             </div>
 
             {isLoading ? (
-              <p className="rounded-2xl border line-1 surface-sunk p-4 text-sm text-ink-2">Loading jobs...</p>
+              <div role="status" aria-label="Loading jobs" className="space-y-3">
+                <Skeleton className="h-16" />
+                <Skeleton className="h-16" />
+                <Skeleton className="h-16" />
+              </div>
             ) : jobs.length === 0 ? (
               <EmptyState title="No discovery jobs yet" description="Create a job from a strategy or paste source URLs manually." />
             ) : (
