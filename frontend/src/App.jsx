@@ -65,6 +65,12 @@ function AppShell() {
 
   return (
     <div className="min-h-screen overflow-x-hidden">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-slate-900 focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      >
+        Skip to main content
+      </a>
       <AnimatePresence>
         {isMobileSidebarOpen && (
           <motion.button
@@ -101,7 +107,7 @@ function AppShell() {
           onCollapseClick={() => setIsSidebarCollapsed((value) => !value)}
         />
 
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-5 lg:px-8 lg:py-8">
+        <main id="main-content" className="min-w-0 flex-1 px-4 py-6 sm:px-5 lg:px-8 lg:py-8">
           <div className="mx-auto w-full min-w-0 max-w-[1440px]">
             <AnimatePresence mode="wait">
               <motion.div key={location.pathname} {...pageTransition}>
