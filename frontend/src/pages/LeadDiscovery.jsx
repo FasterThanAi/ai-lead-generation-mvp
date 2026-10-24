@@ -8,6 +8,7 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import EmptyState from "../components/ui/EmptyState";
 import PageHeader from "../components/ui/PageHeader";
+import Skeleton from "../components/ui/Skeleton";
 
 const emptyForm = {
   id: null,
@@ -721,7 +722,25 @@ function LeadDiscovery() {
             </div>
 
             {isLoading ? (
-              <p className="rounded-2xl border line-1 surface-sunk p-4 text-sm text-ink-2">Loading jobs...</p>
+              <div role="status" className="space-y-3">
+    <span className="sr-only">Loading jobs...</span>
+
+    {[1, 2, 3].map((item) => (
+      <div
+        key={item}
+        className="rounded-2xl border line-1 surface-2 p-4"
+      >
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="mt-3 h-5 w-3/4" />
+        <Skeleton className="mt-2 h-4 w-1/2" />
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+      </div>
+    ))}
+  </div>
             ) : jobs.length === 0 ? (
               <EmptyState title="No discovery jobs yet" description="Create a job from a strategy or paste source URLs manually." />
             ) : (
