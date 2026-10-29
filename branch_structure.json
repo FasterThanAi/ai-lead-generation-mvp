@@ -1,0 +1,33 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "feat/sample-objection-handling",
+    "feat/vercel-security-headers",
+    "fix/skeleton-calls-loading",
+    "fix/skeleton-jobs",
+    "fix/skeleton-opps",
+    "fix/statcard-reduce-motion",
+    "main",
+    "test/error-message-coverage"
+  ],
+  "parent": {
+    "feat/sample-objection-handling": "main",
+    "feat/vercel-security-headers": "main",
+    "fix/skeleton-calls-loading": "main",
+    "fix/skeleton-jobs": "main",
+    "fix/skeleton-opps": "main",
+    "fix/statcard-reduce-motion": "main",
+    "main": null,
+    "test/error-message-coverage": "main"
+  },
+  "order": [
+    "main",
+    "feat/sample-objection-handling",
+    "feat/vercel-security-headers",
+    "fix/skeleton-calls-loading",
+    "fix/skeleton-jobs",
+    "fix/skeleton-opps",
+    "fix/statcard-reduce-motion",
+    "test/error-message-coverage"
+  ]
+}
