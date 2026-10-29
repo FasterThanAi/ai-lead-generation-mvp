@@ -73,7 +73,7 @@ class Settings:
     APP_ENV: str = os.getenv("APP_ENV", "development")
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
     FRONTEND_URLS: list[str] = get_frontend_origins()
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./leadgen.db")
+    DATABASE_URL: str = (os.getenv("DATABASE_URL", "").strip() or "sqlite:///./leadgen.db")
     DB_POOL_SIZE: int = get_int_env("DB_POOL_SIZE", 5)
     DB_MAX_OVERFLOW: int = get_int_env("DB_MAX_OVERFLOW", 2)
     DB_POOL_TIMEOUT: int = get_int_env("DB_POOL_TIMEOUT", 30)
