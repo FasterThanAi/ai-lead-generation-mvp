@@ -7,6 +7,7 @@ import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import PageHeader from "../components/ui/PageHeader";
+import Skeleton from "../components/ui/Skeleton";
 
 const emptyForm = {
   title: "",
@@ -483,7 +484,13 @@ function Opportunities() {
             </div>
 
             {isLoading ? (
-              <p className="rounded-2xl border line-1 surface-sunk p-4 text-sm text-ink-2">Loading opportunities...</p>
+              <div role="status" className="space-y-3">
+    <span className="sr-only">Loading opportunities...</span>
+
+    {[1, 2, 3].map((item) => (
+      <Skeleton key={item} className="h-40 w-full rounded-2xl" />
+    ))}
+  </div>
             ) : opportunities.length === 0 ? (
               <p className="rounded-2xl border border-dashed line-1 p-6 text-center text-sm text-muted">
                 No opportunities yet.
