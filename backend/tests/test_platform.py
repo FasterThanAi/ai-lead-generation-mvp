@@ -70,6 +70,9 @@ def test_rate_limiter_blocks_and_reports_retry(client, monkeypatch):
     assert statuses[:3] == [401, 401, 401]
     blocked = client.post("/api/auth/login", json={"email": "a@b.co", "password": "x"})
     assert blocked.status_code == 429 and int(blocked.headers["retry-after"]) > 0
+    # A recipient behind the same IP can still unsubscribe.
+    unsubscribe = client.get("/api/public/unsubscribe", params={"email": "a@b.co", "token": "bad"})
+    assert unsubscribe.status_code == 400
     rate_limit.rate_limiter.backend.reset()
 
 

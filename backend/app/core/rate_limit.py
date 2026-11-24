@@ -90,12 +90,17 @@ AI_PATH_MARKERS = (
     "/knowledge/upload",
     "/embeddings/",
 )
-AUTH_PATHS = ("/api/auth/login", "/api/auth/register", "/api/public/unsubscribe")
+AUTH_PATHS = ("/api/auth/login", "/api/auth/register")
+# Recipient-facing links get their own budget so login abuse never blocks an unsubscribe.
+PUBLIC_PATHS = ("/api/public/",)
+PUBLIC_PER_MINUTE = 60
 
 
 def bucket_for(path: str, method: str) -> tuple[str, int]:
     if path.startswith(AUTH_PATHS):
         return "auth", settings.RATE_LIMIT_AUTH_PER_MINUTE
+    if path.startswith(PUBLIC_PATHS):
+        return "public", PUBLIC_PER_MINUTE
     if method != "GET" and any(marker in path for marker in AI_PATH_MARKERS):
         return "ai", settings.RATE_LIMIT_AI_PER_MINUTE
     return "default", settings.RATE_LIMIT_DEFAULT_PER_MINUTE

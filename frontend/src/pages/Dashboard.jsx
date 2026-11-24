@@ -230,7 +230,7 @@ function Dashboard() {
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard title="Leads" value={number(stats.total_leads)} helper={`Across ${number(stats.total_campaigns)} campaigns`} tone="primary" />
+            <StatCard title="Leads" value={number(stats.total_leads)} helper={`Across ${number(stats.total_campaigns)} campaign${Number(stats.total_campaigns) === 1 ? "" : "s"}`} tone="primary" />
             <StatCard title="Emails sent" value={number(stats.emails_sent)} helper={`${number(stats.emails_approved)} approved and waiting`} tone="accent" />
             <StatCard
               title="Reply rate"
