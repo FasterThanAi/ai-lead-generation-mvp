@@ -2,7 +2,6 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 KNOWLEDGE_CATEGORIES = {
     "Company Profile",
     "Product Details",

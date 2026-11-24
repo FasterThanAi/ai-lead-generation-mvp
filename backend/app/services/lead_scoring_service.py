@@ -749,7 +749,7 @@ def score_lead_with_ai(db: Session, lead: Lead, campaign: Campaign, force: bool 
                 contents=build_lead_scoring_prompt(campaign, lead),
             )
             result = parse_ai_scoring_response(clean_value(getattr(response, "text", "")), campaign, lead)
-        except Exception as exc:
+        except Exception:
             error_message = "Gemini lead scoring failed. Fallback scoring was used."
             result = fallback_score_lead(campaign, lead)
             result["warning"] = error_message

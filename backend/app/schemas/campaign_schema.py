@@ -24,3 +24,13 @@ class CampaignResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CampaignUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, str_min_length=1)
+
+    campaign_name: str | None = Field(None, max_length=255)
+    industry: str | None = Field(None, max_length=255)
+    location: str | None = Field(None, max_length=255)
+    target_role: str | None = Field(None, max_length=255)
+    offer: str | None = None

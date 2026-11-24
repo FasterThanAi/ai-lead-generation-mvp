@@ -9,7 +9,6 @@ from app.core.config import settings
 from app.db.models import CompanyKnowledge
 from app.utils.time_utils import utc_now
 
-
 logger = logging.getLogger(__name__)
 
 MAX_EMBEDDING_TEXT_CHARS = 8000

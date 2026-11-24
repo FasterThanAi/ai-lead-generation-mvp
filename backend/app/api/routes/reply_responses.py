@@ -26,8 +26,9 @@ from app.services.reply_response_service import (
     generate_response_draft_for_reply,
     get_active_response_draft,
 )
-from app.utils.time_utils import utc_now
 from app.utils.draft_safety import PLACEHOLDER_SEND_ERROR, contains_blocked_placeholder
+from app.utils.send_guard import ALREADY_SENDING_ERROR, claim_for_sending
+from app.utils.time_utils import utc_now
 
 router = APIRouter(
     prefix="/reply-responses",
@@ -294,9 +295,8 @@ def send_approved_response_draft(db: Session, response_draft: ReplyResponseDraft
         mark_response_failed(db, response_draft, "Lead email is missing.")
         return serialize_response_draft(response_draft)
 
-    response_draft.status = "sending"
-    response_draft.send_error = None
-    commit_response_draft_update(db, response_draft, "Response send status could not be updated.")
+    if not claim_for_sending(db, response_draft):
+        return {**serialize_response_draft(response_draft), "error": ALREADY_SENDING_ERROR}
 
     send_result = send_email_via_gmail(
         db,

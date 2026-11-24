@@ -451,3 +451,61 @@ class GmailOAuthState(Base):
     state = Column(String(255), unique=True, nullable=False, index=True)
     code_verifier = Column(Text, nullable=True)
     created_at = Column(DateTime, default=utc_now)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    full_name = Column(String(255), nullable=True)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(50), default="member", nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    last_login_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, nullable=True, onupdate=utc_now)
+
+    api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
+
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    prefix = Column(String(20), nullable=False)
+    key_hash = Column(String(64), unique=True, nullable=False, index=True)
+    last_used_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utc_now)
+
+    user = relationship("User", back_populates="api_keys")
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    actor_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    actor_email = Column(String(255), nullable=True)
+    action = Column(String(100), nullable=False, index=True)
+    entity_type = Column(String(100), nullable=True, index=True)
+    entity_id = Column(String(100), nullable=True)
+    summary = Column(Text, nullable=True)
+    details = Column(Text, nullable=True)
+    ip_address = Column(String(64), nullable=True)
+    request_id = Column(String(64), nullable=True)
+    created_at = Column(DateTime, default=utc_now, index=True)
+
+
+class SuppressedEmail(Base):
+    __tablename__ = "suppressed_emails"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    reason = Column(String(100), default="manual", nullable=False)
+    note = Column(Text, nullable=True)
+    created_by = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=utc_now)

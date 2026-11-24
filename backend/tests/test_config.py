@@ -1,9 +1,8 @@
 import os
-from pathlib import Path
 import runpy
 import unittest
+from pathlib import Path
 from unittest import mock
-
 
 CONFIG_PATH = Path(__file__).resolve().parents[1] / "app" / "core" / "config.py"
 

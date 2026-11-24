@@ -3,8 +3,8 @@ Apollo.io API routes for lead email enrichment.
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.db.models import Lead
@@ -23,7 +23,7 @@ def apollo_status():
     """Check if Apollo is configured."""
     return {
         "configured": apollo_service.is_configured(),
-        "message": "Apollo.io configured" if apollo_service.is_configured() 
+        "message": "Apollo.io configured" if apollo_service.is_configured()
                    else "Apollo.io not configured — set APOLLO_API_KEY"
     }
 
@@ -72,8 +72,8 @@ async def bulk_enrich(payload: BulkApolloRequest, db: Session = Depends(get_db))
         db.query(Lead)
         .filter(
             Lead.campaign_id == payload.campaign_id,
-            Lead.email == None,
-            Lead.website != None,
+            Lead.email.is_(None),
+            Lead.website.is_not(None),
             Lead.website != ""
         )
         .limit(payload.limit)

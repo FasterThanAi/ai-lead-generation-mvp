@@ -5,8 +5,9 @@ Base URL: https://api.apollo.io/v1
 Auth: X-Api-Key header
 """
 
-import httpx
 import logging
+
+import httpx
 
 from app.core.config import settings
 
@@ -24,7 +25,7 @@ async def find_email_by_domain(domain: str, limit: int = 5) -> dict:
     """
     Search Apollo for people at a given company domain.
     Returns list of contacts with emails.
-    
+
     Free plan: 50 credits/day
     """
     if not domain:
@@ -93,7 +94,7 @@ async def enrich_lead_email(domain: str) -> dict:
 
     # Priority roles
     priority_titles = [
-        "founder", "co-founder", "ceo", "cto", 
+        "founder", "co-founder", "ceo", "cto",
         "director", "vp", "head", "hr", "manager"
     ]
 
