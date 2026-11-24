@@ -1,9 +1,11 @@
+import hmac
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.db.database import get_db
-from app.db.models import CallLog, Campaign, Lead
+from app.db.models import CallLog, Lead
 from app.schemas.call_schema import (
     CallOutcomeUpdate,
     GenerateCallScriptRequest,
@@ -14,8 +16,8 @@ from app.services.vapi_service import (
     VapiConfigurationError,
     VapiServiceError,
     create_manual_call_log,
-    generate_call_script,
     generate_call_followup_email,
+    generate_call_script,
     handle_tool_call,
     handle_vapi_webhook,
     is_vapi_configured,
@@ -115,11 +117,18 @@ def _verify_vapi_secret(
     authorization: str | None,
 ):
     if not settings.VAPI_WEBHOOK_SECRET:
+        # Production refuses to boot without a secret when Vapi is enabled
+        # (Settings.validate); an unconfigured secret is only tolerated locally.
+        if settings.is_production:
+            raise HTTPException(status_code=503, detail="Vapi webhook secret is not configured.")
         return
 
-    expected_bearer = f"Bearer {settings.VAPI_WEBHOOK_SECRET}"
+    expected = settings.VAPI_WEBHOOK_SECRET.encode()
+    candidates = [x_vapi_secret or ""]
+    if authorization and authorization.startswith("Bearer "):
+        candidates.append(authorization[7:])
 
-    if x_vapi_secret == settings.VAPI_WEBHOOK_SECRET or authorization == expected_bearer:
+    if any(hmac.compare_digest(candidate.encode(), expected) for candidate in candidates if candidate):
         return
 
     raise HTTPException(status_code=401, detail="Invalid Vapi webhook secret.")

@@ -10,9 +10,9 @@ from app.core.config import settings
 from app.db.database import get_db
 from app.db.models import Campaign, EmailDraft, FollowUpDraft, ReplyResponseDraft
 from app.services.gmail_service import (
+    GMAIL_READONLY_SCOPE,
     GmailConfigurationError,
     GmailConnectionError,
-    GMAIL_READONLY_SCOPE,
     build_gmail_oauth_url,
     exchange_code_for_token,
     get_connected_gmail_scopes,
@@ -20,8 +20,9 @@ from app.services.gmail_service import (
     get_gmail_service,
     send_email_via_gmail,
 )
-from app.utils.time_utils import utc_now
 from app.utils.draft_safety import PLACEHOLDER_SEND_ERROR, contains_blocked_placeholder
+from app.utils.send_guard import ALREADY_SENDING_ERROR, claim_for_sending
+from app.utils.time_utils import utc_now
 
 router = APIRouter(
     prefix="/gmail",
@@ -159,9 +160,8 @@ def send_approved_email_draft(db: Session, email_draft: EmailDraft):
         mark_email_draft_failed(db, email_draft, "Lead email is missing.")
         return serialize_send_result(email_draft)
 
-    email_draft.status = "sending"
-    email_draft.send_error = None
-    commit_email_draft_update(db, email_draft)
+    if not claim_for_sending(db, email_draft):
+        return {**serialize_send_result(email_draft), "error": ALREADY_SENDING_ERROR}
 
     send_result = send_email_via_gmail(
         db,

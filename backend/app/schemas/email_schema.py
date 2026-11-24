@@ -4,7 +4,6 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
-
 class EmailDraftResponse(BaseModel):
     id: int
     campaign_id: int

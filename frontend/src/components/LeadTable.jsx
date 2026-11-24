@@ -40,9 +40,9 @@ function hasDiscoveryMetadata(lead) {
 
 function ScoreMetric({ label, value }) {
   return (
-    <div className="min-w-0 rounded-2xl border line-1 surface-sunk px-2 py-3 text-center sm:px-3">
+    <div className="min-w-0 rounded-lg border line-1 surface-sunk px-2 py-3 text-center sm:px-3">
       <p className="text-xs font-medium text-muted">{label}</p>
-      <p className={`mt-2 rounded-xl py-1 text-2xl font-semibold leading-none ${getScoreTone(value)}`}>
+      <p className={`mt-2 rounded-md py-1 text-xl font-semibold leading-none ${getScoreTone(value)}`}>
         {hasScore(value) ? value : "-"}
       </p>
     </div>
@@ -240,7 +240,7 @@ function LeadItem({
   const isDiscoveredLead = hasDiscoveryMetadata(lead);
 
   return (
-    <article className="rounded-3xl border line-1 surface-2 p-4 elev-1 transition hover:-translate-y-0.5 hover:elev-1 sm:p-5 xl:p-6">
+    <article className="rounded-panel border line-1 bg-[var(--bg-1)] p-4 sm:p-5">
       <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(170px,11rem)] md:items-start">
         <div className="min-w-0">
           <h3 className="break-words text-lg font-semibold text-ink">
@@ -479,7 +479,37 @@ function LeadTable({
   startingCallLeadId,
   startingCallMode,
   callScriptsByLead = {},
+  bare = false,
 }) {
+  const renderItem = (lead) => (
+    <LeadItem
+      key={lead.id}
+      lead={lead}
+      extractingLeadId={extractingLeadId}
+      scoringLeadId={scoringLeadId}
+      researchingLeadId={researchingLeadId}
+      onExtractEmail={onExtractEmail}
+      onHunterEnrichLead={onHunterEnrichLead}
+      enrichingLeadId={enrichingLeadId}
+      onApolloEnrichLead={onApolloEnrichLead}
+      apolloEnrichingLeadId={apolloEnrichingLeadId}
+      onScoreLead={onScoreLead}
+      onResearchLead={onResearchLead}
+      onGenerateCallScript={onGenerateCallScript}
+      generatingCallScriptLeadId={generatingCallScriptLeadId}
+      onStartTestCall={onStartTestCall}
+      onStartActualCall={onStartActualCall}
+      startingCallLeadId={startingCallLeadId}
+      startingCallMode={startingCallMode}
+      callScript={callScriptsByLead[lead.id]}
+    />
+  );
+
+  // Used inside the lead drawer: just the detail card(s), no list chrome.
+  if (bare) {
+    return <div className="space-y-3">{leads.map(renderItem)}</div>;
+  }
+
   return (
     <Card>
       <div className="mb-5">
@@ -528,29 +558,7 @@ function LeadTable({
 
       {hasSelectedCampaign && !isLoading && !error && leads.length > 0 && (
         <div className="space-y-3">
-          {leads.map((lead) => (
-            <LeadItem
-              key={lead.id}
-              lead={lead}
-              extractingLeadId={extractingLeadId}
-              scoringLeadId={scoringLeadId}
-              researchingLeadId={researchingLeadId}
-              onExtractEmail={onExtractEmail}
-              onHunterEnrichLead={onHunterEnrichLead}
-              enrichingLeadId={enrichingLeadId}
-              onApolloEnrichLead={onApolloEnrichLead}
-              apolloEnrichingLeadId={apolloEnrichingLeadId}
-              onScoreLead={onScoreLead}
-              onResearchLead={onResearchLead}
-              onGenerateCallScript={onGenerateCallScript}
-              generatingCallScriptLeadId={generatingCallScriptLeadId}
-              onStartTestCall={onStartTestCall}
-              onStartActualCall={onStartActualCall}
-              startingCallLeadId={startingCallLeadId}
-              startingCallMode={startingCallMode}
-              callScript={callScriptsByLead[lead.id]}
-            />
-          ))}
+          {leads.map(renderItem)}
         </div>
       )}
     </Card>

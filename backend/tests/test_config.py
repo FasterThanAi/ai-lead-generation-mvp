@@ -1,9 +1,8 @@
 import os
-from pathlib import Path
 import runpy
 import unittest
+from pathlib import Path
 from unittest import mock
-
 
 CONFIG_PATH = Path(__file__).resolve().parents[1] / "app" / "core" / "config.py"
 
@@ -34,6 +33,12 @@ class DatabaseUrlConfigTests(unittest.TestCase):
     def test_postgresql_url_is_preserved(self):
         url = "postgresql://test_user:test_password@localhost/test_db"
         self.assertEqual(self.load_database_url(url), url)
+
+    def test_legacy_postgres_scheme_is_normalised(self):
+        self.assertEqual(
+            self.load_database_url("postgres://u:p@db:5432/app"),
+            "postgresql://u:p@db:5432/app",
+        )
 
     def test_surrounding_whitespace_is_removed(self):
         url = "postgresql://test_user:test_password@localhost/test_db"

@@ -5,15 +5,15 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.db.models import Opportunity
 from app.schemas.opportunity_schema import (
-    OpportunityCreateDiscoveryJobRequest,
     OpportunityConvertToCampaignRequest,
     OpportunityCreate,
+    OpportunityCreateDiscoveryJobRequest,
     OpportunityGenerateRequest,
     OpportunityUpdate,
 )
 from app.services.opportunity_service import (
-    OpportunityServiceError,
     VALID_OPPORTUNITY_STATUSES,
+    OpportunityServiceError,
     convert_opportunity_to_campaign,
     create_discovery_job_from_opportunity,
     generate_opportunity_strategy,

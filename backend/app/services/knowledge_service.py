@@ -8,7 +8,6 @@ from app.core.config import settings
 from app.db.models import CompanyKnowledge
 from app.services.embedding_service import (
     embed_query,
-    embedding_storage_available,
     semantic_rag_available,
 )
 

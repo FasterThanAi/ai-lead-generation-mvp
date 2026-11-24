@@ -72,7 +72,12 @@ function LeadUpload({ campaignId, onUploadComplete }) {
         },
       });
 
-      setMessage(`${res.data.inserted_count} leads uploaded successfully.`);
+      const skipped = [
+        res.data.duplicate_count ? `${res.data.duplicate_count} duplicates skipped` : "",
+        res.data.invalid_email_count ? `${res.data.invalid_email_count} invalid emails cleared` : "",
+        res.data.missing_company_count ? `${res.data.missing_company_count} rows without company_name ignored` : "",
+      ].filter(Boolean);
+      setMessage(`${res.data.inserted_count} leads imported.${skipped.length ? ` ${skipped.join(", ")}.` : ""}`);
       setSelectedFile(null);
       setInputKey((currentKey) => currentKey + 1);
       onUploadComplete?.();

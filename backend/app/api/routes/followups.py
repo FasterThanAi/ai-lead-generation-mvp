@@ -22,8 +22,9 @@ from app.services.gmail_service import (
     get_gmail_service,
     send_email_via_gmail,
 )
-from app.utils.time_utils import utc_now
 from app.utils.draft_safety import PLACEHOLDER_SEND_ERROR, contains_blocked_placeholder
+from app.utils.send_guard import ALREADY_SENDING_ERROR, claim_for_sending
+from app.utils.time_utils import utc_now
 
 router = APIRouter(
     prefix="/followups",
@@ -293,9 +294,8 @@ def send_approved_follow_up(db: Session, follow_up: FollowUpDraft):
         mark_follow_up_failed(db, follow_up, "Lead email is missing.")
         return serialize_follow_up(follow_up)
 
-    follow_up.status = "sending"
-    follow_up.send_error = None
-    commit_follow_up_update(db, follow_up, "Follow-up send status could not be updated.")
+    if not claim_for_sending(db, follow_up):
+        return {**serialize_follow_up(follow_up), "error": ALREADY_SENDING_ERROR}
 
     send_result = send_email_via_gmail(
         db,

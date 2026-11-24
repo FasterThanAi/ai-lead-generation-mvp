@@ -2,12 +2,24 @@ import logging
 import time
 from datetime import timedelta, timezone
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+
 from app.db.database import SessionLocal, get_db
-from app.db.models import Campaign, EmailDraft, Lead, LeadResearchJob
-from app.schemas.campaign_schema import CampaignCreate
+from app.db.models import (
+    CallLog,
+    CallScript,
+    Campaign,
+    DiscoveredLead,
+    DiscoveryJob,
+    EmailDraft,
+    Lead,
+    LeadResearchJob,
+    Opportunity,
+)
+from app.schemas.campaign_schema import CampaignCreate, CampaignUpdate
+from app.services.audit_service import record_audit
 from app.services.lead_research_service import research_lead
 from app.utils.time_utils import utc_now
 
@@ -44,12 +56,94 @@ def create_campaign(campaign: CampaignCreate, db: Session = Depends(get_db)):
 
 @router.get("/")
 def get_campaigns(db: Session = Depends(get_db)):
-    campaigns = db.query(Campaign).all()
+    campaigns = db.query(Campaign).order_by(Campaign.created_at.desc(), Campaign.id.desc()).all()
+    # One grouped query per metric instead of N+1 lookups per campaign.
+    lead_counts = dict(db.query(Lead.campaign_id, func.count(Lead.id)).group_by(Lead.campaign_id).all())
+    sent_counts = dict(
+        db.query(EmailDraft.campaign_id, func.count(EmailDraft.id))
+        .filter(EmailDraft.status.in_(("sent", "replied")))
+        .group_by(EmailDraft.campaign_id)
+        .all()
+    )
 
     return {
         "status": "success",
-        "data": campaigns
+        "data": [
+            {
+                **serialize_campaign(campaign),
+                "lead_count": lead_counts.get(campaign.id, 0),
+                "sent_count": sent_counts.get(campaign.id, 0),
+            }
+            for campaign in campaigns
+        ],
     }
+
+
+def get_campaign_or_404(campaign_id: int, db: Session) -> Campaign:
+    campaign = db.get(Campaign, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail=f"Campaign with id {campaign_id} was not found")
+    return campaign
+
+
+@router.patch("/{campaign_id}")
+def update_campaign(campaign_id: int, payload: CampaignUpdate, request: Request, db: Session = Depends(get_db)):
+    campaign = get_campaign_or_404(campaign_id, db)
+    changes = payload.model_dump(exclude_unset=True, exclude_none=True)
+    for field, value in changes.items():
+        setattr(campaign, field, value)
+    db.commit()
+    db.refresh(campaign)
+    record_audit(db, "campaign.updated", actor=getattr(request.state, "principal", None), entity_type="campaign",
+                 entity_id=campaign.id, summary=f"Updated campaign {campaign.campaign_name}", details=changes,
+                 request=request)
+    return {"status": "success", "data": serialize_campaign(campaign)}
+
+
+@router.post("/{campaign_id}/duplicate", status_code=201)
+def duplicate_campaign(campaign_id: int, request: Request, db: Session = Depends(get_db)):
+    source = get_campaign_or_404(campaign_id, db)
+    copy = Campaign(
+        campaign_name=f"{source.campaign_name} (copy)"[:255],
+        industry=source.industry,
+        location=source.location,
+        target_role=source.target_role,
+        offer=source.offer,
+    )
+    db.add(copy)
+    db.commit()
+    db.refresh(copy)
+    record_audit(db, "campaign.duplicated", actor=getattr(request.state, "principal", None), entity_type="campaign",
+                 entity_id=copy.id, summary=f"Duplicated {source.campaign_name}", request=request)
+    return {"status": "success", "campaign_id": copy.id, "data": serialize_campaign(copy)}
+
+
+@router.delete("/{campaign_id}")
+def delete_campaign(campaign_id: int, request: Request, db: Session = Depends(get_db)):
+    campaign = get_campaign_or_404(campaign_id, db)
+    name = campaign.campaign_name
+    lead_ids = [lead_id for (lead_id,) in db.query(Lead.id).filter(Lead.campaign_id == campaign_id).all()]
+
+    # Detach history that is kept on purpose, remove rows that only make sense
+    # inside this campaign; leads/drafts/jobs go through the ORM cascade.
+    db.query(Opportunity).filter(Opportunity.converted_campaign_id == campaign_id).update(
+        {Opportunity.converted_campaign_id: None}, synchronize_session=False)
+    db.query(CallLog).filter(CallLog.campaign_id == campaign_id).update(
+        {CallLog.campaign_id: None, CallLog.lead_id: None}, synchronize_session=False)
+    if lead_ids:
+        db.query(CallLog).filter(CallLog.lead_id.in_(lead_ids)).update({CallLog.lead_id: None}, synchronize_session=False)
+        db.query(DiscoveredLead).filter(DiscoveredLead.imported_lead_id.in_(lead_ids)).update(
+            {DiscoveredLead.imported_lead_id: None}, synchronize_session=False)
+    db.query(CallScript).filter(CallScript.campaign_id == campaign_id).delete(synchronize_session=False)
+    db.query(DiscoveredLead).filter(DiscoveredLead.campaign_id == campaign_id).update(
+        {DiscoveredLead.campaign_id: None}, synchronize_session=False)
+    db.query(DiscoveryJob).filter(DiscoveryJob.campaign_id == campaign_id).update(
+        {DiscoveryJob.campaign_id: None}, synchronize_session=False)
+    db.delete(campaign)
+    db.commit()
+    record_audit(db, "campaign.deleted", actor=getattr(request.state, "principal", None), entity_type="campaign",
+                 entity_id=campaign_id, summary=f"Deleted campaign {name} and {len(lead_ids)} leads", request=request)
+    return {"status": "success", "deleted_leads": len(lead_ids)}
 
 
 def serialize_campaign(campaign: Campaign):

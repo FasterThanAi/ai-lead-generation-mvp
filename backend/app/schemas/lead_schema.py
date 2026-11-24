@@ -66,3 +66,22 @@ class LeadResponse(LeadBase):
 
     class Config:
         from_attributes = True
+
+
+class LeadUpdate(BaseModel):
+    company_name: str | None = None
+    website: str | None = None
+    industry: str | None = None
+    location: str | None = None
+    contact_name: str | None = None
+    contact_role: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    status: str | None = None
+    do_not_call: bool | None = None
+
+
+class LeadBulkAction(BaseModel):
+    lead_ids: list[int]
+    status: str | None = None
+    do_not_call: bool | None = None

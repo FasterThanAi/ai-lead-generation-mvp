@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from typing import Any
 
 import requests
@@ -9,6 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.database import get_db
 from app.db.models import Campaign, DiscoveredLead, DiscoveryJob, Lead
 
@@ -240,8 +240,8 @@ async def _generate_search_queries_with_ai(
     Uses Gemini to generate smart Google Maps search queries based on campaign details.
     Falls back to basic generation if Gemini fails or is unavailable.
     """
-    gemini_api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
+    gemini_api_key = settings.GEMINI_API_KEY.strip()
+    gemini_model = settings.GEMINI_MODEL.strip() or "gemini-2.5-flash"
 
     if not gemini_api_key:
         logger.warning("GEMINI_API_KEY not set. Using fallback Lead Agent search queries.")
@@ -319,7 +319,7 @@ Example output: ["manufacturing company Nagpur", "industrial automation Hingna",
 
 
 def _trigger_n8n(payload: dict):
-    webhook_url = os.getenv("N8N_WEBHOOK_URL", "").strip()
+    webhook_url = settings.N8N_WEBHOOK_URL
 
     if not webhook_url:
         logger.warning("N8N_WEBHOOK_URL is not configured. Lead Agent trigger skipped.")
@@ -346,7 +346,7 @@ async def start_lead_agent(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    webhook_url = os.getenv("N8N_WEBHOOK_URL", "").strip()
+    webhook_url = settings.N8N_WEBHOOK_URL
 
     if not webhook_url:
         raise HTTPException(
@@ -467,7 +467,7 @@ def get_lead_agent_status(campaign_id: int, db: Session = Depends(get_db)):
     return {
         "campaign_id": campaign_id,
         "campaign_name": campaign.campaign_name,
-        "n8n_configured": bool(os.getenv("N8N_WEBHOOK_URL", "").strip()),
+        "n8n_configured": bool(settings.N8N_WEBHOOK_URL),
         "total_leads": total_leads,
         "leads_with_email": leads_with_email,
         "leads_missing_email": leads_missing_email,

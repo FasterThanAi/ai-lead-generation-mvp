@@ -11,7 +11,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.metrics import EMAILS_SENT
+from app.core.security import decrypt_secret, encrypt_secret
 from app.db.models import EmailDraft, GmailOAuthState, GmailToken
+from app.services.audit_service import record_audit
+from app.services.suppression_service import is_suppressed, is_valid_email, unsubscribe_url
 from app.utils.time_utils import utc_now
 
 GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send"
@@ -189,8 +193,8 @@ def get_connected_gmail_scopes(db: Session):
         return []
 
     try:
-        token_info = json.loads(token_record.token_json)
-    except json.JSONDecodeError:
+        token_info = json.loads(decrypt_secret(token_record.token_json))
+    except ValueError:  # includes JSONDecodeError and undecryptable tokens
         return []
 
     return _get_scopes_from_token_info(token_info)
@@ -203,7 +207,7 @@ def ensure_gmail_readonly_permission(db: Session):
         raise GmailConnectionError("Gmail is not connected. Please connect Gmail first.")
 
     try:
-        token_info = json.loads(token_record.token_json)
+        token_info = json.loads(decrypt_secret(token_record.token_json))
     except json.JSONDecodeError as exc:
         raise GmailConnectionError("Stored Gmail token is invalid. Please reconnect Gmail.") from exc
 
@@ -249,12 +253,12 @@ def exchange_code_for_token(code: str, state: str | None, db: Session) -> dict:
 
     if token_record:
         token_record.email = sender_email
-        token_record.token_json = credentials.to_json()
+        token_record.token_json = encrypt_secret(credentials.to_json())
         token_record.updated_at = utc_now()
     else:
         token_record = GmailToken(
             email=sender_email,
-            token_json=credentials.to_json(),
+            token_json=encrypt_secret(credentials.to_json()),
         )
         db.add(token_record)
 
@@ -279,7 +283,7 @@ def get_gmail_service(db: Session):
         raise GmailConnectionError("Gmail is not connected. Please connect Gmail first.")
 
     try:
-        token_info = json.loads(token_record.token_json)
+        token_info = json.loads(decrypt_secret(token_record.token_json))
         Credentials = _load_credentials_class()
         token_scopes = _get_scopes_from_token_info(token_info)
         credentials = Credentials.from_authorized_user_info(
@@ -296,7 +300,7 @@ def get_gmail_service(db: Session):
         try:
             Request = _load_google_request_class()
             credentials.refresh(Request())
-            token_record.token_json = credentials.to_json()
+            token_record.token_json = encrypt_secret(credentials.to_json())
             token_record.updated_at = utc_now()
             db.commit()
         except SQLAlchemyError as exc:
@@ -313,13 +317,27 @@ def get_gmail_service(db: Session):
     return build("gmail", "v1", credentials=credentials, cache_discovery=False)
 
 
+def _header_safe(value) -> str:
+    """Strip CR/LF so AI- or user-provided text can never inject extra headers."""
+    return " ".join(str(value or "").splitlines()).strip()
+
+
 def create_message(to_email, subject, body, sender_email, thread_id=None):
-    message = MIMEText(body or "", "plain", "utf-8")
-    message["to"] = to_email
-    message["subject"] = subject or ""
+    body_text = body or ""
+    unsubscribe_link = unsubscribe_url(to_email)
+    if unsubscribe_link:
+        body_text = f"{body_text.rstrip()}\n\n--\nIf you'd prefer not to hear from us again, unsubscribe here: {unsubscribe_link}\n"
+
+    message = MIMEText(body_text, "plain", "utf-8")
+    message["to"] = _header_safe(to_email)
+    message["subject"] = _header_safe(subject)
 
     if sender_email:
-        message["from"] = sender_email
+        message["from"] = _header_safe(sender_email)
+
+    if unsubscribe_link:
+        message["List-Unsubscribe"] = f"<{unsubscribe_link}>"
+        message["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
 
     encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
     payload = {"raw": encoded_message}
@@ -564,6 +582,20 @@ def send_email_via_gmail(db: Session, to_email, subject, body, thread_id=None) -
             "error": "Lead email is missing.",
         }
 
+    if not is_valid_email(cleaned_to_email):
+        EMAILS_SENT.labels("invalid_address").inc()
+        return {
+            "success": False,
+            "error": f"'{cleaned_to_email}' is not a valid email address.",
+        }
+
+    if is_suppressed(db, cleaned_to_email):
+        EMAILS_SENT.labels("suppressed").inc()
+        return {
+            "success": False,
+            "error": "Recipient is on the suppression list (unsubscribed or do-not-contact). Email was not sent.",
+        }
+
     try:
         service = get_gmail_service(db)
     except (GmailConfigurationError, GmailConnectionError) as exc:
@@ -595,11 +627,17 @@ def send_email_via_gmail(db: Session, to_email, subject, body, thread_id=None) -
             .execute()
         )
     except Exception as exc:
+        EMAILS_SENT.labels("error").inc()
         return {
             "success": False,
             "error": _format_gmail_api_error(exc),
         }
 
+    EMAILS_SENT.labels("sent").inc()
+    # Flushed with the caller's draft-status commit, so the trail matches reality.
+    record_audit(db, "email.sent", entity_type="email", entity_id=sent_message.get("id"),
+                 summary=f"Sent '{_header_safe(subject)[:120]}' to {cleaned_to_email}",
+                 details={"to": cleaned_to_email, "thread_id": sent_message.get("threadId")}, commit=False)
     return {
         "success": True,
         "gmail_message_id": sent_message.get("id"),

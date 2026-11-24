@@ -23,6 +23,16 @@ This is an AI-powered lead generation and cold email outreach MVP. It supports c
 
 ## 2. Features
 
+**Platform (v2)**
+- Sign-in with roles (admin / member), team management and per-user API keys for automations
+- Audit log of sign-ins, emails sent, deletions and configuration changes
+- Suppression list with signed one-click unsubscribe links and `List-Unsubscribe` headers; checked on every send
+- Server-side lead search, filters, pagination, bulk status / do-not-call / delete, lead detail drawer
+- Campaign edit, duplicate and delete with lead and sent counts
+- Rate limiting (Redis-backed across replicas), Prometheus metrics, JSON logs with request ids, liveness/readiness probes
+- Docker images, Docker Compose stack, Render blueprint, CI with PostgreSQL tests and a supply-chain scan
+
+**Outreach workflow**
 - Campaign management
 - Lead CSV upload
 - Public email extraction from websites
@@ -259,90 +269,48 @@ Vapi Calling Agent:
 
 ## 6. Local Setup
 
-Backend:
 ```bash
+# API
 cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
+python3.12 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+cp .env.example .env
+.venv/bin/uvicorn app.main:app --reload --port 8000
 
-Frontend:
-```bash
+# Web (second terminal)
 cd frontend
-npm install
+cp .env.example .env
+npm ci --ignore-scripts
 npm run dev
 ```
 
-Default local URLs:
-- Backend: `http://127.0.0.1:8000`
-- Frontend: `http://localhost:5173`
+Open `http://localhost:5173`. The first account you create becomes the workspace admin.
+
+Or run the whole stack (PostgreSQL, Redis, API, web) with Docker:
+
+```bash
+cp .env.docker.example .env   # set SECRET_KEY and POSTGRES_PASSWORD
+docker compose up --build
+```
 
 ## 7. Environment Variables
 
-Do not commit real secrets. Use Render, Vercel, or local `.env` files for real values.
-
-Backend:
-```env
-APP_NAME=
-APP_ENV=
-FRONTEND_URL=
-DATABASE_URL=
-DB_POOL_SIZE=
-DB_MAX_OVERFLOW=
-DB_POOL_TIMEOUT=
-DB_POOL_RECYCLE=
-BACKEND_HOST=
-BACKEND_PORT=
-GEMINI_API_KEY=
-GEMINI_MODEL=
-N8N_WEBHOOK_URL=
-EMBEDDING_MODEL=
-EMBEDDING_DIMENSION=
-ENABLE_SEMANTIC_RAG=
-SEMANTIC_RAG_TOP_K=
-SEMANTIC_RAG_MIN_SCORE=
-GMAIL_CLIENT_ID=
-GMAIL_CLIENT_SECRET=
-GMAIL_REDIRECT_URI=
-GMAIL_SENDER_EMAIL=
-GMAIL_DAILY_LIMIT=
-HUNTER_API_KEY=
-HUNTER_REQUEST_TIMEOUT=
-HUNTER_BULK_MAX_LEADS=
-HUNTER_BULK_MAX_SECONDS=
-HUNTER_BULK_DELAY_SECONDS=
-VAPI_ENABLED=
-VAPI_API_KEY=
-VAPI_ASSISTANT_ID=
-VAPI_PHONE_NUMBER_ID=
-VAPI_WEBHOOK_SECRET=
-VAPI_DEFAULT_TEST_PHONE=
-VAPI_BASE_URL=
-```
-
-Frontend:
-```env
-VITE_API_BASE_URL=
-```
+Every variable is documented with comments in [`backend/.env.example`](backend/.env.example)
+and [`frontend/.env.example`](frontend/.env.example). The production-critical ones
+(`APP_ENV`, `SECRET_KEY`, `DATABASE_URL`, `FRONTEND_URLS`, `REDIS_URL`, `PUBLIC_API_URL`)
+are explained in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md#environment-variables).
+Never commit real values.
 
 ## 8. Deployment
 
-Frontend:
-- Deploy the `frontend` app to Vercel.
-- Set `VITE_API_BASE_URL` to the Render backend API URL, including `/api` if the app expects that base path.
-
-Backend:
-- Deploy the `backend` app to Render.
-- Set all backend environment variables in Render.
-- Point `DATABASE_URL` to Supabase PostgreSQL.
-- Configure Gmail OAuth redirect URI to match the deployed backend callback.
-- Set `N8N_WEBHOOK_URL` to the n8n production webhook URL, for example `https://your-n8n-host/webhook/lead-agent-start`. Do not use the `/webhook-test/...` URL for production website runs.
+See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for Docker Compose, Render (`render.yaml`
+blueprint) + Vercel, the production checklist, and upgrade notes. System design,
+scaling and failure modes are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 n8n:
-- Keep Apify credentials and workflow-specific API tokens inside n8n, not the frontend.
-- The production workflow must be active before the backend can trigger it through `N8N_WEBHOOK_URL`.
+- Create an API key in the app (*Team & API keys*) and send it as the `X-API-Key`
+  header from the n8n node that calls `POST /api/leads/create`.
+- Set `N8N_WEBHOOK_URL` to the production webhook (`/webhook/...`, not `/webhook-test/...`).
+- Keep Apify credentials inside n8n.
 
 ## 9. Demo Flow
 
