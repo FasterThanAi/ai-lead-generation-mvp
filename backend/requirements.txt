@@ -43,4 +43,3 @@ websockets==16.0
 PyJWT==2.10.1
 prometheus-client==0.21.1
 redis==5.2.1
-gunicorn==23.0.0

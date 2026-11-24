@@ -1,7 +1,7 @@
 import ipaddress
 import json
 import re
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urljoin, urlparse, urlunparse
 from urllib.robotparser import RobotFileParser
 
 import requests
@@ -16,9 +16,11 @@ from app.core.config import settings
 from app.db.models import Campaign, DiscoveredLead, DiscoveryJob, Lead
 from app.services.ai_service import clean_value, extract_json_from_text
 from app.services.lead_research_service import research_lead
+from app.services.scraper_service import is_public_http_url
 from app.utils.time_utils import utc_now
 
 REQUEST_TIMEOUT_SECONDS = 8
+MAX_DISCOVERY_REDIRECTS = 4
 MAX_RESPONSE_BYTES = 1024 * 1024
 MAX_TEXT_CHARS = 10000
 MAX_CONTEXT_CHARS = 900
@@ -316,12 +318,16 @@ def _allowed_by_robots(url: str):
         parser.set_url(robots_url)
 
         try:
+            if not is_public_http_url(robots_url):
+                robots_cache[robots_url] = None
+                return False, "Website URL is not allowed"
             response = requests.get(
                 robots_url,
                 timeout=REQUEST_TIMEOUT_SECONDS,
                 headers={"User-Agent": USER_AGENT},
+                allow_redirects=False,
             )
-            if response.status_code >= 400:
+            if response.status_code >= 300:
                 robots_cache[robots_url] = None
             else:
                 parser.parse(response.text.splitlines())
@@ -346,13 +352,30 @@ def _fetch_single_url(url: str):
         return {"status": "error", "url": url, "error": robots_error}
 
     try:
-        response = requests.get(
-            url,
-            timeout=REQUEST_TIMEOUT_SECONDS,
-            headers={"User-Agent": USER_AGENT},
-            stream=True,
-            allow_redirects=True,
-        )
+        response = None
+        current_url = url
+        # Follow redirects by hand and re-check every hop: a public page (or a
+        # hostname that resolves to a private IP) must never reach internal
+        # services such as cloud metadata endpoints.
+        for _ in range(MAX_DISCOVERY_REDIRECTS + 1):
+            if not is_public_http_url(current_url):
+                return {"status": "error", "url": url, "error": "Website URL is not allowed"}
+            response = requests.get(
+                current_url,
+                timeout=REQUEST_TIMEOUT_SECONDS,
+                headers={"User-Agent": USER_AGENT},
+                stream=True,
+                allow_redirects=False,
+            )
+            if not (response.is_redirect or response.is_permanent_redirect):
+                break
+            location = response.headers.get("Location")
+            response.close()
+            if not location:
+                return {"status": "error", "url": url, "error": "Website blocked or unreadable"}
+            current_url = urljoin(current_url, location)
+        else:
+            return {"status": "error", "url": url, "error": "Website redirected too many times"}
 
         if response.status_code == 404:
             return {"status": "error", "url": url, "error": "Page not found"}
@@ -381,7 +404,7 @@ def _fetch_single_url(url: str):
 
         return {
             "status": "success",
-            "url": response.url or url,
+            "url": current_url or url,
             "html": html,
             "truncated": total_bytes > MAX_RESPONSE_BYTES,
         }

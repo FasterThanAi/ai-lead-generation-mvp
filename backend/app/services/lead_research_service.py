@@ -264,9 +264,10 @@ def _is_allowed_by_robots(url: str):
                 robots_url,
                 timeout=REQUEST_TIMEOUT_SECONDS,
                 headers={"User-Agent": USER_AGENT},
+                allow_redirects=False,
             )
 
-            if response.status_code >= 400:
+            if response.status_code >= 300:
                 ROBOTS_CACHE[robots_url] = None
             else:
                 parser.parse(response.text.splitlines())

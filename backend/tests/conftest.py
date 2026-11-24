@@ -10,7 +10,8 @@ from pathlib import Path
 _TMP = Path(tempfile.mkdtemp(prefix="leadgen-tests-"))
 os.environ.update({
     "APP_ENV": "test",
-    "DATABASE_URL": f"sqlite:///{_TMP / 'test.db'}",
+    # CI sets TEST_DATABASE_URL to run the same suite against PostgreSQL.
+    "DATABASE_URL": os.environ.get("TEST_DATABASE_URL") or f"sqlite:///{_TMP / 'test.db'}",
     "SECRET_KEY": "test-secret-key-0123456789abcdef0123456789",
     "AUTH_ENABLED": "true",
     "ALLOW_REGISTRATION": "false",

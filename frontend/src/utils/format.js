@@ -1,4 +1,4 @@
-import { getDateTimestampISTSafe } from "./dateUtils";
+import { getDateTimestampISTSafe } from "./dateUtils.js";
 
 // API timestamps are UTC without an offset; dateUtils normalises them.
 function parseApiDate(value) {

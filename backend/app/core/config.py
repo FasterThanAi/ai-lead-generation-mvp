@@ -47,6 +47,14 @@ def get_bool_env(name, default):
 DEV_SECRET_KEY = "dev-insecure-secret-key-change-me-in-production"
 
 
+def normalize_database_url(value):
+    url = (value or "").strip() or "sqlite:///./leadgen.db"
+    # Heroku/Render style URLs use the legacy scheme SQLAlchemy 2 rejects.
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+    return url
+
+
 def get_list_env(name):
     return [item.strip() for item in os.getenv(name, "").split(",") if item.strip()]
 
@@ -81,7 +89,7 @@ class Settings:
     APP_ENV: str = os.getenv("APP_ENV", "development")
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
     FRONTEND_URLS: list[str] = get_frontend_origins()
-    DATABASE_URL: str = (os.getenv("DATABASE_URL", "").strip() or "sqlite:///./leadgen.db")
+    DATABASE_URL: str = normalize_database_url(os.getenv("DATABASE_URL", ""))
     DB_POOL_SIZE: int = get_int_env("DB_POOL_SIZE", 5)
     DB_MAX_OVERFLOW: int = get_int_env("DB_MAX_OVERFLOW", 2)
     DB_POOL_TIMEOUT: int = get_int_env("DB_POOL_TIMEOUT", 30)

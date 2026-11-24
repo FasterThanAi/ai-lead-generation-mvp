@@ -34,6 +34,12 @@ class DatabaseUrlConfigTests(unittest.TestCase):
         url = "postgresql://test_user:test_password@localhost/test_db"
         self.assertEqual(self.load_database_url(url), url)
 
+    def test_legacy_postgres_scheme_is_normalised(self):
+        self.assertEqual(
+            self.load_database_url("postgres://u:p@db:5432/app"),
+            "postgresql://u:p@db:5432/app",
+        )
+
     def test_surrounding_whitespace_is_removed(self):
         url = "postgresql://test_user:test_password@localhost/test_db"
         self.assertEqual(self.load_database_url(f" \t{url}\n "), url)

@@ -17,6 +17,7 @@ leadgen.db
 .env
 .env.*
 !.env.example
+!.env.docker.example
 
 # Node
 node_modules/

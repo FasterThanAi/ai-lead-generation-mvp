@@ -1,0 +1,78 @@
+# Render Blueprint: API + PostgreSQL + Key Value (Redis).
+# The web app stays on Vercel (frontend/vercel.json); point VITE_API_BASE_URL at this API.
+databases:
+  - name: leadgen-db
+    plan: free
+    databaseName: leadgen
+    user: leadgen
+
+services:
+  - type: keyvalue
+    name: leadgen-redis
+    plan: free
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+
+  - type: web
+    name: leadgen-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # Migrations run under a Postgres advisory lock at boot (RUN_MIGRATIONS_ON_STARTUP),
+    # which also works on plans without a pre-deploy step.
+    startCommand: >-
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT
+      --workers ${WEB_CONCURRENCY:-1} --proxy-headers --forwarded-allow-ips '*'
+      --timeout-graceful-shutdown 25 --no-server-header
+    healthCheckPath: /api/health/ready
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: APP_ENV
+        value: production
+      - key: LOG_JSON
+        value: "true"
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: TOKEN_ENCRYPTION_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: leadgen-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: leadgen-redis
+          property: connectionString
+      - key: FRONTEND_URLS
+        value: https://ai-lead-generation-mvp.vercel.app
+      - key: PUBLIC_API_URL
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REDIRECT_URI
+        sync: false
+      - key: GMAIL_SENDER_EMAIL
+        sync: false
+      - key: HUNTER_API_KEY
+        sync: false
+      - key: APOLLO_API_KEY
+        sync: false
+      - key: N8N_WEBHOOK_URL
+        sync: false
+      - key: VAPI_ENABLED
+        value: "false"
+      - key: VAPI_WEBHOOK_SECRET
+        generateValue: true
