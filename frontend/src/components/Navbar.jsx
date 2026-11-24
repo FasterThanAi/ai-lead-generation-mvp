@@ -1,52 +1,103 @@
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../auth/auth-context";
+import Icon from "./ui/Icon";
 import ThemeToggle from "./ui/ThemeToggle";
 
-function Navbar({ pageTitle, collapsed, onMenuClick, onCollapseClick }) {
+function initials(user) {
+  const source = user?.full_name || user?.email || "?";
+  return source
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
+function UserMenu() {
+  const { user, logout, config } = useAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+    const close = (event) => {
+      if (event.type === "keydown" ? event.key === "Escape" : !ref.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [open]);
+
   return (
-    <header className="glass sticky top-0 z-30 rounded-none border-x-0 border-t-0 px-4 sm:px-5 lg:px-8">
-      <div className="mx-auto flex h-[72px] w-full max-w-[1440px] items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="btn btn-ghost h-9 gap-2 px-1.5"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <span className="bg-accent-soft text-accent flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold">
+          {initials(user)}
+        </span>
+        <span className="text-ink hidden max-w-[10rem] truncate text-sm font-medium md:inline">
+          {user?.full_name || user?.email}
+        </span>
+        <Icon name="chevronDown" className="text-faint hidden h-4 w-4 md:block" />
+      </button>
+
+      {open && (
+        <div role="menu" className="glass shadow-deep absolute right-0 top-11 z-50 w-64 rounded-panel p-1.5">
+          <div className="px-2.5 py-2">
+            <p className="text-ink truncate text-sm font-medium">{user?.full_name || "Signed in"}</p>
+            <p className="text-muted truncate text-xs">{user?.email}</p>
+            <span className="tone tone-info mt-2 capitalize">{user?.role}</span>
+          </div>
+          <div className="divider my-1" />
+          <Link role="menuitem" to="/team" onClick={() => setOpen(false)} className="nav-item w-full">
+            <Icon name="key" /> Team & API keys
+          </Link>
+          <Link role="menuitem" to="/settings" onClick={() => setOpen(false)} className="nav-item w-full">
+            <Icon name="settings" /> Settings
+          </Link>
+          {config?.auth_enabled !== false && (
+            <button role="menuitem" type="button" onClick={logout} className="nav-item w-full">
+              <Icon name="logout" /> Sign out
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Navbar({ pageTitle, onMenuClick }) {
+  return (
+    <header className="line-1 sticky top-0 z-30 border-b bg-[var(--bg-1)]/90 backdrop-blur supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--bg-1)_85%,transparent)]">
+      <div className="mx-auto flex h-14 w-full max-w-[1440px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"
-            className="btn btn-secondary h-10 w-10 shrink-0 rounded-2xl p-0 lg:hidden"
+            className="btn btn-ghost h-9 w-9 p-0 lg:hidden"
             aria-label="Open navigation"
             onClick={onMenuClick}
           >
-            <svg viewBox="0 0 24 24" className="relative z-10 h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
+            <Icon name="menu" className="h-5 w-5" />
           </button>
-
-          <button
-            type="button"
-            className="btn btn-secondary hidden h-10 w-10 shrink-0 rounded-2xl p-0 lg:flex"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            onClick={onCollapseClick}
-          >
-            <svg viewBox="0 0 24 24" className="relative z-10 h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d={collapsed ? "M4 6h16M4 12h10M4 18h16" : "M4 6h16M10 12h10M4 18h16"} />
-            </svg>
-          </button>
-
-          <div className="min-w-0">
-            <p className="text-faint hidden truncate text-[11px] font-semibold uppercase tracking-[0.14em] sm:block">
-              AI Lead Generation
-            </p>
-            <h1 className="text-ink truncate text-lg font-semibold tracking-tight sm:text-xl">
-              {pageTitle}
-            </h1>
-          </div>
+          <h1 className="text-ink truncate text-[15px] font-semibold">{pageTitle}</h1>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <div className="tone tone-success hidden px-3 py-1.5 md:inline-flex">
-            <span aria-hidden="true" className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-70" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-current" />
-            </span>
-            MVP Live
-          </div>
-
+        <div className="flex shrink-0 items-center gap-1">
           <ThemeToggle />
+          <UserMenu />
         </div>
       </div>
     </header>

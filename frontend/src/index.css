@@ -2,151 +2,145 @@
 @config "../tailwind.config.js";
 
 /* ============================================================================
-   MIDNIGHT AURORA — design tokens
-   Dark is the default. Adding `.light` to <html> flips every token.
-   Nothing below knows about components; components only read these vars.
+   LEAD AGENT — design tokens
+   Light is the default; `.dark` on <html> flips every token.
+   Components only read these variables, never raw colours.
    ========================================================================== */
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-:root,
-html.dark {
-  color-scheme: dark;
-
-  /* canvas */
-  --bg-0: #05070f;
-  --bg-1: #0a0f24;
-  --bg-2: #111935;
-
-  /* aurora blooms (r g b channels) */
-  --bloom-1: 34 211 238; /* cyan   */
-  --bloom-2: 139 92 246; /* violet */
-  --bloom-3: 240 70 140; /* magenta*/
-  --bloom-a1: 0.3;
-  --bloom-a2: 0.32;
-  --bloom-a3: 0.22;
-
-  /* glass surfaces */
-  --glass-1: rgba(255, 255, 255, 0.045);
-  --glass-2: rgba(255, 255, 255, 0.075);
-  --glass-3: rgba(255, 255, 255, 0.11);
-  --glass-sunk: rgba(3, 6, 16, 0.4);
-  --glass-blur: 22px;
-
-  /* hairlines */
-  --line-1: rgba(255, 255, 255, 0.1);
-  --line-2: rgba(255, 255, 255, 0.17);
-  --line-3: rgba(255, 255, 255, 0.26);
-
-  /* type */
-  --text-1: #f2f5fb;
-  --text-2: #c7d0e3;
-  --text-3: #8e9bb5;
-  --text-4: #5f6b85;
-  --text-on-accent: #04060f;
-
-  /* accent */
-  --accent-from: 34 211 238;
-  --accent-to: 167 139 250;
-  --accent-solid: #22d3ee;
-  /* tone text is mixed toward this so chips stay legible on the canvas */
-  --tone-mix: #ffffff;
-  --tone-mix-amount: 18%;
-  --ring: rgba(34, 211, 238, 0.45);
-
-  /* semantic tones (r g b) */
-  --t-success: 52 211 153;
-  --t-info: 56 189 248;
-  --t-violet: 167 139 250;
-  --t-pink: 244 114 182;
-  --t-warn: 251 191 36;
-  --t-danger: 251 113 133;
-  --t-neutral: 148 163 184;
-
-  /* tone alphas */
-  --t-bg: 0.13;
-  --t-bd: 0.28;
-
-  /* elevation */
-  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.7);
-  --sh-2: 0 2px 4px rgba(0, 0, 0, 0.35), 0 18px 44px -18px rgba(0, 0, 0, 0.8);
-  --sh-3: 0 30px 70px -24px rgba(0, 0, 0, 0.85);
-  --sh-glow: 0 0 0 1px rgba(34, 211, 238, 0.18), 0 18px 50px -20px rgba(34, 211, 238, 0.4);
-
-  /* charts — SVG reads these directly via var(), so they flip with the theme */
-  --chart-1: #22d3ee;
-  --chart-2: #34d399;
-  --chart-3: #a78bfa;
-  --chart-4: #f472b6;
-  --chart-5: #fbbf24;
-  --chart-grid: rgba(255, 255, 255, 0.08);
-  --chart-axis: #8e9bb5;
-  --chart-tip-bg: rgba(12, 17, 36, 0.92);
-  --chart-tip-bd: rgba(255, 255, 255, 0.14);
+/* Tighter corner scale so older pages that use rounded-2xl/3xl match the system. */
+@theme {
+  --radius-xl: 0.625rem;
+  --radius-2xl: 0.75rem;
+  --radius-3xl: 0.875rem;
 }
 
+:root,
 html.light {
   color-scheme: light;
 
-  --bg-0: #f6f8ff;
-  --bg-1: #eef2ff;
+  /* canvas */
+  --bg-0: #f6f7f9;
+  --bg-1: #ffffff;
   --bg-2: #ffffff;
 
-  --bloom-1: 14 165 233;
-  --bloom-2: 124 58 237;
-  --bloom-3: 236 72 153;
-  --bloom-a1: 0.18;
-  --bloom-a2: 0.17;
-  --bloom-a3: 0.13;
+  /* surfaces (names kept from the previous system for compatibility) */
+  --glass-1: #ffffff;
+  --glass-2: #f9fafb;
+  --glass-3: #f3f4f6;
+  --glass-sunk: #f6f7f9;
 
-  --glass-1: rgba(255, 255, 255, 0.72);
-  --glass-2: rgba(255, 255, 255, 0.88);
-  --glass-3: rgba(255, 255, 255, 0.97);
-  --glass-sunk: rgba(15, 23, 42, 0.035);
-  --glass-blur: 18px;
+  /* hairlines */
+  --line-1: #e8eaee;
+  --line-2: #dcdfe5;
+  --line-3: #c6cad3;
 
-  --line-1: rgba(15, 23, 42, 0.09);
-  --line-2: rgba(15, 23, 42, 0.14);
-  --line-3: rgba(15, 23, 42, 0.22);
-
-  --text-1: #0a1020;
-  --text-2: #26324a;
-  --text-3: #5b6884;
-  --text-4: #8a95ad;
+  /* type */
+  --text-1: #0f172a;
+  --text-2: #334155;
+  --text-3: #64748b;
+  --text-4: #94a3b8;
   --text-on-accent: #ffffff;
 
-  --accent-from: 2 132 199;
-  --accent-to: 124 58 237;
-  --accent-solid: #0284c7;
+  /* accent (indigo) */
+  --accent-from: 79 70 229;
+  --accent-to: 99 102 241;
+  --accent-solid: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff;
   --tone-mix: #000000;
-  --tone-mix-amount: 8%;
-  --ring: rgba(14, 165, 233, 0.4);
+  --tone-mix-amount: 10%;
+  --ring: rgba(79, 70, 229, 0.22);
 
-  --t-success: 5 150 105;
-  --t-info: 2 132 199;
-  --t-violet: 109 40 217;
+  /* semantic tones (r g b) */
+  --t-success: 22 163 74;
+  --t-info: 37 99 235;
+  --t-violet: 124 58 237;
   --t-pink: 219 39 119;
-  --t-warn: 180 83 9;
-  --t-danger: 225 29 72;
+  --t-warn: 217 119 6;
+  --t-danger: 220 38 38;
   --t-neutral: 100 116 139;
+  --t-bg: 0.08;
+  --t-bd: 0.2;
 
-  --t-bg: 0.1;
-  --t-bd: 0.22;
+  /* elevation */
+  --sh-1: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --sh-2: 0 4px 8px -2px rgba(16, 24, 40, 0.06), 0 2px 4px -2px rgba(16, 24, 40, 0.04);
+  --sh-3: 0 20px 40px -12px rgba(16, 24, 40, 0.18);
+  --sh-glow: 0 0 0 1px rgba(79, 70, 229, 0.2), 0 8px 24px -12px rgba(79, 70, 229, 0.35);
 
-  --sh-1: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 26px -16px rgba(15, 23, 42, 0.28);
-  --sh-2: 0 2px 6px rgba(15, 23, 42, 0.06), 0 20px 46px -22px rgba(15, 23, 42, 0.35);
-  --sh-3: 0 34px 74px -28px rgba(15, 23, 42, 0.4);
-  --sh-glow: 0 0 0 1px rgba(14, 165, 233, 0.22), 0 18px 50px -22px rgba(14, 165, 233, 0.45);
-
-  --chart-1: #0284c7;
-  --chart-2: #059669;
-  --chart-3: #7c3aed;
+  /* charts */
+  --chart-1: #4f46e5;
+  --chart-2: #16a34a;
+  --chart-3: #0ea5e9;
   --chart-4: #db2777;
   --chart-5: #d97706;
-  --chart-grid: rgba(15, 23, 42, 0.09);
-  --chart-axis: #5b6884;
-  --chart-tip-bg: rgba(255, 255, 255, 0.96);
-  --chart-tip-bd: rgba(15, 23, 42, 0.12);
+  --chart-grid: #eef0f3;
+  --chart-axis: #94a3b8;
+  --chart-tip-bg: #ffffff;
+  --chart-tip-bd: #e5e7eb;
+
+  /* layout */
+  --radius-card: 0.875rem;
+  --radius-control: 0.625rem;
+}
+
+html.dark {
+  color-scheme: dark;
+
+  --bg-0: #0b0d12;
+  --bg-1: #11141b;
+  --bg-2: #151922;
+
+  --glass-1: #11141b;
+  --glass-2: #161a23;
+  --glass-3: #1c212c;
+  --glass-sunk: #0e1117;
+
+  --line-1: rgba(255, 255, 255, 0.07);
+  --line-2: rgba(255, 255, 255, 0.11);
+  --line-3: rgba(255, 255, 255, 0.18);
+
+  --text-1: #eceef3;
+  --text-2: #c3c8d4;
+  --text-3: #8b93a5;
+  --text-4: #5d6578;
+  --text-on-accent: #ffffff;
+
+  --accent-from: 99 102 241;
+  --accent-to: 129 140 248;
+  --accent-solid: #6366f1;
+  --accent-hover: #818cf8;
+  --accent-soft: rgba(99, 102, 241, 0.14);
+  --tone-mix: #ffffff;
+  --tone-mix-amount: 22%;
+  --ring: rgba(129, 140, 248, 0.3);
+
+  --t-success: 34 197 94;
+  --t-info: 59 130 246;
+  --t-violet: 167 139 250;
+  --t-pink: 244 114 182;
+  --t-warn: 245 158 11;
+  --t-danger: 248 113 113;
+  --t-neutral: 148 163 184;
+  --t-bg: 0.12;
+  --t-bd: 0.26;
+
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sh-2: 0 6px 16px -6px rgba(0, 0, 0, 0.6);
+  --sh-3: 0 24px 48px -16px rgba(0, 0, 0, 0.7);
+  --sh-glow: 0 0 0 1px rgba(129, 140, 248, 0.3), 0 8px 24px -12px rgba(99, 102, 241, 0.5);
+
+  --chart-1: #818cf8;
+  --chart-2: #4ade80;
+  --chart-3: #38bdf8;
+  --chart-4: #f472b6;
+  --chart-5: #fbbf24;
+  --chart-grid: rgba(255, 255, 255, 0.06);
+  --chart-axis: #6b7385;
+  --chart-tip-bg: #161a23;
+  --chart-tip-bd: rgba(255, 255, 255, 0.1);
 }
 
 /* ============================================================================
@@ -167,64 +161,27 @@ body {
   overflow-x: hidden;
   background-color: var(--bg-0);
   color: var(--text-1);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "SF Pro Display", "Segoe UI", sans-serif;
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-feature-settings: "cv11", "ss01", "ss03";
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.45s ease, color 0.45s ease;
 }
 
 #root {
-  position: relative;
-  z-index: 1;
   min-height: 100vh;
   min-height: 100dvh;
   max-width: 100vw;
   overflow-x: hidden;
 }
 
-/* --- the aurora canvas ---------------------------------------------------- */
-
-body::before,
-body::after {
-  content: "";
-  position: fixed;
-  inset: -30vmax;
-  z-index: 0;
-  pointer-events: none;
-  will-change: transform;
+h1, h2, h3, h4 {
+  letter-spacing: -0.015em;
 }
 
-body::before {
-  background:
-    radial-gradient(38vmax 38vmax at 18% 12%, rgb(var(--bloom-1) / var(--bloom-a1)), transparent 62%),
-    radial-gradient(42vmax 42vmax at 82% 18%, rgb(var(--bloom-2) / var(--bloom-a2)), transparent 60%),
-    radial-gradient(36vmax 36vmax at 62% 88%, rgb(var(--bloom-3) / var(--bloom-a3)), transparent 62%);
-  animation: aurora-drift 34s ease-in-out infinite alternate;
-  transition: background 0.6s ease;
-}
-
-/* fine noise so large gradients don't band on cheap panels */
-body::after {
-  opacity: 0.4;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
-}
-
-html.light body::after {
-  opacity: 0.22;
-}
-
-@keyframes aurora-drift {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(2.5%, -3%, 0) scale(1.08);
-  }
-  100% {
-    transform: translate3d(-2.5%, 2.5%, 0) scale(1.03);
-  }
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 /* --- form controls -------------------------------------------------------- */
@@ -235,7 +192,6 @@ select {
   max-width: 100%;
   font: inherit;
   color: var(--text-1);
-  background-color: var(--glass-sunk);
 }
 
 input::placeholder,
@@ -353,31 +309,14 @@ textarea {
 
 /* accent -------------------------------------------------------------------*/
 @utility bg-accent {
-  background-image: linear-gradient(
-    135deg,
-    rgb(var(--accent-from)) 0%,
-    rgb(var(--accent-to)) 100%
-  );
+  background-color: var(--accent-solid);
 }
 @utility bg-accent-soft {
-  background-image: linear-gradient(
-    135deg,
-    rgb(var(--accent-from) / 0.16) 0%,
-    rgb(var(--accent-to) / 0.16) 100%
-  );
+  background-color: var(--accent-soft);
 }
 @utility text-gradient {
-  background-image: linear-gradient(
-    120deg,
-    rgb(var(--accent-from)) 0%,
-    rgb(var(--accent-to)) 55%,
-    rgb(var(--bloom-3)) 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--text-1);
 }
-
 
 /* tone helpers — text / soft fill / soft border / solid fill -----------*/
 @utility text-success {
@@ -519,63 +458,29 @@ textarea {
    ========================================================================== */
 
 @layer components {
-  /* --- glass panels ------------------------------------------------------ */
+  /* --- surfaces (card) --------------------------------------------------- */
 
   .glass {
     position: relative;
     background-color: var(--glass-1);
     border: 1px solid var(--line-1);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
-    backdrop-filter: blur(var(--glass-blur)) saturate(160%);
     box-shadow: var(--sh-1);
-    transition: background-color 0.3s ease, border-color 0.3s ease,
-      box-shadow 0.35s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  /* the specular top edge that sells the glass */
-  .glass::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(
-      160deg,
-      rgba(255, 255, 255, 0.28),
-      rgba(255, 255, 255, 0) 42%
-    );
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    mask-composite: exclude;
-    pointer-events: none;
-  }
-
-  html.light .glass::before {
-    background: linear-gradient(
-      160deg,
-      rgba(255, 255, 255, 0.95),
-      rgba(255, 255, 255, 0) 46%
-    );
+    transition: border-color 0.15s ease, box-shadow 0.2s ease;
   }
 
   .glass-raised {
-    background-color: var(--glass-2);
     box-shadow: var(--sh-2);
   }
 
   .glass-hover:hover {
-    background-color: var(--glass-2);
     border-color: var(--line-2);
     box-shadow: var(--sh-2);
-    transform: translateY(-2px);
   }
 
-  /* sunken inner well — for read-only blocks, code, previews */
   .well {
     background-color: var(--glass-sunk);
     border: 1px solid var(--line-1);
-    border-radius: 1rem;
+    border-radius: 0.625rem;
   }
 
   /* --- tone chips -------------------------------------------------------- */
@@ -586,14 +491,14 @@ textarea {
     width: fit-content;
     align-items: center;
     gap: 0.375rem;
-    border-radius: 999px;
+    border-radius: 0.375rem;
     border: 1px solid rgb(var(--tone) / var(--t-bd));
     background-color: rgb(var(--tone) / var(--t-bg));
     color: color-mix(in srgb, rgb(var(--tone)) calc(100% - var(--tone-mix-amount)), var(--tone-mix));
-    padding: 0.25rem 0.625rem;
+    padding: 0.125rem 0.5rem;
     font-size: 0.75rem;
-    font-weight: 600;
-    line-height: 1.1rem;
+    font-weight: 500;
+    line-height: 1.125rem;
     white-space: nowrap;
   }
 
@@ -605,11 +510,10 @@ textarea {
   .tone-danger  { --tone: var(--t-danger); }
   .tone-neutral { --tone: var(--t-neutral); }
 
-  /* same palette, but as a soft block (alerts, callouts, stat tiles) */
   .tone-block {
     --tone: var(--t-neutral);
     border: 1px solid rgb(var(--tone) / var(--t-bd));
-    background-color: rgb(var(--tone) / calc(var(--t-bg) * 0.75));
+    background-color: rgb(var(--tone) / calc(var(--t-bg) * 0.8));
     color: color-mix(in srgb, rgb(var(--tone)) calc(100% - var(--tone-mix-amount)), var(--tone-mix));
   }
 
@@ -617,46 +521,45 @@ textarea {
 
   .field {
     width: 100%;
-    min-height: 2.75rem;
-    border-radius: 0.875rem;
-    border: 1px solid var(--line-1);
-    background-color: var(--glass-sunk);
-    padding: 0.625rem 0.875rem;
+    min-height: 2.5rem;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--line-2);
+    background-color: var(--bg-1);
+    padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
     color: var(--text-1);
     outline: none;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease,
-      background-color 0.2s ease;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
   .field:hover:not(:disabled) {
-    border-color: var(--line-2);
+    border-color: var(--line-3);
   }
 
   .field:focus {
-    border-color: rgb(var(--accent-from) / 0.7);
-    background-color: var(--glass-1);
-    box-shadow: 0 0 0 4px var(--ring);
+    border-color: var(--accent-solid);
+    box-shadow: 0 0 0 3px var(--ring);
   }
 
   .field:disabled {
-    opacity: 0.55;
+    opacity: 0.6;
     cursor: not-allowed;
+    background-color: var(--glass-sunk);
   }
 
   textarea.field {
     min-height: 6rem;
-    line-height: 1.6;
+    line-height: 1.55;
     resize: vertical;
   }
 
   select.field {
     appearance: none;
     padding-right: 2.25rem;
-    background-image: linear-gradient(45deg, transparent 50%, var(--text-3) 50%),
-      linear-gradient(135deg, var(--text-3) 50%, transparent 50%);
-    background-position: calc(100% - 1.05rem) 1.2rem, calc(100% - 0.75rem) 1.2rem;
-    background-size: 0.3rem 0.3rem, 0.3rem 0.3rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.65rem center;
+    background-size: 1rem;
     background-repeat: no-repeat;
   }
 
@@ -664,7 +567,7 @@ textarea {
     display: block;
     margin-bottom: 0.375rem;
     font-size: 0.8125rem;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--text-2);
   }
 
@@ -673,64 +576,48 @@ textarea {
   .btn {
     position: relative;
     display: inline-flex;
-    min-height: 2.625rem;
+    min-height: 2.375rem;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    overflow: hidden;
     border: 1px solid transparent;
-    border-radius: 0.875rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    border-radius: var(--radius-control);
+    font-size: 0.875rem;
+    font-weight: 500;
     white-space: nowrap;
-    transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 0.25s ease, background-color 0.25s ease, border-color 0.25s ease,
-      opacity 0.2s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease,
+      color 0.15s ease, opacity 0.15s ease;
   }
 
   .btn:active:not(:disabled) {
-    transform: scale(0.975);
-    /* Feedback lives on the press, and it has to be instant. The moment lag
-       appears here the sense of direct manipulation falls off a cliff, so the
-       squash goes down fast and only the release eases back out. */
-    transition: transform 0.1s cubic-bezier(0.3, 0, 0.2, 1),
-      box-shadow 0.25s ease, background-color 0.25s ease, border-color 0.25s ease,
-      opacity 0.2s ease;
+    transform: translateY(0.5px);
   }
 
   .btn:disabled {
     cursor: not-allowed;
-    opacity: 0.45;
-    transform: none;
+    opacity: 0.5;
   }
 
   .btn-primary {
-    background-image: linear-gradient(
-      135deg,
-      rgb(var(--accent-from)) 0%,
-      rgb(var(--accent-to)) 100%
-    );
+    background-color: var(--accent-solid);
     color: var(--text-on-accent);
-    box-shadow: 0 6px 20px -8px rgb(var(--accent-to) / 0.8);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
 
   .btn-primary:hover:not(:disabled) {
-    box-shadow: 0 10px 30px -8px rgb(var(--accent-to) / 0.95);
-    transform: translateY(-1px);
+    background-color: var(--accent-hover);
   }
 
   .btn-secondary {
-    background-color: var(--glass-2);
+    background-color: var(--bg-1);
     border-color: var(--line-2);
     color: var(--text-1);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
   }
 
   .btn-secondary:hover:not(:disabled) {
-    background-color: var(--glass-3);
+    background-color: var(--glass-2);
     border-color: var(--line-3);
-    transform: translateY(-1px);
   }
 
   .btn-ghost {
@@ -739,33 +626,30 @@ textarea {
   }
 
   .btn-ghost:hover:not(:disabled) {
-    background-color: var(--glass-2);
+    background-color: var(--glass-3);
     color: var(--text-1);
   }
 
   .btn-tone {
     --tone: var(--t-neutral);
-    background-color: rgb(var(--tone) / 0.2);
-    border-color: rgb(var(--tone) / 0.42);
+    background-color: rgb(var(--tone) / var(--t-bg));
+    border-color: rgb(var(--tone) / var(--t-bd));
     color: color-mix(in srgb, rgb(var(--tone)) calc(100% - var(--tone-mix-amount)), var(--tone-mix));
   }
 
   .btn-tone:hover:not(:disabled) {
-    background-color: rgb(var(--tone) / 0.32);
-    border-color: rgb(var(--tone) / 0.6);
-    transform: translateY(-1px);
+    background-color: rgb(var(--tone) / calc(var(--t-bg) * 1.8));
+    border-color: rgb(var(--tone) / 0.4);
   }
 
   .btn-solid {
     --tone: var(--t-neutral);
     background-color: rgb(var(--tone));
-    color: var(--bg-0);
-    box-shadow: 0 6px 20px -10px rgb(var(--tone) / 0.9);
+    color: #ffffff;
   }
 
   .btn-solid:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 10px 28px -10px rgb(var(--tone));
+    background-color: rgb(var(--tone) / 0.88);
   }
 
   /* --- nav --------------------------------------------------------------- */
@@ -773,55 +657,48 @@ textarea {
   .nav-item {
     position: relative;
     display: flex;
-    min-height: 2.75rem;
+    min-height: 2.25rem;
     align-items: center;
-    gap: 0.75rem;
-    border-radius: 0.875rem;
-    padding: 0 0.75rem;
+    gap: 0.625rem;
+    border-radius: 0.5rem;
+    padding: 0 0.625rem;
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--text-3);
-    transition: color 0.2s ease, background-color 0.2s ease;
+    transition: color 0.15s ease, background-color 0.15s ease;
   }
 
   .nav-item:hover {
     color: var(--text-1);
-    background-color: var(--glass-2);
-  }
-
-  .nav-item:active {
-    transform: scale(0.985);
-    transition: transform 0.1s cubic-bezier(0.3, 0, 0.2, 1);
+    background-color: var(--glass-3);
   }
 
   .nav-item-active {
     color: var(--text-1);
-    font-weight: 600;
+    background-color: var(--glass-3);
   }
 
   /* --- table ------------------------------------------------------------- */
 
   .t-head {
-    background-color: var(--glass-sunk);
+    background-color: var(--glass-2);
     color: var(--text-3);
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
   }
 
   .t-row {
-    transition: background-color 0.18s ease;
+    transition: background-color 0.12s ease;
   }
 
   .t-row:hover {
     background-color: var(--glass-2);
   }
 
-  /* horizontal scroll affordance on narrow screens */
   .scroll-x {
     overflow-x: auto;
-    scroll-snap-type: x proximity;
     -webkit-overflow-scrolling: touch;
   }
 
@@ -830,7 +707,7 @@ textarea {
   .shimmer {
     position: relative;
     overflow: hidden;
-    background-color: var(--glass-2);
+    background-color: var(--glass-3);
   }
 
   .shimmer::after {
@@ -838,13 +715,12 @@ textarea {
     position: absolute;
     inset: 0;
     transform: translateX(-100%);
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.11),
-      transparent
-    );
-    animation: shimmer 1.6s infinite;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+    animation: shimmer 1.4s infinite;
+  }
+
+  html.dark .shimmer::after {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
   }
 
   .divide-line > :not([hidden]) ~ :not([hidden]) {
@@ -853,17 +729,29 @@ textarea {
 
   .divider {
     height: 1px;
-    background: linear-gradient(90deg, transparent, var(--line-2), transparent);
+    background: var(--line-1);
   }
 
   .break-anywhere {
     overflow-wrap: anywhere;
   }
 
-  /* keeps the scrollable region from looking cut off */
   .fade-r {
-    -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent 100%);
-    mask-image: linear-gradient(90deg, #000 88%, transparent 100%);
+    -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent 100%);
+    mask-image: linear-gradient(90deg, #000 90%, transparent 100%);
+  }
+
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--line-2);
+    border-bottom-width: 2px;
+    border-radius: 0.3rem;
+    padding: 0 0.3rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--text-3);
+    background: var(--bg-1);
   }
 }
 
@@ -923,93 +811,20 @@ textarea {
   }
 }
 
-/* Reduced transparency: the whole surface language here is translucency, so
-   this setting has to actually land somewhere. Frost the glass into a solid
-   surface and drop the blur rather than ignoring the request. */
-@media (prefers-reduced-transparency: reduce) {
-  .glass,
-  .glass-raised,
-  .well,
-  .surface-1,
-  .surface-2,
-  .surface-3 {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-
-  .glass,
-  .glass-raised {
-    background-color: var(--bg-2);
-  }
-
-  html.light .glass,
-  html.light .glass-raised {
-    background-color: #ffffff;
-  }
-
-  /* the specular edge and the drifting aurora both rely on translucency */
-  .glass::before {
-    opacity: 0.35;
-  }
-
-  body::before,
-  body::after {
-    opacity: 0.25;
-    animation: none;
-  }
-}
-
-/* Increased contrast: near-solid backgrounds with a defined, contrasting
-   border, so every panel edge is unambiguous. */
+/* Increased contrast: stronger hairlines so every panel edge is unambiguous. */
 @media (prefers-contrast: more) {
+  html.light,
   :root {
-    --line-1: rgba(255, 255, 255, 0.34);
-    --line-2: rgba(255, 255, 255, 0.48);
-    --line-3: rgba(255, 255, 255, 0.66);
-    --glass-blur: 8px;
+    --line-1: #b8bec9;
+    --line-2: #9aa2b1;
+    --line-3: #7c8597;
+    --text-3: #475569;
   }
 
-  html.light {
-    --line-1: rgba(15, 23, 42, 0.32);
-    --line-2: rgba(15, 23, 42, 0.46);
-    --line-3: rgba(15, 23, 42, 0.64);
-  }
-
-  .glass,
-  .glass-raised {
-    background-color: var(--bg-2);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-
-  html.light .glass,
-  html.light .glass-raised {
-    background-color: #ffffff;
-  }
-
-  body::before,
-  body::after {
-    opacity: 0.15;
-  }
-}
-
-/* Safari < 16 and low-end Android drop backdrop-filter; fall back to a solid
-   surface so panels never render as unreadable transparent boxes. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass {
-    background-color: var(--bg-2);
-  }
-  html.light .glass {
-    background-color: #ffffff;
-  }
-}
-
-@media print {
-  body::before,
-  body::after {
-    display: none;
-  }
-  .glass {
-    box-shadow: none;
+  html.dark {
+    --line-1: rgba(255, 255, 255, 0.3);
+    --line-2: rgba(255, 255, 255, 0.45);
+    --line-3: rgba(255, 255, 255, 0.6);
+    --text-3: #b4bac7;
   }
 }

@@ -1,10 +1,9 @@
 
-import axios from "axios";
+import api from "../services/api";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Button from "./ui/Button";
 import Card from "./ui/Card";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const maxResultOptions = [25, 50, 100, 200];
 const queryOptions = [1, 2, 3];
 
@@ -71,7 +70,7 @@ function LeadAgentLauncher({ campaign, onLeadsFound }) {
     }
 
     try {
-      const response = await axios.get(`${API_BASE_URL}/lead-agent/status/${campaign.id}`);
+      const response = await api.get(`/lead-agent/status/${campaign.id}`);
       const nextStatus = response.data;
       setStatus(nextStatus);
 
@@ -100,7 +99,7 @@ function LeadAgentLauncher({ campaign, onLeadsFound }) {
 
     const loadInitialStatus = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/lead-agent/status/${campaignId}`);
+        const response = await api.get(`/lead-agent/status/${campaignId}`);
 
         if (!isCancelled) {
           setStatus(response.data);
@@ -132,12 +131,12 @@ function LeadAgentLauncher({ campaign, onLeadsFound }) {
     hasRefreshedForRunRef.current = false;
 
     try {
-      const statusResponse = await axios.get(`${API_BASE_URL}/lead-agent/status/${campaign.id}`);
+      const statusResponse = await api.get(`/lead-agent/status/${campaign.id}`);
       const nextBaseline = statusResponse.data;
       setBaseline(nextBaseline);
       setStatus(nextBaseline);
 
-      const response = await axios.post(`${API_BASE_URL}/lead-agent/start`, {
+      const response = await api.post(`/lead-agent/start`, {
         campaign_id: campaign.id,
         max_results: maxResults,
         target_leads: maxResults,

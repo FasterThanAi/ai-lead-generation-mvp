@@ -1,6 +1,6 @@
 function PageHeader({ title, description, eyebrow, actions }) {
   return (
-    <div className="animate-rise mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div className="min-w-0">
         {eyebrow && (
           <p className="text-accent mb-2 text-eyebrow uppercase">{eyebrow}</p>
@@ -11,7 +11,7 @@ function PageHeader({ title, description, eyebrow, actions }) {
         </h2>
 
         {description && (
-          <p className="text-muted mt-2.5 max-w-3xl text-sm leading-6">{description}</p>
+          <p className="text-muted mt-1 max-w-3xl text-sm leading-6">{description}</p>
         )}
       </div>
 

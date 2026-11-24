@@ -23,6 +23,9 @@ const toneByVariant = {
   sending: "warn",
   sent: "violet",
   replied: "success",
+  contacted: "info",
+  qualified: "success",
+  disqualified: "danger",
 
   /* calls */
   ringing: "warn",

@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { bulkEnrich, enrichLead } from "../api/hunter";
 import { bulkEnrich as apolloBulkEnrich, enrichLead as apolloEnrichLead } from "../api/apollo";
 import EmailExtraction from "../components/EmailExtraction";
 import LeadAgentLauncher from "../components/LeadAgentLauncher";
+import LeadGrid from "../components/LeadGrid";
 import LeadTable from "../components/LeadTable";
+import StatCard from "../components/StatCard";
+import EmptyState from "../components/ui/EmptyState";
+import Icon from "../components/ui/Icon";
+import Toast from "../components/ui/Toast";
 import LeadUpload from "../components/LeadUpload";
-import api from "../services/api";
+import api, { downloadFile } from "../services/api";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
@@ -24,6 +29,7 @@ const SEARCHABLE_LEAD_FIELDS = [
 ];
 
 function Leads() {
+  const [activeTab, setActiveTab] = useState("leads");
   const [searchParams, setSearchParams] = useSearchParams();
   const [campaigns, setCampaigns] = useState([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState(searchParams.get("campaign_id") || "");
@@ -614,403 +620,98 @@ function Leads() {
     }
   };
 
+  const tabs = [
+    { id: "leads", label: "All leads", count: leads.length },
+    { id: "import", label: "Add leads" },
+    { id: "enrich", label: "Enrich & score" },
+  ];
+
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader
         title="Leads"
-        description="Upload, enrich, score, and review leads without losing the business context behind each recommendation."
+        description="Import, enrich, research and score leads for each campaign."
+        actions={
+          <>
+            <label htmlFor="lead-campaign" className="sr-only">Campaign</label>
+            <select
+              id="lead-campaign"
+              value={selectedCampaignId}
+              onChange={handleCampaignChange}
+              className="field w-64 max-w-full"
+              disabled={isLoadingCampaigns || campaigns.length === 0}
+            >
+              <option value="">{isLoadingCampaigns ? "Loading campaigns…" : "Choose a campaign"}</option>
+              {campaigns.map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.campaign_name}
+                </option>
+              ))}
+            </select>
+            {selectedCampaign && (
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  downloadFile(`/leads/campaign/${selectedCampaignId}/export-csv`, `campaign_${selectedCampaignId}_leads.csv`)
+                    .catch(() => setLeadExtractionError("Could not download the CSV. Please try again."))
+                }
+              >
+                <Icon name="download" /> Export CSV
+              </Button>
+            )}
+          </>
+        }
       />
 
-      <div className="space-y-6">
-        <Card>
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold tracking-tight text-ink">Select Campaign</h2>
-            <p className="mt-1 text-sm text-muted">
-              Leads will be saved under the campaign you choose here.
-            </p>
+      {campaignsError && <Toast tone="danger">{campaignsError}</Toast>}
+
+      {!isLoadingCampaigns && !campaignsError && campaigns.length === 0 && (
+        <EmptyState title="No campaigns yet" description="Leads belong to a campaign. Create one first.">
+          <Button as={Link} to="/campaigns">Create campaign</Button>
+        </EmptyState>
+      )}
+
+      {!selectedCampaign && campaigns.length > 0 && (
+        <EmptyState title="Choose a campaign" description="Pick a campaign above to see and manage its leads." />
+      )}
+
+      {selectedCampaign && (
+        <>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <StatCard title="Leads" value={leads.length.toLocaleString()} helper={selectedCampaign.campaign_name} tone="primary" />
+            <StatCard
+              title="With email"
+              value={emailsFoundCount.toLocaleString()}
+              helper={leads.length ? `${Math.round((emailsFoundCount / leads.length) * 100)}% coverage` : "No leads yet"}
+              tone="success"
+            />
+            <StatCard title="AI scored" value={scoredLeadCount.toLocaleString()} helper={`${leads.length - scoredLeadCount} not scored`} tone="accent" />
+            <StatCard
+              title="Researched"
+              value={researchedLeadCount.toLocaleString()}
+              helper={`Avg. confidence ${averageResearchConfidence.toFixed(0)}`}
+              tone="warning"
+            />
           </div>
 
-          {campaignsError && (
-            <p className="mb-4 rounded-lg border border-danger-soft bg-danger-soft p-3 text-sm text-danger">
-              {campaignsError}
-            </p>
-          )}
-
-          <select
-            value={selectedCampaignId}
-            onChange={handleCampaignChange}
-            className="field"
-            disabled={isLoadingCampaigns || campaigns.length === 0}
-          >
-            <option value="">
-              {isLoadingCampaigns ? "Loading campaigns..." : "Choose a campaign"}
-            </option>
-            {campaigns.map((campaign) => (
-              <option key={campaign.id} value={campaign.id}>
-                {campaign.campaign_name}
-              </option>
+          <div role="tablist" aria-label="Lead tools" className="line-1 flex gap-1 border-b">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={[
+                  "-mb-px flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
+                  activeTab === tab.id ? "border-[var(--accent-solid)] text-ink" : "text-muted hover:text-ink border-transparent",
+                ].join(" ")}
+              >
+                {tab.label}
+                {tab.count !== undefined && <span className="tone tone-neutral tabular px-1.5 py-0">{tab.count}</span>}
+              </button>
             ))}
-          </select>
-
-          {!isLoadingCampaigns && !campaignsError && campaigns.length === 0 && (
-            <p className="mt-3 text-sm text-muted">
-              Create your first campaign to start lead outreach.
-            </p>
-          )}
-        </Card>
-
-        {selectedCampaign && (
-          <Card>
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold tracking-tight text-ink">Campaign Summary</h2>
-              <p className="mt-1 text-sm text-muted">{selectedCampaign.campaign_name}</p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              <div className="rounded-2xl border line-1 surface-sunk p-4">
-                <p className="text-xs text-muted">Industry</p>
-                <p className="mt-1 break-words font-medium text-ink">{selectedCampaign.industry || "N/A"}</p>
-              </div>
-              <div className="rounded-2xl border line-1 surface-sunk p-4">
-                <p className="text-xs text-muted">Location</p>
-                <p className="mt-1 break-words font-medium text-ink">{selectedCampaign.location || "N/A"}</p>
-              </div>
-              <div className="rounded-2xl border line-1 surface-sunk p-4">
-                <p className="text-xs text-muted">Target Role</p>
-                <p className="mt-1 break-words font-medium text-ink">{selectedCampaign.target_role || "N/A"}</p>
-              </div>
-              <div className="rounded-2xl border line-1 surface-sunk p-4 sm:col-span-2 xl:col-span-3">
-                <p className="text-xs text-muted">Offer</p>
-                <p className="mt-1 break-words text-sm leading-6 text-ink">{selectedCampaign.offer || "N/A"}</p>
-              </div>
-              <div className="rounded-2xl border border-info-soft bg-info-soft p-4">
-                <p className="text-xs text-info">Lead Count</p>
-                <p className="mt-1 text-2xl font-semibold text-info">{leads.length}</p>
-              </div>
-              <div className="rounded-2xl border border-success-soft bg-success-soft p-4">
-                <p className="text-xs text-success">Emails Found</p>
-                <p className="mt-1 text-2xl font-semibold text-success">{emailsFoundCount}</p>
-              </div>
-              <div className="rounded-2xl border border-violet-soft bg-violet-soft p-4">
-                <p className="text-xs text-violet">AI Scored</p>
-                <p className="mt-1 text-2xl font-semibold text-violet">{scoredLeadCount}</p>
-              </div>
-              <div className="rounded-2xl border border-info-soft bg-info-soft p-4">
-                <p className="text-xs text-info">AI Researched</p>
-                <p className="mt-1 text-2xl font-semibold text-info">{researchedLeadCount}</p>
-              </div>
-              <div className="rounded-2xl border border-violet-soft bg-violet-soft p-4">
-                <p className="text-xs text-violet">Avg Research Confidence</p>
-                <p className="mt-1 text-2xl font-semibold text-violet">{averageResearchConfidence.toFixed(1)}</p>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {selectedCampaign && (
-          <LeadAgentLauncher
-            key={selectedCampaign.id}
-            campaign={selectedCampaign}
-            onLeadsFound={refreshLeads}
-          />
-        )}
-
-        {selectedCampaign && (
-          <Card>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold tracking-tight text-ink">AI Lead Scoring</h2>
-                <p className="mt-1 text-sm text-muted">
-                  AI scoring runs in the background, one lead at a time, to stay gentle on Gemini quota.
-                </p>
-                <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-ink-2 md:grid-cols-3">
-                  <p className="rounded border bg-success-soft p-3">
-                    <span className="font-semibold text-success">Fit Score</span> = company and campaign match.
-                  </p>
-                  <p className="rounded border bg-warn-soft p-3">
-                    <span className="font-semibold text-warn">Contact Confidence</span> = quality of contact details.
-                  </p>
-                  <p className="rounded border bg-violet-soft p-3">
-                    <span className="font-semibold text-violet">Final AI Score</span> = outreach readiness.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
-                <label className="text-sm">
-                  <span className="mb-1 block font-medium text-ink-2">Batch size</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={scoreLimit}
-                    onChange={(e) => setScoreLimit(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
-                    className="field sm:w-28"
-                  />
-                </label>
-                <Button
-                  type="button"
-                  variant="indigo"
-                  className="w-full self-end lg:w-auto"
-                  disabled={!selectedCampaignId || isScoringCampaign || isScoringJobRunning || leads.length === 0}
-                  onClick={handleScoreCampaignLeads}
-                >
-                  {isScoringCampaign
-                    ? "Starting scoring..."
-                    : isScoringJobRunning
-                    ? `Scoring... ${scoringProgress}%`
-                    : "Score Leads with AI"}
-                </Button>
-              </div>
-            </div>
-
-            {isScoringJobRunning && (
-              <div className="mt-5 rounded-2xl border border-violet-soft bg-violet-soft p-4">
-                <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-violet">
-                  <span>Scoring {scoringJob.processed ?? 0}/{scoringJob.total ?? 0} leads</span>
-                  <span>{scoringProgress}%</span>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full surface-2">
-                  <div
-                    className="h-full rounded-full bg-violet-solid transition-all duration-500"
-                    style={{ width: `${scoringProgress}%` }}
-                  />
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                  <span className="rounded border border-success-soft surface-2 px-2 py-1 text-success">
-                    Scored: {scoringJob.scored ?? 0}
-                  </span>
-                  <span className="rounded border line-1 surface-2 px-2 py-1 text-ink-2">
-                    Skipped: {scoringJob.skipped ?? 0}
-                  </span>
-                  <span className="rounded border border-danger-soft surface-2 px-2 py-1 text-danger">
-                    Failed: {scoringJob.failed ?? 0}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-              <label className="text-sm md:col-span-3">
-                <span className="mb-1 block font-medium text-ink-2">Search leads</span>
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Company, contact, email, website, industry or location"
-                  className="field"
-                />
-              </label>
-
-              <label className="text-sm">
-                <span className="mb-1 block font-medium text-ink-2">Priority</span>
-                <select
-                  value={priorityFilter}
-                  onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="field"
-                >
-                  <option>All</option>
-                  <option>High</option>
-                  <option>Medium</option>
-                  <option>Low</option>
-                </select>
-              </label>
-
-              <label className="text-sm">
-                <span className="mb-1 block font-medium text-ink-2">Qualification</span>
-                <select
-                  value={qualificationFilter}
-                  onChange={(e) => setQualificationFilter(e.target.value)}
-                  className="field"
-                >
-                  <option>All</option>
-                  <option>Hot</option>
-                  <option>Warm</option>
-                  <option>Cold</option>
-                  <option>Not Relevant</option>
-                </select>
-              </label>
-
-              <label className="flex min-h-11 items-center gap-2 self-end rounded-2xl border line-1 surface-2 px-3 text-sm font-medium text-ink-2">
-                <input
-                  type="checkbox"
-                  checked={sortByScore}
-                  onChange={(e) => setSortByScore(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                Sort by final AI score
-              </label>
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-muted" role="status">
-                Showing {visibleLeads.length} of {leads.length} {leads.length === 1 ? "lead" : "leads"}
-              </p>
-              {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={clearFilters}>
-                  Clear filters
-                </Button>
-              )}
-            </div>
-          </Card>
-        )}
-
-        {selectedCampaign && (
-          <Card>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold tracking-tight text-ink">AI Lead Research</h2>
-                <p className="mt-1 text-sm text-muted">
-                  Research uses a lead website plus campaign context before scoring or drafting.
-                </p>
-                <p className="mt-2 text-xs text-muted">
-                  Runs in the background and fetches only a few public pages per lead.
-                </p>
-              </div>
-
-              <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
-                <label className="text-sm">
-                  <span className="mb-1 block font-medium text-ink-2">Batch size</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max="500"
-                    value={researchLimit}
-                    onChange={(e) => setResearchLimit(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
-                    className="field sm:w-28"
-                  />
-                </label>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="w-full self-end lg:w-auto"
-                  disabled={!selectedCampaignId || isResearchingCampaign || isResearchJobRunning || leads.length === 0}
-                  onClick={handleResearchCampaignLeads}
-                >
-                  {isResearchingCampaign
-                    ? "Starting research..."
-                    : isResearchJobRunning
-                    ? `Researching... ${researchProgress}%`
-                    : "Research Unresearched Leads"}
-                </Button>
-              </div>
-            </div>
-
-            {isResearchJobRunning && (
-              <div className="mt-5 rounded-2xl border border-info-soft bg-info-soft p-4">
-                <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-info">
-                  <span>Researching {researchJob.processed ?? 0}/{researchJob.total ?? 0} leads</span>
-                  <span>{researchProgress}%</span>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full surface-2">
-                  <div
-                    className="h-full rounded-full bg-info-solid transition-all duration-500"
-                    style={{ width: `${researchProgress}%` }}
-                  />
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                  <span className="rounded border border-success-soft surface-2 px-2 py-1 text-success">
-                    Researched: {researchJob.researched ?? 0}
-                  </span>
-                  <span className="rounded border line-1 surface-2 px-2 py-1 text-ink-2">
-                    Skipped: {researchJob.skipped ?? 0}
-                  </span>
-                  <span className="rounded border border-danger-soft surface-2 px-2 py-1 text-danger">
-                    Failed: {researchJob.failed ?? 0}
-                  </span>
-                </div>
-              </div>
-            )}
-          </Card>
-        )}
-
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <LeadUpload
-            campaignId={selectedCampaignId}
-            onUploadComplete={refreshLeads}
-          />
-
-          <EmailExtraction
-            campaignId={selectedCampaignId}
-            onExtractionComplete={refreshLeads}
-          />
-        </div>
-
-        {selectedCampaign && (
-          <Card>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold tracking-tight text-ink">Hunter Email Enrichment</h2>
-                <p className="mt-1 text-sm text-muted">
-                  Use Hunter.io for leads that have a website but no saved email.
-                </p>
-                <p className="mt-2 text-xs text-muted">
-                  Eligible leads in this campaign: {hunterEligibleLeadCount}
-                </p>
-              </div>
-
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full lg:w-auto"
-                disabled={!selectedCampaignId || isBulkEnriching || hunterEligibleLeadCount === 0}
-                onClick={handleHunterBulkEnrich}
-              >
-                {isBulkEnriching ? "Searching Hunter..." : "Bulk Find Emails"}
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {selectedCampaign && (
-          <Card>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold tracking-tight text-ink">Apollo Email Enrichment</h2>
-                <p className="mt-1 text-sm text-muted">
-                  Use Apollo.io to find verified emails and contact details from company databases.
-                </p>
-                <p className="mt-2 text-xs text-muted">
-                  Eligible leads in this campaign: {hunterEligibleLeadCount}
-                </p>
-              </div>
-
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full lg:w-auto"
-                disabled={!selectedCampaignId || isApolloBulkEnriching || hunterEligibleLeadCount === 0}
-                onClick={handleApolloBulkEnrich}
-              >
-                {isApolloBulkEnriching ? "Searching Apollo..." : "Bulk Search Apollo"}
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {selectedCampaign && (
-          <Card>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold tracking-tight text-ink">Export Leads</h2>
-                <p className="mt-1 text-sm text-muted">
-                  Download all leads from this campaign as a CSV file.
-                </p>
-                <p className="mt-2 text-xs text-muted">
-                  Total leads: {leads.length}
-                </p>
-              </div>
-
-              <a
-                href={`${import.meta.env.VITE_API_BASE_URL}/leads/campaign/${selectedCampaignId}/export-csv`}
-                download
-                className="w-full rounded-lg bg-success-solid px-4 py-2 text-center text-white hover:opacity-90 disabled:surface-3 lg:w-auto"
-              >
-                ⬇ Download Leads CSV
-              </a>
-            </div>
-          </Card>
-        )}
+          </div>
 
         {(leadExtractionMessage || leadExtractionError || hunterMessage || hunterError || apolloMessage || apolloError || leadScoringMessage || leadScoringError || leadResearchMessage || leadResearchError || callMessage || callError) && (
           <Card>
@@ -1088,32 +789,285 @@ function Leads() {
           </Card>
         )}
 
-        <LeadTable
-          leads={visibleLeads}
-          isLoading={isLoadingLeads}
-          error={leadsError}
-          hasSelectedCampaign={Boolean(selectedCampaignId)}
-          hasActiveFilters={hasActiveFilters && leads.length > 0}
-          onClearFilters={clearFilters}
-          onExtractEmail={handleExtractLeadEmail}
-          extractingLeadId={extractingLeadId}
-          onHunterEnrichLead={handleHunterEnrichLead}
-          enrichingLeadId={enrichingLeadId}
-          onApolloEnrichLead={handleApolloEnrichLead}
-          apolloEnrichingLeadId={apolloEnrichingLeadId}
-          onScoreLead={handleScoreLead}
-          scoringLeadId={scoringLeadId}
-          onResearchLead={handleResearchLead}
-          researchingLeadId={researchingLeadId}
-          onGenerateCallScript={handleGenerateCallScript}
-          generatingCallScriptLeadId={generatingCallScriptLeadId}
-          onStartTestCall={(lead) => handleStartLeadCall(lead, "test")}
-          onStartActualCall={(lead) => handleStartLeadCall(lead, "actual")}
-          startingCallLeadId={startingCallLeadId}
-          startingCallMode={startingCallMode}
-          callScriptsByLead={callScriptsByLead}
+
+          {activeTab === "leads" && (
+            <LeadGrid
+              leads={visibleLeads}
+              totalLeads={leads.length}
+              isLoading={isLoadingLeads}
+              error={leadsError}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              priorityFilter={priorityFilter}
+              onPriorityChange={setPriorityFilter}
+              qualificationFilter={qualificationFilter}
+              onQualificationChange={setQualificationFilter}
+              sortByScore={sortByScore}
+              onSortByScoreChange={setSortByScore}
+              hasActiveFilters={hasActiveFilters}
+              onClearFilters={clearFilters}
+              onChanged={refreshLeads}
+              onOpenImport={() => setActiveTab("import")}
+              renderDetail={(lead) => (
+                <LeadTable
+                  leads={[lead]}
+                  isLoading={false}
+                  error=""
+                  hasSelectedCampaign
+                  hasActiveFilters={false}
+                  onClearFilters={clearFilters}
+                  onExtractEmail={handleExtractLeadEmail}
+                  extractingLeadId={extractingLeadId}
+                  onHunterEnrichLead={handleHunterEnrichLead}
+                  enrichingLeadId={enrichingLeadId}
+                  onApolloEnrichLead={handleApolloEnrichLead}
+                  apolloEnrichingLeadId={apolloEnrichingLeadId}
+                  onScoreLead={handleScoreLead}
+                  scoringLeadId={scoringLeadId}
+                  onResearchLead={handleResearchLead}
+                  researchingLeadId={researchingLeadId}
+                  onGenerateCallScript={handleGenerateCallScript}
+                  generatingCallScriptLeadId={generatingCallScriptLeadId}
+                  onStartTestCall={(item) => handleStartLeadCall(item, "test")}
+                  onStartActualCall={(item) => handleStartLeadCall(item, "actual")}
+                  startingCallLeadId={startingCallLeadId}
+                  startingCallMode={startingCallMode}
+                  callScriptsByLead={callScriptsByLead}
+                  bare
+                />
+              )}
+            />
+          )}
+
+          {activeTab === "import" && (
+            <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <LeadUpload
+            campaignId={selectedCampaignId}
+            onUploadComplete={refreshLeads}
+          />
+          {selectedCampaign && (
+            <LeadAgentLauncher
+              key={selectedCampaign.id}
+              campaign={selectedCampaign}
+              onLeadsFound={refreshLeads}
+            />
+          )}
+        </div>
+            </div>
+          )}
+
+          {activeTab === "enrich" && (
+            <div className="space-y-6">
+        {selectedCampaign && (
+          <Card>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-ink text-base font-semibold">AI Lead Scoring</h2>
+                <p className="mt-1 text-sm text-muted">
+                  AI scoring runs in the background, one lead at a time, to stay gentle on Gemini quota.
+                </p>
+                <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-ink-2 md:grid-cols-3">
+                  <p className="rounded border bg-success-soft p-3">
+                    <span className="font-semibold text-success">Fit Score</span> = company and campaign match.
+                  </p>
+                  <p className="rounded border bg-warn-soft p-3">
+                    <span className="font-semibold text-warn">Contact Confidence</span> = quality of contact details.
+                  </p>
+                  <p className="rounded border bg-violet-soft p-3">
+                    <span className="font-semibold text-violet">Final AI Score</span> = outreach readiness.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                <label className="text-sm">
+                  <span className="mb-1 block font-medium text-ink-2">Batch size</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={scoreLimit}
+                    onChange={(e) => setScoreLimit(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
+                    className="field sm:w-28"
+                  />
+                </label>
+                <Button
+                  type="button"
+                  variant="indigo"
+                  className="w-full self-end lg:w-auto"
+                  disabled={!selectedCampaignId || isScoringCampaign || isScoringJobRunning || leads.length === 0}
+                  onClick={handleScoreCampaignLeads}
+                >
+                  {isScoringCampaign
+                    ? "Starting scoring..."
+                    : isScoringJobRunning
+                    ? `Scoring... ${scoringProgress}%`
+                    : "Score Leads with AI"}
+                </Button>
+              </div>
+            </div>
+
+            {isScoringJobRunning && (
+              <div className="mt-5 rounded-2xl border border-violet-soft bg-violet-soft p-4">
+                <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-violet">
+                  <span>Scoring {scoringJob.processed ?? 0}/{scoringJob.total ?? 0} leads</span>
+                  <span>{scoringProgress}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full surface-2">
+                  <div
+                    className="h-full rounded-full bg-violet-solid transition-all duration-500"
+                    style={{ width: `${scoringProgress}%` }}
+                  />
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                  <span className="rounded border border-success-soft surface-2 px-2 py-1 text-success">
+                    Scored: {scoringJob.scored ?? 0}
+                  </span>
+                  <span className="rounded border line-1 surface-2 px-2 py-1 text-ink-2">
+                    Skipped: {scoringJob.skipped ?? 0}
+                  </span>
+                  <span className="rounded border border-danger-soft surface-2 px-2 py-1 text-danger">
+                    Failed: {scoringJob.failed ?? 0}
+                  </span>
+                </div>
+              </div>
+            )}
+
+          </Card>
+        )}
+
+        {selectedCampaign && (
+          <Card>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-ink text-base font-semibold">AI Lead Research</h2>
+                <p className="mt-1 text-sm text-muted">
+                  Research uses a lead website plus campaign context before scoring or drafting.
+                </p>
+                <p className="mt-2 text-xs text-muted">
+                  Runs in the background and fetches only a few public pages per lead.
+                </p>
+              </div>
+
+              <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                <label className="text-sm">
+                  <span className="mb-1 block font-medium text-ink-2">Batch size</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="500"
+                    value={researchLimit}
+                    onChange={(e) => setResearchLimit(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
+                    className="field sm:w-28"
+                  />
+                </label>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full self-end lg:w-auto"
+                  disabled={!selectedCampaignId || isResearchingCampaign || isResearchJobRunning || leads.length === 0}
+                  onClick={handleResearchCampaignLeads}
+                >
+                  {isResearchingCampaign
+                    ? "Starting research..."
+                    : isResearchJobRunning
+                    ? `Researching... ${researchProgress}%`
+                    : "Research Unresearched Leads"}
+                </Button>
+              </div>
+            </div>
+
+            {isResearchJobRunning && (
+              <div className="mt-5 rounded-2xl border border-info-soft bg-info-soft p-4">
+                <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-info">
+                  <span>Researching {researchJob.processed ?? 0}/{researchJob.total ?? 0} leads</span>
+                  <span>{researchProgress}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full surface-2">
+                  <div
+                    className="h-full rounded-full bg-info-solid transition-all duration-500"
+                    style={{ width: `${researchProgress}%` }}
+                  />
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                  <span className="rounded border border-success-soft surface-2 px-2 py-1 text-success">
+                    Researched: {researchJob.researched ?? 0}
+                  </span>
+                  <span className="rounded border line-1 surface-2 px-2 py-1 text-ink-2">
+                    Skipped: {researchJob.skipped ?? 0}
+                  </span>
+                  <span className="rounded border border-danger-soft surface-2 px-2 py-1 text-danger">
+                    Failed: {researchJob.failed ?? 0}
+                  </span>
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
+
+        <EmailExtraction
+          campaignId={selectedCampaignId}
+          onExtractionComplete={refreshLeads}
         />
-      </div>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        {selectedCampaign && (
+          <Card>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-ink text-base font-semibold">Hunter Email Enrichment</h2>
+                <p className="mt-1 text-sm text-muted">
+                  Use Hunter.io for leads that have a website but no saved email.
+                </p>
+                <p className="mt-2 text-xs text-muted">
+                  Eligible leads in this campaign: {hunterEligibleLeadCount}
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full lg:w-auto"
+                disabled={!selectedCampaignId || isBulkEnriching || hunterEligibleLeadCount === 0}
+                onClick={handleHunterBulkEnrich}
+              >
+                {isBulkEnriching ? "Searching Hunter..." : "Bulk Find Emails"}
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {selectedCampaign && (
+          <Card>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-ink text-base font-semibold">Apollo Email Enrichment</h2>
+                <p className="mt-1 text-sm text-muted">
+                  Use Apollo.io to find verified emails and contact details from company databases.
+                </p>
+                <p className="mt-2 text-xs text-muted">
+                  Eligible leads in this campaign: {hunterEligibleLeadCount}
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full lg:w-auto"
+                disabled={!selectedCampaignId || isApolloBulkEnriching || hunterEligibleLeadCount === 0}
+                onClick={handleApolloBulkEnrich}
+              >
+                {isApolloBulkEnriching ? "Searching Apollo..." : "Bulk Search Apollo"}
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

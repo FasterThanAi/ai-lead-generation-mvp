@@ -16,9 +16,9 @@ const variantClasses = {
 };
 
 const sizeClasses = {
-  sm: "px-3 py-1.5 text-xs min-h-9 rounded-xl",
+  sm: "px-2.5 py-1 text-[13px] min-h-8",
   md: "px-4 py-2 text-sm",
-  lg: "px-5 py-2.5 text-sm min-h-12 rounded-2xl",
+  lg: "px-5 py-2.5 text-sm min-h-11",
 };
 
 function Button({

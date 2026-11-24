@@ -6,6 +6,7 @@ import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import PageHeader from "../components/ui/PageHeader";
+import SystemStatus from "../components/SystemStatus";
 
 function Settings() {
   const [gmailStatus, setGmailStatus] = useState({
@@ -147,10 +148,11 @@ function Settings() {
     <div>
       <PageHeader
         title="Settings"
-        description="Manage Gmail connection and safety controls for sending and reply tracking."
+        description="Integrations, sending safeguards and deployment health."
       />
 
       <div className="space-y-6">
+        <SystemStatus />
         <Card>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>

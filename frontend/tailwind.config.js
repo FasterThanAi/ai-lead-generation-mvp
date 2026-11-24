@@ -28,13 +28,6 @@ export default {
            in index.css so a Tailwind colour of the same name can't shadow
            them. See the tone block in src/index.css. */
 
-        /* --- aurora ------------------------------------------------------ */
-        bloom: {
-          1: channel("--bloom-1"),
-          2: channel("--bloom-2"),
-          3: channel("--bloom-3"),
-        },
-
         /* --- legacy names, remapped so any missed class still themes ----- */
         primary: {
           50: "rgb(var(--accent-from) / 0.10)",
@@ -69,9 +62,9 @@ export default {
       },
 
       borderRadius: {
-        component: "1rem",
-        panel: "1.5rem",
-        hero: "2rem",
+        component: "0.625rem",
+        panel: "0.875rem",
+        hero: "1rem",
       },
 
       boxShadow: {
@@ -86,17 +79,17 @@ export default {
       },
 
       fontSize: {
-        "display-lg": ["clamp(2.25rem, 1.6rem + 2.6vw, 3.5rem)", { lineHeight: "1.05", fontWeight: "700", letterSpacing: "-0.03em" }],
-        "display-sm": ["clamp(1.6rem, 1.3rem + 1.2vw, 2.125rem)", { lineHeight: "1.15", fontWeight: "700", letterSpacing: "-0.025em" }],
-        metric: ["clamp(1.75rem, 1.45rem + 1vw, 2.25rem)", { lineHeight: "1.1", fontWeight: "700", letterSpacing: "-0.03em" }],
-        eyebrow: ["0.6875rem", { lineHeight: "1rem", fontWeight: "700", letterSpacing: "0.14em" }],
+        "display-lg": ["clamp(1.875rem, 1.5rem + 1.6vw, 2.5rem)", { lineHeight: "1.15", fontWeight: "600", letterSpacing: "-0.025em" }],
+        "display-sm": ["1.5rem", { lineHeight: "2rem", fontWeight: "600", letterSpacing: "-0.02em" }],
+        metric: ["1.75rem", { lineHeight: "2.25rem", fontWeight: "600", letterSpacing: "-0.02em" }],
+        eyebrow: ["0.6875rem", { lineHeight: "1rem", fontWeight: "600", letterSpacing: "0.06em" }],
       },
 
       spacing: {
         section: "1.5rem",
         "section-lg": "2rem",
-        sidebar: "17rem",
-        "sidebar-sm": "5.5rem",
+        sidebar: "15.5rem",
+        "sidebar-sm": "4.25rem",
       },
 
       transitionTimingFunction: {

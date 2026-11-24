@@ -1086,6 +1086,6 @@ def bulk_update_leads(payload: LeadBulkAction, request: Request, db: Session = D
             lead.do_not_call = payload.do_not_call
     db.commit()
     record_audit(db, "lead.bulk_updated", actor=getattr(request.state, "principal", None), entity_type="lead",
-                 summary=f"Updated {len(leads)} leads",
+                 summary=f"Updated {len(leads)} lead{'' if len(leads) == 1 else 's'}",
                  details={"status": payload.status, "do_not_call": payload.do_not_call}, request=request)
     return {"status": "success", "updated": len(leads)}

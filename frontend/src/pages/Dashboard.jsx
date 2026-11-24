@@ -1,37 +1,16 @@
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import spring from "../motion/springs";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import api from "../services/api";
+import { Link } from "react-router-dom";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useAuth } from "../auth/auth-context";
 import StatCard from "../components/StatCard";
-import { formatDateTimeIST } from "../utils/dateUtils";
 import Badge from "../components/ui/Badge";
 import Card from "../components/ui/Card";
 import EmptyState from "../components/ui/EmptyState";
-import PageHeader from "../components/ui/PageHeader";
+import Icon from "../components/ui/Icon";
 import Skeleton from "../components/ui/Skeleton";
 import Toast from "../components/ui/Toast";
-
-function formatPercent(value) {
-  const numericValue = Number(value);
-
-  if (Number.isNaN(numericValue)) {
-    return "0.0%";
-  }
-
-  return `${numericValue.toFixed(1)}%`;
-}
+import api from "../services/api";
+import { timeAgo } from "../utils/format";
 
 const emptyStats = {
   total_campaigns: 0,
@@ -61,370 +40,323 @@ const emptyStats = {
   top_ai_leads: [],
 };
 
+const tooltipStyle = {
+  borderRadius: 10,
+  border: "1px solid var(--chart-tip-bd)",
+  background: "var(--chart-tip-bg)",
+  color: "var(--text-1)",
+  fontSize: 12,
+  boxShadow: "var(--sh-2)",
+};
+
+function number(value) {
+  return Number(value ?? 0).toLocaleString();
+}
+
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+function SectionHeader({ title, description, to, linkLabel = "View all" }) {
+  return (
+    <div className="mb-4 flex items-start justify-between gap-3">
+      <div>
+        <h2 className="text-ink text-[15px] font-semibold">{title}</h2>
+        {description && <p className="text-muted mt-0.5 text-sm">{description}</p>}
+      </div>
+      {to && (
+        <Link to={to} className="text-accent shrink-0 text-sm font-medium hover:underline">
+          {linkLabel}
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function SetupChecklist({ stats }) {
+  const steps = [
+    { done: stats.total_campaigns > 0, label: "Create your first campaign", to: "/campaigns" },
+    { done: stats.total_leads > 0, label: "Add leads by CSV, discovery or the Lead Agent", to: "/leads" },
+    { done: stats.gmail_connected, label: "Connect Gmail to send approved emails", to: "/settings" },
+    { done: stats.emails_generated > 0, label: "Generate and review AI email drafts", to: "/emails" },
+  ];
+  const completed = steps.filter((step) => step.done).length;
+  if (completed === steps.length) {
+    return null;
+  }
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-ink text-[15px] font-semibold">Get set up</h2>
+          <p className="text-muted mt-0.5 text-sm">{completed} of {steps.length} steps complete</p>
+        </div>
+        <div className="h-1.5 w-40 overflow-hidden rounded-full bg-[var(--glass-3)]">
+          <div className="bg-accent h-full rounded-full transition-all" style={{ width: `${(completed / steps.length) * 100}%` }} />
+        </div>
+      </div>
+      <ol className="mt-4 grid gap-2 sm:grid-cols-2">
+        {steps.map((step) => (
+          <li key={step.label}>
+            <Link
+              to={step.to}
+              className="line-1 hover:line-2 flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition hover:bg-[var(--glass-2)]"
+            >
+              <span
+                className={[
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
+                  step.done ? "bg-accent border-transparent text-white" : "line-3",
+                ].join(" ")}
+              >
+                {step.done && <Icon name="check" className="h-3 w-3" strokeWidth={3} />}
+              </span>
+              <span className={step.done ? "text-muted line-through" : "text-ink"}>{step.label}</span>
+              {!step.done && <Icon name="chevronRight" className="text-faint ml-auto" />}
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </Card>
+  );
+}
+
+function Funnel({ stats }) {
+  const stages = [
+    { label: "Leads", value: Number(stats.total_leads ?? 0) },
+    { label: "Drafts generated", value: Number(stats.emails_generated ?? 0) },
+    { label: "Approved", value: Number(stats.emails_approved ?? 0) + Number(stats.emails_sent ?? 0) },
+    { label: "Sent", value: Number(stats.emails_sent ?? 0) },
+    { label: "Replied", value: Number(stats.emails_replied ?? 0) },
+  ];
+  const max = Math.max(...stages.map((stage) => stage.value), 1);
+  return (
+    <ul className="space-y-3.5">
+      {stages.map((stage, index) => {
+        const previous = index > 0 ? stages[index - 1].value : null;
+        const conversion = previous ? Math.round((stage.value / previous) * 100) : null;
+        return (
+          <li key={stage.label}>
+            <div className="mb-1.5 flex items-baseline justify-between text-sm">
+              <span className="text-ink-2">{stage.label}</span>
+              <span className="tabular">
+                <span className="text-ink font-medium">{number(stage.value)}</span>
+                {conversion !== null && <span className="text-faint ml-2 text-xs">{conversion}%</span>}
+              </span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-[var(--glass-3)]">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${Math.max((stage.value / max) * 100, stage.value ? 2 : 0)}%`,
+                  backgroundColor: "var(--accent-solid)",
+                  opacity: 1 - index * 0.14,
+                }}
+              />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function Dashboard() {
+  const { user } = useAuth();
   const [stats, setStats] = useState(emptyStats);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const fetchDashboardStats = async () => {
-      setIsLoading(true);
-      setError("");
-
-      try {
-        const res = await api.get("/dashboard/stats");
-        setStats({
-          ...emptyStats,
-          ...(res.data.data || {}),
-        });
-      } catch (err) {
-        setError("Could not load dashboard stats.");
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
+    let cancelled = false;
+    api
+      .get("/dashboard/stats")
+      .then((res) => {
+        if (!cancelled) setStats({ ...emptyStats, ...(res.data.data || {}) });
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load dashboard stats. Refresh to try again.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
     };
-
-    fetchDashboardStats();
   }, []);
 
-  const statCards = [
-    {
-      title: "Total Campaigns",
-      value: stats.total_campaigns,
-      helper: `${stats.total_leads ?? 0} leads across active motion`,
-      tone: "primary",
-    },
-    {
-      title: "Email Pipeline",
-      value: stats.emails_generated,
-      helper: `${stats.emails_approved ?? 0} approved, ${stats.emails_sent ?? 0} sent`,
-      tone: "accent",
-    },
-    {
-      title: "Reply Rate",
-      value: formatPercent(stats.reply_rate),
-      helper: `${stats.emails_replied ?? 0} replies captured`,
-      tone: "success",
-    },
-    {
-      title: "Average AI Score",
-      value: Number(stats.average_ai_score ?? 0).toFixed(1),
-      helper: `${stats.hot_leads ?? 0} hot leads, ${stats.high_priority_leads ?? 0} priority`,
-      tone: "warning",
-    },
-  ];
-
-  const emailFunnelData = [
-    { name: "Generated", value: Number(stats.emails_generated ?? 0), color: "var(--chart-1)" },
-    { name: "Approved", value: Number(stats.emails_approved ?? 0), color: "var(--chart-2)" },
-    { name: "Sent", value: Number(stats.emails_sent ?? 0), color: "var(--chart-3)" },
-    { name: "Replied", value: Number(stats.emails_replied ?? 0), color: "var(--chart-2)" },
-    { name: "Failed", value: Number(stats.emails_failed ?? 0), color: "var(--chart-4)" },
-  ];
-
-  const replySignalData = [
-    { name: "Classified", value: Number(stats.total_classified_replies ?? 0) },
-    { name: "Priority", value: Number(stats.high_priority_replies ?? 0) },
+  const firstName = (user?.full_name || "").split(" ")[0];
+  const replyData = [
     { name: "Interested", value: Number(stats.interested_replies ?? 0) },
+    { name: "Meeting", value: Number(stats.meeting_request_replies ?? 0) },
     { name: "Pricing", value: Number(stats.pricing_replies ?? 0) },
-    { name: "Meetings", value: Number(stats.meeting_request_replies ?? 0) },
-  ];
-
-  const followupData = [
-    { name: "Follow-ups", generated: Number(stats.total_followups_generated ?? 0), sent: Number(stats.total_followups_sent ?? 0) },
-    { name: "Responses", generated: Number(stats.total_response_drafts ?? 0), sent: Number(stats.response_drafts_sent ?? 0) },
-  ];
-
-  const dashboardHighlights = [
-    ["Gmail", stats.gmail_connected ? "Connected" : "Not connected", stats.gmail_connected ? "success" : "warning", stats.gmail_connected ? "Live" : "Check"],
-    ["Scored leads", stats.total_scored_leads ?? 0, "new", "AI"],
-    ["High priority replies", stats.high_priority_replies ?? 0, "success", "Priority"],
+    { name: "High priority", value: Number(stats.high_priority_replies ?? 0) },
   ];
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Dashboard"
-        eyebrow="Revenue command center"
-        description="A modern view of campaign throughput, reply quality, follow-up momentum, and AI lead scoring health."
-        actions={
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl border line-1 surface-2 px-3 py-2 text-sm font-semibold text-ink-2 elev-1 backdrop-blur">
-            <span className="h-2.5 w-2.5 rounded-full bg-accent shadow-[0_0_0_4px_rgba(16,185,129,0.14)]" />
-            {stats.gmail_connected ? "Gmail connected" : "Gmail needs attention"}
-          </div>
-        }
-      />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-ink text-display-sm">
+            {greeting()}{firstName ? `, ${firstName}` : ""}
+          </h2>
+          <p className="text-muted mt-1 text-sm">Here's how your outreach is performing.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className={["tone", stats.gmail_connected ? "tone-success" : "tone-warn"].join(" ")}>
+            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+            {stats.gmail_connected ? "Gmail connected" : "Gmail not connected"}
+          </span>
+          <Link to="/campaigns" className="btn btn-primary min-h-9 px-3.5">
+            <Icon name="plus" /> New campaign
+          </Link>
+        </div>
+      </div>
 
-      {isLoading && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading dashboard stats">
+      {error && <Toast tone="danger">{error}</Toast>}
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading dashboard">
           {[0, 1, 2, 3].map((item) => (
-            <Card key={item} className="space-y-4">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-9 w-20" />
-              <Skeleton className="h-3 w-36" />
+            <Card key={item} className="space-y-3">
+              <Skeleton className="h-4 w-28 rounded" />
+              <Skeleton className="h-8 w-20 rounded" />
+              <Skeleton className="h-3 w-36 rounded" />
             </Card>
           ))}
         </div>
-      )}
-
-      {!isLoading && error && (
-        <Toast tone="danger" className="mb-2">
-          {error}
-        </Toast>
-      )}
-
-      {!isLoading && (
+      ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {statCards.map((card) => (
-              <StatCard
-                key={card.title}
-                title={card.title}
-                value={String(card.value ?? 0)}
-                helper={card.helper}
-                tone={card.tone}
-              />
-            ))}
+            <StatCard title="Leads" value={number(stats.total_leads)} helper={`Across ${number(stats.total_campaigns)} campaigns`} tone="primary" />
+            <StatCard title="Emails sent" value={number(stats.emails_sent)} helper={`${number(stats.emails_approved)} approved and waiting`} tone="accent" />
+            <StatCard
+              title="Reply rate"
+              value={`${Number(stats.reply_rate ?? 0).toFixed(1)}%`}
+              helper={`${number(stats.emails_replied)} replies`}
+              tone="success"
+            />
+            <StatCard
+              title="Avg. AI lead score"
+              value={Number(stats.average_ai_score ?? 0).toFixed(1)}
+              helper={`${number(stats.hot_leads)} hot · ${number(stats.high_priority_leads)} high priority`}
+              tone="warning"
+            />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            {dashboardHighlights.map(([label, value, tone, badge]) => (
-              <motion.div
-                key={label}
-                whileHover={{ y: -2 }}
-                transition={spring.snappy}
-                className="rounded-panel border line-1 surface-2 p-4 elev-1 backdrop-blur transition hover:elev-2"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-muted">{label}</p>
-                  <Badge variant={tone}>{badge}</Badge>
-                </div>
-                <p className="mt-3 break-words text-2xl font-bold tracking-tight text-ink">{value}</p>
-              </motion.div>
-            ))}
-          </div>
+          <SetupChecklist stats={stats} />
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
             <Card className="xl:col-span-3">
-              <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h3 className="text-lg font-bold tracking-tight text-ink">Email Funnel</h3>
-                  <p className="mt-1 text-sm leading-6 text-muted">
-                    Generated drafts through replies, using the current dashboard payload.
-                  </p>
-                </div>
-                <Badge variant="sent">{stats.emails_sent ?? 0} sent</Badge>
-              </div>
-              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={emailFunnelData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fill: "var(--chart-axis)", fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: "var(--chart-axis)", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip
-                      cursor={{ fill: "rgba(40, 120, 255, 0.08)" }}
-                      contentStyle={{
-                        borderRadius: 16,
-                        border: "1px solid var(--chart-grid)",
-                        boxShadow: "0 18px 45px rgba(15, 23, 42, 0.08)",
-                      }}
-                    />
-                    <Bar dataKey="value" radius={[10, 10, 4, 4]}>
-                      {emailFunnelData.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-
-            <Card className="xl:col-span-2">
-              <div className="mb-6">
-                <h3 className="text-lg font-bold tracking-tight text-ink">Reply Signals</h3>
-                <p className="mt-1 text-sm leading-6 text-muted">
-                  High-intent categories from classified replies.
+              <SectionHeader title="Outreach funnel" description="Conversion from lead to reply. Percentages compare each stage with the one above it." />
+              <Funnel stats={stats} />
+              {Number(stats.emails_failed) > 0 && (
+                <p className="text-danger mt-4 flex items-center gap-1.5 text-sm">
+                  <Icon name="alert" /> {number(stats.emails_failed)} emails failed to send.{" "}
+                  <Link to="/emails" className="underline">Review</Link>
                 </p>
-              </div>
-              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={replySignalData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="replySignal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fill: "var(--chart-axis)", fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: "var(--chart-axis)", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: 16,
-                        border: "1px solid var(--chart-grid)",
-                        boxShadow: "0 18px 45px rgba(15, 23, 42, 0.08)",
-                      }}
-                    />
-                    <Area type="monotone" dataKey="value" stroke="var(--chart-2)" strokeWidth={3} fill="url(#replySignal)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <Card>
-              <div className="mb-6">
-                <h3 className="text-lg font-bold tracking-tight text-ink">Follow-up Production</h3>
-                <p className="mt-1 text-sm leading-6 text-muted">
-                  Generated and sent volumes for follow-ups and reply responses.
-                </p>
-              </div>
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={followupData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fill: "var(--chart-axis)", fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: "var(--chart-axis)", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: 16,
-                        border: "1px solid var(--chart-grid)",
-                        boxShadow: "0 18px 45px rgba(15, 23, 42, 0.08)",
-                      }}
-                    />
-                    <Bar dataKey="generated" fill="var(--chart-1)" radius={[10, 10, 4, 4]} />
-                    <Bar dataKey="sent" fill="var(--chart-2)" radius={[10, 10, 4, 4]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="mb-6">
-                <h3 className="text-lg font-bold tracking-tight text-ink">Latest Campaigns</h3>
-                <p className="mt-1 text-sm leading-6 text-muted">
-                  Recently created campaign workspaces.
-                </p>
-              </div>
-
-              {stats.latest_campaigns.length === 0 ? (
-                <EmptyState title="No campaigns yet" description="Create a campaign to start filling this activity stream." />
-              ) : (
-                <div className="space-y-3">
-                  {stats.latest_campaigns.map((campaign, index) => (
-                    <motion.div
-                      key={campaign.id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ ...spring.snappy, delay: index * 0.04 }}
-                      className="rounded-2xl border line-1 surface-sunk p-4 transition hover:-translate-y-0.5 hover:line-2 hover:surface-3 hover:elev-1"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="break-words text-sm font-bold text-ink">{campaign.campaign_name}</p>
-                          <p className="mt-1 break-words text-sm text-muted">{campaign.industry || "N/A"}</p>
-                        </div>
-                        <Badge variant={campaign.status || "running"}>{campaign.status || "active"}</Badge>
-                      </div>
-                      <p className="mt-3 text-xs font-medium text-faint">{formatDateTimeIST(campaign.created_at)}</p>
-                    </motion.div>
-                  ))}
-                </div>
               )}
             </Card>
+
+            <Card className="xl:col-span-2">
+              <SectionHeader title="Reply intent" description={`${number(stats.total_classified_replies)} replies classified by AI`} to="/emails" />
+              <div className="h-56 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={replyData} layout="vertical" margin={{ top: 0, right: 12, left: 8, bottom: 0 }}>
+                    <CartesianGrid stroke="var(--chart-grid)" horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} tick={{ fill: "var(--chart-axis)", fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={92} tick={{ fill: "var(--chart-axis)", fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <Tooltip cursor={{ fill: "var(--glass-3)" }} contentStyle={tooltipStyle} />
+                    <Bar dataKey="value" name="Replies" fill="var(--chart-1)" radius={[0, 4, 4, 0]} barSize={18} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
           </div>
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <Card className="xl:col-span-2">
-              <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h3 className="text-lg font-bold tracking-tight text-ink">Top AI-Scored Leads</h3>
-                  <p className="mt-1 text-sm leading-6 text-muted">
-                    Highest-quality opportunities ranked by fit, contact confidence, and priority signals.
-                  </p>
-                </div>
-                <Badge variant="hot">{stats.hot_leads ?? 0} hot</Badge>
-              </div>
-
+            <Card>
+              <SectionHeader title="Top leads" description="Highest AI scores across all campaigns" to="/leads" />
               {stats.top_ai_leads.length === 0 ? (
-                <EmptyState title="No scored leads yet" description="Run scoring to surface prioritized accounts here." />
+                <EmptyState title="No scored leads yet" description="Score leads on the Leads page to rank who to contact first." />
               ) : (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
-                  {stats.top_ai_leads.map((lead, index) => (
-                    <motion.div
-                      key={lead.lead_id || lead.id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ ...spring.snappy, delay: index * 0.04 }}
-                      className="group rounded-2xl border line-1 surface-sunk p-4 transition hover:-translate-y-0.5 hover:line-2 hover:surface-3 hover:elev-1"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="break-words text-sm font-bold text-ink">
-                            {lead.company_name || `Lead ID ${lead.lead_id || lead.id}`}
-                          </p>
-                          <p className="mt-1 break-words text-xs font-medium text-muted">
-                            {lead.campaign_name || "Campaign unavailable"}
-                          </p>
-                        </div>
-                        <span className="rounded-2xl bg-accent-soft px-3 py-2 text-sm font-bold text-accent ring-1 ring-[color:var(--ring)]">
-                          {lead.ai_score ?? 0}
-                        </span>
+                <ul className="divide-line -mx-2 divide-y">
+                  {stats.top_ai_leads.map((lead) => (
+                    <li key={lead.lead_id || lead.id} className="flex items-center gap-3 px-2 py-2.5">
+                      <span className="bg-accent-soft text-accent tabular flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold">
+                        {lead.ai_score ?? "–"}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-ink truncate text-sm font-medium">{lead.company_name || `Lead #${lead.lead_id || lead.id}`}</p>
+                        <p className="text-muted truncate text-xs">{lead.campaign_name || "—"}</p>
                       </div>
-                      <div className="mt-4 flex flex-wrap items-center gap-2">
-                        {lead.ai_fit_score !== null && lead.ai_fit_score !== undefined && (
-                          <Badge variant="success">Fit {lead.ai_fit_score}</Badge>
-                        )}
-                        {lead.ai_contact_confidence_score !== null && lead.ai_contact_confidence_score !== undefined && (
-                          <Badge variant="warning">Contact {lead.ai_contact_confidence_score}</Badge>
-                        )}
-                        {lead.ai_priority && <Badge variant={lead.ai_priority}>{lead.ai_priority}</Badge>}
-                        {lead.ai_qualification && <Badge variant={lead.ai_qualification}>{lead.ai_qualification}</Badge>}
-                      </div>
-                    </motion.div>
+                      {lead.ai_priority && <Badge variant={lead.ai_priority}>{lead.ai_priority}</Badge>}
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
             </Card>
 
-            <Card className="xl:col-span-2">
-              <div className="mb-6">
-                <h3 className="text-lg font-bold tracking-tight text-ink">Recent Email Drafts</h3>
-                <p className="mt-1 text-sm leading-6 text-muted">
-                  Drafts created most recently, with status surfaced for quick review.
-                </p>
-              </div>
-
+            <Card>
+              <SectionHeader title="Recent drafts" description="Latest AI-generated emails" to="/emails" />
               {stats.recent_email_drafts.length === 0 ? (
-                <EmptyState title="No email drafts yet" description="Generated emails will appear here as soon as campaigns produce drafts." />
+                <EmptyState title="No drafts yet" description="Generate emails for a campaign to review them here." />
               ) : (
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  {stats.recent_email_drafts.map((draft, index) => (
-                    <motion.div
-                      key={draft.id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ ...spring.snappy, delay: index * 0.04 }}
-                      className="rounded-2xl border line-1 surface-sunk p-4 transition hover:-translate-y-0.5 hover:line-2 hover:surface-3 hover:elev-1"
-                    >
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                          <p className="break-words text-sm font-bold text-ink">{draft.subject}</p>
-                          <p className="mt-1 break-words text-xs font-medium text-muted">
-                            {[draft.campaign_name, draft.lead_company_name].filter(Boolean).join(" | ") || `Lead ID ${draft.lead_id}`}
-                          </p>
-                        </div>
-                        <Badge variant={draft.status}>{draft.status}</Badge>
+                <ul className="divide-line -mx-2 divide-y">
+                  {stats.recent_email_drafts.map((draft) => (
+                    <li key={draft.id} className="flex items-center gap-3 px-2 py-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-ink truncate text-sm font-medium">{draft.subject}</p>
+                        <p className="text-muted truncate text-xs">
+                          {[draft.lead_company_name, draft.campaign_name].filter(Boolean).join(" · ") || `Lead #${draft.lead_id}`}
+                        </p>
                       </div>
-                      <p className="mt-3 text-xs font-medium text-faint">{formatDateTimeIST(draft.created_at)}</p>
-                    </motion.div>
+                      <span className="text-faint hidden shrink-0 text-xs sm:block">{timeAgo(draft.created_at)}</span>
+                      <Badge variant={draft.status}>{draft.status}</Badge>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
             </Card>
           </div>
+
+          <Card>
+            <SectionHeader title="Latest campaigns" to="/campaigns" />
+            {stats.latest_campaigns.length === 0 ? (
+              <EmptyState title="No campaigns yet" description="Create a campaign to start finding leads.">
+                <Link to="/campaigns" className="btn btn-primary px-4">Create campaign</Link>
+              </EmptyState>
+            ) : (
+              <div className="scroll-x -mx-5 sm:-mx-6">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="t-head">
+                    <tr>
+                      <th className="px-5 py-2.5 font-medium sm:px-6">Campaign</th>
+                      <th className="px-5 py-2.5 font-medium">Industry</th>
+                      <th className="px-5 py-2.5 font-medium">Location</th>
+                      <th className="px-5 py-2.5 font-medium">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-line divide-y">
+                    {stats.latest_campaigns.map((campaign) => (
+                      <tr key={campaign.id} className="t-row">
+                        <td className="px-5 py-3 sm:px-6">
+                          <Link to={`/leads?campaign_id=${campaign.id}`} className="text-ink font-medium hover:underline">
+                            {campaign.campaign_name}
+                          </Link>
+                        </td>
+                        <td className="text-muted px-5 py-3">{campaign.industry || "—"}</td>
+                        <td className="text-muted px-5 py-3">{campaign.location || "—"}</td>
+                        <td className="text-muted px-5 py-3 whitespace-nowrap">{timeAgo(campaign.created_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
         </>
       )}
     </div>

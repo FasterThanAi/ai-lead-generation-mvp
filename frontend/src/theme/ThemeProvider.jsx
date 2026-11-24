@@ -3,9 +3,17 @@ import { ThemeContext } from "./theme-context";
 
 const STORAGE_KEY = "leadagent-theme";
 
+function systemTheme() {
+  try {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
 function readStoredTheme() {
   if (typeof window === "undefined") {
-    return "dark";
+    return "light";
   }
 
   try {
@@ -17,7 +25,7 @@ function readStoredTheme() {
     // storage can be blocked (private mode, embedded webviews) — fall through
   }
 
-  return "dark";
+  return systemTheme();
 }
 
 function applyTheme(theme) {
