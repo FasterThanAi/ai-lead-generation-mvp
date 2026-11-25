@@ -18,129 +18,148 @@
 
 :root,
 html.light {
+  /* Palette: Radix Colors (slate + blue, with green/amber/red/iris for status),
+     values taken verbatim from @radix-ui/colors. Step usage follows Vercel Geist:
+     1-2 backgrounds, 3-5 component states, 6-8 borders, 9-10 solids, 11-12 text.
+     Primary actions are monochrome (slate 12); blue is reserved for links,
+     focus and active state, the way framework UIs use it. */
   color-scheme: light;
 
-  /* canvas */
-  --bg-0: #f6f7f9;
-  --bg-1: #ffffff;
+  /* canvas & surfaces */
+  --bg-0: #f9f9fb;            /* slate 2 — app canvas */
+  --bg-1: #ffffff;            /* cards, top bar, sidebar */
   --bg-2: #ffffff;
-
-  /* surfaces (names kept from the previous system for compatibility) */
   --glass-1: #ffffff;
-  --glass-2: #f9fafb;
-  --glass-3: #f3f4f6;
-  --glass-sunk: #f6f7f9;
+  --glass-2: #f9f9fb;         /* slate 2 — hover */
+  --glass-3: #f0f0f3;         /* slate 3 — active / selected */
+  --glass-sunk: #f9f9fb;
 
-  /* hairlines */
-  --line-1: #e8eaee;
-  --line-2: #dcdfe5;
-  --line-3: #c6cad3;
+  /* borders */
+  --line-1: #e8e8ec;          /* slate 4 — dividers */
+  --line-2: #d9d9e0;          /* slate 6 — default border */
+  --line-3: #cdced6;          /* slate 7 — hover border */
 
-  /* type */
-  --text-1: #0f172a;
-  --text-2: #334155;
-  --text-3: #64748b;
-  --text-4: #94a3b8;
+  /* text */
+  --text-1: #1c2024;          /* slate 12 */
+  --text-2: #3a3d43;
+  --text-3: #60646c;          /* slate 11 */
+  --text-4: #8b8d98;          /* slate 9 — placeholders */
   --text-on-accent: #ffffff;
 
-  /* accent (indigo) */
-  --accent-from: 79 70 229;
-  --accent-to: 99 102 241;
-  --accent-solid: #4f46e5;
-  --accent-hover: #4338ca;
-  --accent-soft: #eef2ff;
+  /* primary action: monochrome */
+  --primary-bg: #1c2024;      /* slate 12 */
+  --primary-hover: #33373d;
+  --primary-fg: #ffffff;
+
+  /* accent: Radix blue */
+  --accent-from: 0 144 255;   /* blue 9 */
+  --accent-to: 0 144 255;
+  --accent-solid: #0090ff;    /* blue 9 */
+  --accent-hover: #0588f0;    /* blue 10 */
+  --accent-text: #0d74ce;     /* blue 11 */
+  --accent-soft: #e6f4fe;     /* blue 3 */
   --tone-mix: #000000;
-  --tone-mix-amount: 10%;
-  --ring: rgba(79, 70, 229, 0.22);
+  --tone-mix-amount: 0%;
+  --ring: rgba(0, 144, 255, 0.28);
 
-  /* semantic tones (r g b) */
-  --t-success: 22 163 74;
-  --t-info: 37 99 235;
-  --t-violet: 124 58 237;
-  --t-pink: 219 39 119;
-  --t-warn: 217 119 6;
-  --t-danger: 220 38 38;
-  --t-neutral: 100 116 139;
+  /* status tones = step 11 of each scale (readable text on the soft fill) */
+  --t-success: 33 131 88;     /* green 11 #218358 */
+  --t-info: 13 116 206;       /* blue 11 #0d74ce */
+  --t-violet: 87 83 198;      /* iris 11 #5753c6 */
+  --t-pink: 206 44 49;        /* red 11 (pink retired) */
+  --t-warn: 171 100 0;        /* amber 11 #ab6400 */
+  --t-danger: 206 44 49;      /* red 11 #ce2c31 */
+  --t-neutral: 96 100 108;    /* slate 11 #60646c */
   --t-bg: 0.08;
-  --t-bd: 0.2;
+  --t-bd: 0.22;
 
-  /* elevation */
-  --sh-1: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
-  --sh-2: 0 4px 8px -2px rgba(16, 24, 40, 0.06), 0 2px 4px -2px rgba(16, 24, 40, 0.04);
-  --sh-3: 0 20px 40px -12px rgba(16, 24, 40, 0.18);
-  --sh-glow: 0 0 0 1px rgba(79, 70, 229, 0.2), 0 8px 24px -12px rgba(79, 70, 229, 0.35);
+  /* elevation: hairline + soft shadow, no colour */
+  --sh-1: 0 1px 2px rgba(28, 32, 36, 0.04);
+  --sh-2: 0 1px 2px rgba(28, 32, 36, 0.04), 0 4px 12px -2px rgba(28, 32, 36, 0.08);
+  --sh-3: 0 16px 40px -12px rgba(28, 32, 36, 0.2);
+  --sh-glow: 0 0 0 1px rgba(0, 144, 255, 0.25), 0 6px 20px -8px rgba(0, 144, 255, 0.35);
 
-  /* charts */
-  --chart-1: #4f46e5;
-  --chart-2: #16a34a;
-  --chart-3: #0ea5e9;
-  --chart-4: #db2777;
-  --chart-5: #d97706;
-  --chart-grid: #eef0f3;
-  --chart-axis: #94a3b8;
+  /* charts: step 9 solids */
+  --chart-1: #0090ff;         /* blue 9 */
+  --chart-2: #30a46c;         /* green 9 */
+  --chart-3: #5b5bd6;         /* iris 9 */
+  --chart-4: #e5484d;         /* red 9 */
+  --chart-5: #ffc53d;         /* amber 9 */
+  --chart-grid: #f0f0f3;
+  --chart-axis: #8b8d98;
   --chart-tip-bg: #ffffff;
-  --chart-tip-bd: #e5e7eb;
+  --chart-tip-bd: #e8e8ec;
 
-  /* layout */
-  --radius-card: 0.875rem;
-  --radius-control: 0.625rem;
+  /* decorative glows (hero, login) use accent + neutral only */
+  --glow-1: #0090ff;
+  --glow-2: #8b8d98;
+
+  --radius-card: 0.75rem;
+  --radius-control: 0.5rem;
 }
 
 html.dark {
   color-scheme: dark;
 
-  --bg-0: #0b0d12;
-  --bg-1: #11141b;
-  --bg-2: #151922;
+  --bg-0: #111113;            /* slate 1 */
+  --bg-1: #18191b;            /* slate 2 */
+  --bg-2: #18191b;
+  --glass-1: #18191b;
+  --glass-2: #212225;         /* slate 3 */
+  --glass-3: #272a2d;         /* slate 4 */
+  --glass-sunk: #111113;
 
-  --glass-1: #11141b;
-  --glass-2: #161a23;
-  --glass-3: #1c212c;
-  --glass-sunk: #0e1117;
+  --line-1: #272a2d;          /* slate 4 */
+  --line-2: #363a3f;          /* slate 6 */
+  --line-3: #43484e;          /* slate 7 */
 
-  --line-1: rgba(255, 255, 255, 0.07);
-  --line-2: rgba(255, 255, 255, 0.11);
-  --line-3: rgba(255, 255, 255, 0.18);
-
-  --text-1: #eceef3;
-  --text-2: #c3c8d4;
-  --text-3: #8b93a5;
-  --text-4: #5d6578;
+  --text-1: #edeef0;          /* slate 12 */
+  --text-2: #cfd2d6;
+  --text-3: #b0b4ba;          /* slate 11 */
+  --text-4: #696e77;          /* slate 9 */
   --text-on-accent: #ffffff;
 
-  --accent-from: 99 102 241;
-  --accent-to: 129 140 248;
-  --accent-solid: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-soft: rgba(99, 102, 241, 0.14);
+  --primary-bg: #edeef0;      /* slate 12 */
+  --primary-hover: #ffffff;
+  --primary-fg: #111113;
+
+  --accent-from: 0 144 255;
+  --accent-to: 59 158 255;
+  --accent-solid: #0090ff;    /* blue 9 */
+  --accent-hover: #3b9eff;    /* blue 10 */
+  --accent-text: #70b8ff;     /* blue 11 */
+  --accent-soft: #0d2847;     /* blue 3 */
   --tone-mix: #ffffff;
-  --tone-mix-amount: 22%;
-  --ring: rgba(129, 140, 248, 0.3);
+  --tone-mix-amount: 0%;
+  --ring: rgba(59, 158, 255, 0.35);
 
-  --t-success: 34 197 94;
-  --t-info: 59 130 246;
-  --t-violet: 167 139 250;
-  --t-pink: 244 114 182;
-  --t-warn: 245 158 11;
-  --t-danger: 248 113 113;
-  --t-neutral: 148 163 184;
-  --t-bg: 0.12;
-  --t-bd: 0.26;
+  --t-success: 61 214 140;    /* green 11 #3dd68c */
+  --t-info: 112 184 255;      /* blue 11 #70b8ff */
+  --t-violet: 177 169 255;    /* iris 11 #b1a9ff */
+  --t-pink: 255 149 146;      /* red 11 */
+  --t-warn: 255 202 22;       /* amber 11 #ffca16 */
+  --t-danger: 255 149 146;    /* red 11 #ff9592 */
+  --t-neutral: 176 180 186;   /* slate 11 #b0b4ba */
+  --t-bg: 0.1;
+  --t-bd: 0.24;
 
-  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --sh-2: 0 6px 16px -6px rgba(0, 0, 0, 0.6);
-  --sh-3: 0 24px 48px -16px rgba(0, 0, 0, 0.7);
-  --sh-glow: 0 0 0 1px rgba(129, 140, 248, 0.3), 0 8px 24px -12px rgba(99, 102, 241, 0.5);
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --sh-2: 0 1px 2px rgba(0, 0, 0, 0.5), 0 6px 16px -6px rgba(0, 0, 0, 0.6);
+  --sh-3: 0 20px 44px -16px rgba(0, 0, 0, 0.75);
+  --sh-glow: 0 0 0 1px rgba(59, 158, 255, 0.3), 0 6px 20px -8px rgba(0, 144, 255, 0.45);
 
-  --chart-1: #818cf8;
-  --chart-2: #4ade80;
-  --chart-3: #38bdf8;
-  --chart-4: #f472b6;
-  --chart-5: #fbbf24;
-  --chart-grid: rgba(255, 255, 255, 0.06);
-  --chart-axis: #6b7385;
-  --chart-tip-bg: #161a23;
-  --chart-tip-bd: rgba(255, 255, 255, 0.1);
+  --chart-1: #3b9eff;         /* blue 10 */
+  --chart-2: #33b074;         /* green 10 */
+  --chart-3: #6e6ade;         /* iris 10 */
+  --chart-4: #ec5d5e;         /* red 10 */
+  --chart-5: #ffc53d;         /* amber 9 */
+  --chart-grid: #212225;
+  --chart-axis: #696e77;
+  --chart-tip-bg: #18191b;
+  --chart-tip-bd: #363a3f;
+
+  --glow-1: #0090ff;
+  --glow-2: #696e77;
 }
 
 /* ============================================================================
@@ -262,7 +281,7 @@ textarea {
   color: var(--text-4);
 }
 @utility text-accent {
-  color: var(--accent-solid);
+  color: var(--accent-text);
 }
 
 /* surfaces -----------------------------------------------------------------*/
@@ -599,13 +618,13 @@ textarea {
   }
 
   .btn-primary {
-    background-color: var(--accent-solid);
-    color: var(--text-on-accent);
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    background-color: var(--primary-bg);
+    color: var(--primary-fg);
+    box-shadow: var(--sh-1);
   }
 
   .btn-primary:hover:not(:disabled) {
-    background-color: var(--accent-hover);
+    background-color: var(--primary-hover);
   }
 
   .btn-secondary {
@@ -781,7 +800,7 @@ textarea {
     transition: opacity 0.35s ease;
     background: radial-gradient(
       520px circle at var(--spot-x, 50%) var(--spot-y, 50%),
-      rgb(var(--accent-from) / 0.09),
+      rgb(var(--accent-from) / 0.05),
       transparent 42%
     );
   }
@@ -800,7 +819,7 @@ textarea {
     transition: opacity 0.35s ease;
     background: radial-gradient(
       300px circle at var(--spot-x, 50%) var(--spot-y, 50%),
-      rgb(var(--accent-to) / 0.55),
+      rgb(var(--accent-from) / 0.35),
       transparent 60%
     );
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -812,69 +831,21 @@ textarea {
     opacity: 1;
   }
 
-  /* Shine sweep across primary buttons on hover. */
-  .btn-primary {
-    overflow: hidden;
-    background-image: linear-gradient(135deg, rgb(var(--accent-from)), rgb(var(--accent-to)));
-  }
-  .btn-primary::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    transform: translateX(-120%) skewX(-20deg);
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
-    pointer-events: none;
-  }
-  .btn-primary:hover:not(:disabled)::after {
-    transform: translateX(120%) skewX(-20deg);
-    transition: transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .btn-primary:hover:not(:disabled) {
-    box-shadow: 0 8px 24px -8px rgb(var(--accent-from) / 0.55);
-    transform: translateY(-1px);
-  }
-
-  /* Rotating conic border (use on a wrapper with padding: 1px). */
+  /* "Border beam": a neutral hairline with one blue highlight travelling around it. */
   .glow-border {
     position: relative;
     border-radius: var(--radius-card);
     padding: 1px;
-    background: conic-gradient(
-      from var(--angle),
-      rgb(var(--accent-from) / 0.9),
-      rgb(56 189 248 / 0.9),
-      rgb(236 72 153 / 0.8),
-      rgb(var(--accent-to) / 0.9),
-      rgb(var(--accent-from) / 0.9)
-    );
-    animation: spin-angle 6s linear infinite;
-  }
-  .glow-border::before {
-    content: "";
-    position: absolute;
-    inset: -6px;
-    z-index: -1;
-    border-radius: inherit;
-    background: inherit;
-    filter: blur(18px);
-    opacity: 0.45;
+    background:
+      conic-gradient(from var(--angle), transparent 0deg, transparent 290deg, rgb(var(--accent-from) / 0.9) 330deg, transparent 360deg),
+      var(--line-2);
+    animation: spin-angle 5s linear infinite;
+    box-shadow: var(--sh-3);
   }
 
-  /* Animated gradient text. */
+  /* Emphasised text: the accent's readable step, no rainbow. */
   .text-shimmer {
-    background-image: linear-gradient(
-      100deg,
-      rgb(var(--accent-from)) 0%,
-      #38bdf8 25%,
-      #ec4899 50%,
-      rgb(var(--accent-to)) 75%,
-      rgb(var(--accent-from)) 100%
-    );
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    animation: shimmer-text 6s linear infinite;
+    color: var(--accent-text);
   }
 
   /* Drifting aurora blobs behind hero sections. */
@@ -889,39 +860,39 @@ textarea {
     width: 42vmax;
     height: 42vmax;
     border-radius: 999px;
-    filter: blur(70px);
-    opacity: 0.55;
+    filter: blur(90px);
+    opacity: 0.3;
     mix-blend-mode: screen;
     will-change: transform;
   }
   html.light .aurora:not(.aurora-dark) > span {
     mix-blend-mode: multiply;
-    opacity: 0.22;
+    opacity: 0.12;
   }
   /* Always-dark surfaces (login hero) keep the glowing blend in both themes. */
   .aurora-dark > span {
     mix-blend-mode: screen;
-    opacity: 0.45;
+    opacity: 0.28;
   }
   .aurora > span:nth-child(1) {
-    background: #6366f1;
+    background: var(--glow-1);
     top: -18vmax;
     left: -10vmax;
     animation: blob-a 18s ease-in-out infinite alternate;
   }
   .aurora > span:nth-child(2) {
-    background: #0ea5e9;
+    background: var(--glow-2);
     bottom: -20vmax;
     right: -12vmax;
     animation: blob-b 22s ease-in-out infinite alternate;
   }
   .aurora > span:nth-child(3) {
-    background: #db2777;
+    background: var(--glow-1);
     top: 30%;
     left: 40%;
     width: 30vmax;
     height: 30vmax;
-    opacity: 0.35;
+    opacity: 0.15;
     animation: blob-c 26s ease-in-out infinite alternate;
   }
 
@@ -969,8 +940,8 @@ textarea {
     z-index: 100;
     height: 2px;
     transform-origin: left;
-    background: linear-gradient(90deg, rgb(var(--accent-from)), #38bdf8, #ec4899);
-    box-shadow: 0 0 12px rgb(var(--accent-from) / 0.7);
+    background: var(--accent-solid);
+    box-shadow: 0 0 10px rgb(var(--accent-from) / 0.6);
   }
 }
 

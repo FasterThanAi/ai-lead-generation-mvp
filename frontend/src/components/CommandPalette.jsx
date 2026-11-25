@@ -181,7 +181,7 @@ export default function CommandPalette() {
                         {isActive && (
                           <motion.span
                             layoutId="palette-active"
-                            className="absolute inset-0 rounded-lg bg-[var(--accent-soft)]"
+                            className="absolute inset-0 rounded-lg bg-[var(--glass-3)]"
                             transition={{ type: "spring", stiffness: 500, damping: 38 }}
                           />
                         )}

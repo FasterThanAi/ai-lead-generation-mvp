@@ -34,7 +34,7 @@ function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse }) {
     >
       <div className={["flex h-14 shrink-0 items-center gap-2.5 px-4", compact ? "lg:justify-center lg:px-0" : ""].join(" ")}>
         <motion.div
-          className="bg-accent relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white shadow-glow"
+          className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--primary-bg)] text-[var(--primary-fg)]"
           whileHover={{ rotate: 90, scale: 1.08 }}
           transition={{ type: "spring", stiffness: 260, damping: 14 }}
         >
@@ -81,7 +81,7 @@ function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse }) {
                           <motion.span
                             layoutId="sidebar-active-pill"
                             aria-hidden="true"
-                            className="absolute inset-0 rounded-lg bg-[var(--accent-soft)] ring-1 ring-[rgb(var(--accent-from)/0.18)]"
+                            className="absolute inset-0 rounded-lg bg-[var(--glass-3)]"
                             transition={{ type: "spring", stiffness: 420, damping: 34 }}
                           >
                             <span className="bg-accent absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full" />
