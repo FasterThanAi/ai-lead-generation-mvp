@@ -180,3 +180,15 @@ class Settings:
 
 
 settings = Settings()
+
+
+def primary_frontend_url() -> str:
+    """Where to send browsers back to (OAuth callbacks). Prefers an explicit
+    FRONTEND_URL, then the first non-localhost entry in FRONTEND_URLS."""
+    explicit = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+    if explicit:
+        return explicit
+    for origin in settings.FRONTEND_URLS:
+        if "localhost" not in origin and "127.0.0.1" not in origin:
+            return origin
+    return settings.FRONTEND_URLS[0] if settings.FRONTEND_URLS else "http://localhost:5173"

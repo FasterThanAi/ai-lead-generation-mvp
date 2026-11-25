@@ -4,6 +4,7 @@ import re
 from google import genai
 
 from app.core.config import settings
+from app.services.gemini import gemini_generate
 from app.services.knowledge_service import build_knowledge_context, search_relevant_knowledge
 from app.services.lead_research_service import build_research_context
 
@@ -187,7 +188,7 @@ def generate_cold_email(campaign, lead, db=None) -> dict:
     prompt = build_prompt(campaign, lead, knowledge_context)
 
     try:
-        response = client.models.generate_content(
+        response = gemini_generate(client,
             model=settings.GEMINI_MODEL,
             contents=prompt,
         )

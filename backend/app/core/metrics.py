@@ -13,6 +13,7 @@ REQUEST_LATENCY = Histogram(
 IN_FLIGHT = Gauge("leadgen_http_requests_in_flight", "Requests currently being served")
 RATE_LIMITED = Counter("leadgen_rate_limited_total", "Requests rejected by the rate limiter", ["bucket"])
 EMAILS_SENT = Counter("leadgen_emails_sent_total", "Emails sent through Gmail", ["result"])
+GEMINI_CALLS = Counter("leadgen_gemini_calls_total", "Gemini generate_content calls", ["result"])
 BACKGROUND_JOBS = Counter("leadgen_background_jobs_total", "Background jobs", ["kind", "result"])
 
 

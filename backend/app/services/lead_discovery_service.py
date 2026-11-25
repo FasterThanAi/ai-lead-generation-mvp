@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.config import settings
 from app.db.models import Campaign, DiscoveredLead, DiscoveryJob, Lead
 from app.services.ai_service import clean_value, extract_json_from_text
+from app.services.gemini import gemini_generate
 from app.services.lead_research_service import research_lead
 from app.services.scraper_service import is_public_http_url
 from app.utils.time_utils import utc_now
@@ -883,7 +884,7 @@ def ai_structure_contacts(contexts, job: DiscoveryJob, campaign: Campaign | None
 
     try:
         client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        response = client.models.generate_content(
+        response = gemini_generate(client,
             model=settings.GEMINI_MODEL,
             contents=_build_contact_prompt(contexts, job, campaign),
         )
@@ -1219,7 +1220,7 @@ Examples:
 
     try:
         client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        response = client.models.generate_content(
+        response = gemini_generate(client,
             model=settings.GEMINI_MODEL,
             contents=prompt,
         )

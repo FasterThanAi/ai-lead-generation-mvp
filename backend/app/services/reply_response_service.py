@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.models import EmailDraft, ReplyResponseDraft
 from app.services.ai_service import clean_value
+from app.services.gemini import gemini_generate
 from app.services.knowledge_service import search_relevant_knowledge
 from app.services.lead_research_service import build_research_context
 from app.utils.time_utils import utc_now
@@ -644,7 +645,7 @@ def _response_grounding_issue(email_draft: EmailDraft, generated_response: dict,
 
 
 def _generate_gemini_response(client, email_draft: EmailDraft, knowledge_context: str, extra_instruction: str = ""):
-    response = client.models.generate_content(
+    response = gemini_generate(client,
         model=settings.GEMINI_MODEL,
         contents=build_response_prompt(email_draft, knowledge_context, extra_instruction=extra_instruction),
     )

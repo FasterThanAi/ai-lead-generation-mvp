@@ -4,6 +4,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
@@ -421,7 +422,8 @@ async def upload_knowledge_document(
 
     temp_file_path = None
 
-    try:
+    def process_document():
+        nonlocal temp_file_path
         temp_file_path = save_temp_upload(contents, extension)
         extracted_text = extract_text_from_file(temp_file_path, file_type)
         chunks = chunk_text(extracted_text)
@@ -433,6 +435,11 @@ async def upload_knowledge_document(
             raise DocumentExtractionError("Document uploaded but no readable text was found.")
 
         create_document_chunks(db, document, chunks, upload_category, upload_tags)
+
+    try:
+        # Text extraction and Gemini embedding calls are blocking; keep them off
+        # the event loop so one large PDF does not freeze every other request.
+        await run_in_threadpool(process_document)
     except DocumentExtractionError as exc:
         error_message = str(exc) or "Could not extract text from this document."
         mark_document_failed(db, document, error_message)

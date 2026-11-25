@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.db.models import Campaign, Lead
+from app.services.gemini import gemini_generate
 from app.utils.time_utils import utc_now
 
 REQUEST_TIMEOUT_SECONDS = 8
@@ -749,7 +750,7 @@ def fallback_research_from_csv(db: Session, lead_id: int, error_message: str | N
     if settings.GEMINI_API_KEY:
         try:
             client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            response = client.models.generate_content(
+            response = gemini_generate(client,
                 model=settings.GEMINI_MODEL,
                 contents=_build_research_prompt(
                     campaign,
@@ -855,7 +856,7 @@ def research_lead(db: Session, lead_id: int) -> dict:
     if settings.GEMINI_API_KEY:
         try:
             client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            response = client.models.generate_content(
+            response = gemini_generate(client,
                 model=settings.GEMINI_MODEL,
                 contents=_build_research_prompt(campaign, lead, website_text, sources),
             )

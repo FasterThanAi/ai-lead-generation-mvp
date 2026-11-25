@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.models import EmailDraft
 from app.services.ai_service import clean_value
+from app.services.gemini import gemini_generate
 from app.utils.time_utils import utc_now
 
 ALLOWED_REPLY_INTENTS = (
@@ -391,7 +392,7 @@ def classify_reply_for_draft(db: Session, email_draft: EmailDraft, force: bool =
     if settings.GEMINI_API_KEY:
         try:
             client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            response = client.models.generate_content(
+            response = gemini_generate(client,
                 model=settings.GEMINI_MODEL,
                 contents=build_reply_classification_prompt(email_draft),
             )

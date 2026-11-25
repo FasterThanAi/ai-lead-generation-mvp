@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 
 from google import genai
@@ -8,9 +9,11 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.models import Campaign, DiscoveryJob, Opportunity
 from app.services.ai_service import clean_value, extract_json_from_text
+from app.services.gemini import gemini_generate
 from app.services.knowledge_service import build_knowledge_context, search_relevant_knowledge
 from app.utils.time_utils import utc_now
 
+logger = logging.getLogger(__name__)
 FALLBACK_OPPORTUNITY_MODEL = "fallback-opportunity-template"
 MAX_STRATEGY_CONTEXT_CHARS = 2200
 VALID_OPPORTUNITY_STATUSES = {"draft", "generated", "converted", "archived"}
@@ -399,7 +402,7 @@ def generate_opportunity_strategy(db: Session, opportunity_id: int) -> Opportuni
     if settings.GEMINI_API_KEY:
         try:
             client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            response = client.models.generate_content(
+            response = gemini_generate(client,
                 model=settings.GEMINI_MODEL,
                 contents=_build_prompt(opportunity, _get_knowledge_context(db, opportunity)),
             )
@@ -407,6 +410,7 @@ def generate_opportunity_strategy(db: Session, opportunity_id: int) -> Opportuni
             if used_fallback:
                 model_used = FALLBACK_OPPORTUNITY_MODEL
         except Exception:
+            logger.warning("Opportunity %s: Gemini strategy failed, using template", opportunity_id, exc_info=True)
             strategy = _fallback_strategy(opportunity)
             model_used = FALLBACK_OPPORTUNITY_MODEL
     else:

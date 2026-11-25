@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import Toast from "../components/ui/Toast";
 import { getHunterStatus } from "../api/hunter";
 import api from "../services/api";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
@@ -19,6 +21,22 @@ function Settings() {
   const [showAuthorizationHint, setShowAuthorizationHint] = useState(false);
   const [statusError, setStatusError] = useState("");
   const [hunterStatus, setHunterStatus] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [copiedRedirect, setCopiedRedirect] = useState(false);
+  // Read once: the OAuth callback sends people back here with ?gmail=connected|error.
+  const [oauthResult, setOauthResult] = useState(() => {
+    const outcome = searchParams.get("gmail");
+    return outcome ? { outcome, message: searchParams.get("message") || "" } : null;
+  });
+
+  useEffect(() => {
+    if (searchParams.get("gmail")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("gmail");
+      next.delete("message");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [isLoadingHunterStatus, setIsLoadingHunterStatus] = useState(true);
   const [hunterStatusError, setHunterStatusError] = useState("");
 
@@ -32,6 +50,8 @@ function Settings() {
         connected: Boolean(res.data.connected),
         email: res.data.email || "",
         replyTrackingAvailable: Boolean(res.data.reply_tracking_available),
+        oauthConfigured: res.data.oauth_configured !== false,
+        redirectUri: res.data.redirect_uri || "",
       });
 
       if (res.data.connected) {
@@ -75,6 +95,8 @@ function Settings() {
           connected: Boolean(res.data.connected),
           email: res.data.email || "",
           replyTrackingAvailable: Boolean(res.data.reply_tracking_available),
+          oauthConfigured: res.data.oauth_configured !== false,
+          redirectUri: res.data.redirect_uri || "",
         });
 
         if (res.data.connected) {
@@ -134,8 +156,9 @@ function Settings() {
         throw new Error("Missing Gmail authorization URL.");
       }
 
-      window.open(authUrl, "_blank", "noopener,noreferrer");
+      // Same tab: Google redirects back to /settings?gmail=connected|error.
       setShowAuthorizationHint(true);
+      window.location.assign(authUrl);
     } catch (err) {
       setStatusError(getFriendlyErrorMessage(err, "Could not start Gmail connection."));
       console.error(err);
@@ -240,9 +263,47 @@ function Settings() {
             )}
           </div>
 
+          {oauthResult && (
+            <Toast
+              tone={oauthResult.outcome === "connected" ? "success" : "danger"}
+              className="mt-4"
+              onClose={() => setOauthResult(null)}
+            >
+              {oauthResult.outcome === "connected"
+                ? "Gmail connected. Approved drafts can now be sent."
+                : `Gmail connection failed: ${oauthResult.message || "please try again."}`}
+            </Toast>
+          )}
+
+          {!gmailStatus.connected && gmailStatus.redirectUri && (
+            <div className="well mt-4 p-3 text-sm">
+              <p className="text-ink-2">
+                If Google shows <span className="font-mono text-xs">redirect_uri_mismatch</span>, add this exact URL under{" "}
+                <span className="text-ink font-medium">Google Cloud Console → APIs &amp; Services → Credentials → your OAuth client → Authorized redirect URIs</span>:
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <code className="text-ink break-anywhere flex-1 rounded-md bg-[var(--bg-1)] px-2.5 py-1.5 font-mono text-xs">
+                  {gmailStatus.redirectUri}
+                </code>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    navigator.clipboard
+                      ?.writeText(gmailStatus.redirectUri)
+                      .then(() => setCopiedRedirect(true))
+                      .catch(() => setCopiedRedirect(false))
+                  }
+                >
+                  {copiedRedirect ? "Copied" : "Copy"}
+                </Button>
+              </div>
+            </div>
+          )}
+
           {showAuthorizationHint && (
             <p className="mt-4 rounded-lg border border-info-soft bg-info-soft p-3 text-sm text-info">
-              Complete Gmail authorization in the new tab, then refresh the status here.
+              Redirecting to Google to authorize Gmail…
             </p>
           )}
 
