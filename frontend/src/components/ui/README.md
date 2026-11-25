@@ -16,7 +16,7 @@ import Card from "../components/ui/Card";
 | `EmptyState` | `title`, `description`, `icon`, `children` | Shown when a list has no rows. `children` usually holds a Button |
 | `PageHeader` | `title`, `description`, `eyebrow`, `actions` | Top of every page. `actions` holds buttons aligned to the right |
 | `Skeleton` | `className` | Grey shimmer placeholder while data loads. Set the size with the class name, e.g. `h-4 w-32` |
-| `Table` | `columns`, `children`, `className` | `columns` is an array of header labels; `children` are the `<tr>` rows |
+| `Table` | `columns`, `children`, `className`, `caption` | `columns` is an array of header labels; `children` are the `<tr>` rows. `caption` is an optional screen-reader-only description of the table |
 | `ThemeToggle` | `className` | Light/dark switch, already placed in the navbar |
 
 ## Example
