@@ -1,5 +1,7 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Bare `pytest` (as CI runs it) must import the `app` package from this folder.
+pythonpath = ["."]
 addopts = "-q"
 filterwarnings = ["ignore::DeprecationWarning", "ignore::PendingDeprecationWarning"]
 
@@ -29,6 +31,7 @@ ignore = [
   "B005",
   "UP017",
   "UP041",
+  "UP038",  # deprecated upstream; X | Y in isinstance is slower and not required
 ]
 
 [tool.ruff.lint.per-file-ignores]

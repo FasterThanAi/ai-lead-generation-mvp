@@ -756,6 +756,276 @@ textarea {
 }
 
 /* ============================================================================
+   MOTION EFFECTS — all decorative; disabled by prefers-reduced-motion below.
+   ========================================================================== */
+
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@layer components {
+  /* Cursor spotlight: Card/StatCard set --spot-x/--spot-y on pointer move. */
+  .spotlight {
+    isolation: isolate;
+  }
+  .spotlight::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    background: radial-gradient(
+      520px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+      rgb(var(--accent-from) / 0.09),
+      transparent 42%
+    );
+  }
+  .spotlight:hover::after {
+    opacity: 1;
+  }
+  /* A brighter rim that follows the cursor along the border. */
+  .spotlight::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    background: radial-gradient(
+      300px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+      rgb(var(--accent-to) / 0.55),
+      transparent 60%
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+  }
+  .spotlight:hover::before {
+    opacity: 1;
+  }
+
+  /* Shine sweep across primary buttons on hover. */
+  .btn-primary {
+    overflow: hidden;
+    background-image: linear-gradient(135deg, rgb(var(--accent-from)), rgb(var(--accent-to)));
+  }
+  .btn-primary::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-120%) skewX(-20deg);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    pointer-events: none;
+  }
+  .btn-primary:hover:not(:disabled)::after {
+    transform: translateX(120%) skewX(-20deg);
+    transition: transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .btn-primary:hover:not(:disabled) {
+    box-shadow: 0 8px 24px -8px rgb(var(--accent-from) / 0.55);
+    transform: translateY(-1px);
+  }
+
+  /* Rotating conic border (use on a wrapper with padding: 1px). */
+  .glow-border {
+    position: relative;
+    border-radius: var(--radius-card);
+    padding: 1px;
+    background: conic-gradient(
+      from var(--angle),
+      rgb(var(--accent-from) / 0.9),
+      rgb(56 189 248 / 0.9),
+      rgb(236 72 153 / 0.8),
+      rgb(var(--accent-to) / 0.9),
+      rgb(var(--accent-from) / 0.9)
+    );
+    animation: spin-angle 6s linear infinite;
+  }
+  .glow-border::before {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    z-index: -1;
+    border-radius: inherit;
+    background: inherit;
+    filter: blur(18px);
+    opacity: 0.45;
+  }
+
+  /* Animated gradient text. */
+  .text-shimmer {
+    background-image: linear-gradient(
+      100deg,
+      rgb(var(--accent-from)) 0%,
+      #38bdf8 25%,
+      #ec4899 50%,
+      rgb(var(--accent-to)) 75%,
+      rgb(var(--accent-from)) 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer-text 6s linear infinite;
+  }
+
+  /* Drifting aurora blobs behind hero sections. */
+  .aurora {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .aurora > span {
+    position: absolute;
+    width: 42vmax;
+    height: 42vmax;
+    border-radius: 999px;
+    filter: blur(70px);
+    opacity: 0.55;
+    mix-blend-mode: screen;
+    will-change: transform;
+  }
+  html.light .aurora:not(.aurora-dark) > span {
+    mix-blend-mode: multiply;
+    opacity: 0.22;
+  }
+  /* Always-dark surfaces (login hero) keep the glowing blend in both themes. */
+  .aurora-dark > span {
+    mix-blend-mode: screen;
+    opacity: 0.45;
+  }
+  .aurora > span:nth-child(1) {
+    background: #6366f1;
+    top: -18vmax;
+    left: -10vmax;
+    animation: blob-a 18s ease-in-out infinite alternate;
+  }
+  .aurora > span:nth-child(2) {
+    background: #0ea5e9;
+    bottom: -20vmax;
+    right: -12vmax;
+    animation: blob-b 22s ease-in-out infinite alternate;
+  }
+  .aurora > span:nth-child(3) {
+    background: #db2777;
+    top: 30%;
+    left: 40%;
+    width: 30vmax;
+    height: 30vmax;
+    opacity: 0.35;
+    animation: blob-c 26s ease-in-out infinite alternate;
+  }
+
+  /* Faint engineering grid that fades out at the edges. */
+  .bg-grid {
+    background-image:
+      linear-gradient(var(--line-1) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line-1) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+    mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+  }
+
+  .bg-grid-dark {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
+    mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
+  }
+
+  /* Live status dot with an expanding ring. */
+  .live-dot {
+    position: relative;
+    display: inline-flex;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: currentColor;
+  }
+  .live-dot::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: currentColor;
+    animation: live-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  /* Top-of-page route progress bar. */
+  .route-progress {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 100;
+    height: 2px;
+    transform-origin: left;
+    background: linear-gradient(90deg, rgb(var(--accent-from)), #38bdf8, #ec4899);
+    box-shadow: 0 0 12px rgb(var(--accent-from) / 0.7);
+  }
+}
+
+@keyframes spin-angle {
+  to {
+    --angle: 360deg;
+  }
+}
+
+@keyframes shimmer-text {
+  to {
+    background-position: 200% center;
+  }
+}
+
+@keyframes blob-a {
+  to {
+    transform: translate3d(18vmax, 10vmax, 0) scale(1.15);
+  }
+}
+
+@keyframes blob-b {
+  to {
+    transform: translate3d(-16vmax, -12vmax, 0) scale(1.1);
+  }
+}
+
+@keyframes blob-c {
+  to {
+    transform: translate3d(-22vmax, 8vmax, 0) scale(0.85);
+  }
+}
+
+@keyframes bar-sheen {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.bar-sheen {
+  animation: bar-sheen 2.4s ease-in-out infinite;
+}
+
+@keyframes live-ping {
+  75%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+/* ============================================================================
    KEYFRAMES
    ========================================================================== */
 

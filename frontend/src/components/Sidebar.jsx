@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { NavLink } from "react-router-dom";
+import { m as motion } from "framer-motion";
 import { useAuth } from "../auth/auth-context";
 import Icon from "./ui/Icon";
 import { navGroups } from "./navigation";
@@ -32,9 +33,13 @@ function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse }) {
       aria-label="Sidebar"
     >
       <div className={["flex h-14 shrink-0 items-center gap-2.5 px-4", compact ? "lg:justify-center lg:px-0" : ""].join(" ")}>
-        <div className="bg-accent flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white">
+        <motion.div
+          className="bg-accent relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white shadow-glow"
+          whileHover={{ rotate: 90, scale: 1.08 }}
+          transition={{ type: "spring", stiffness: 260, damping: 14 }}
+        >
           <Icon name="target" className="h-[18px] w-[18px]" strokeWidth={2} />
-        </div>
+        </motion.div>
         <div className={["min-w-0 flex-1", compact ? "lg:hidden" : ""].join(" ")}>
           <p className="text-ink truncate text-sm font-semibold">Lead Agent</p>
           <p className="text-faint truncate text-xs">AI outreach workspace</p>
@@ -66,16 +71,27 @@ function Sidebar({ collapsed, mobileOpen, onCloseMobile, onToggleCollapse }) {
                     onClick={onCloseMobile}
                     title={compact ? item.label : undefined}
                     className={({ isActive }) =>
-                      ["nav-item", isActive ? "nav-item-active" : "", compact ? "lg:justify-center lg:px-0" : ""].join(" ")
+                      ["nav-item group", isActive ? "nav-item-active !bg-transparent" : "", compact ? "lg:justify-center lg:px-0" : ""].join(" ")
                     }
                   >
                     {({ isActive }) => (
                       <>
+                        {isActive && (
+                          // One shared layoutId: the pill glides between items on navigation.
+                          <motion.span
+                            layoutId="sidebar-active-pill"
+                            aria-hidden="true"
+                            className="absolute inset-0 rounded-lg bg-[var(--accent-soft)] ring-1 ring-[rgb(var(--accent-from)/0.18)]"
+                            transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                          >
+                            <span className="bg-accent absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full" />
+                          </motion.span>
+                        )}
                         <Icon
                           name={item.icon}
-                          className={["h-[18px] w-[18px]", isActive ? "text-accent" : ""].join(" ")}
+                          className={["relative h-[18px] w-[18px] transition-transform duration-300 group-hover:scale-110", isActive ? "text-accent" : ""].join(" ")}
                         />
-                        <span className={["truncate", compact ? "lg:sr-only" : ""].join(" ")}>{item.label}</span>
+                        <span className={["relative truncate", compact ? "lg:sr-only" : ""].join(" ")}>{item.label}</span>
                       </>
                     )}
                   </NavLink>
