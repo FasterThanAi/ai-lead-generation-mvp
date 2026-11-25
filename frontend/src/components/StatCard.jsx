@@ -30,7 +30,7 @@ function StatCard({ title, value, eyebrow, tone = "primary", helper }) {
       {/* Tone glow in the corner that brightens on hover. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full opacity-25 blur-2xl transition-opacity duration-500 group-hover:opacity-60"
+        className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full opacity-[0.08] blur-2xl transition-opacity duration-500 group-hover:opacity-25"
         style={{ backgroundColor: "rgb(var(--tone))" }}
       />
       <div className="relative flex items-center gap-2">

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.models import Campaign, Lead
 from app.services.ai_service import clean_value, extract_json_from_text
+from app.services.gemini import gemini_generate
 from app.services.lead_research_service import build_research_context
 from app.utils.time_utils import utc_now
 
@@ -744,7 +745,7 @@ def score_lead_with_ai(db: Session, lead: Lead, campaign: Campaign, force: bool 
     if settings.GEMINI_API_KEY:
         try:
             client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            response = client.models.generate_content(
+            response = gemini_generate(client,
                 model=settings.GEMINI_MODEL,
                 contents=build_lead_scoring_prompt(campaign, lead),
             )

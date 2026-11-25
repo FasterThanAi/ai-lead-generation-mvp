@@ -46,7 +46,7 @@ function UserMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <span className="bg-accent-soft text-accent flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold">
+        <span className="text-ink flex h-7 w-7 items-center justify-center rounded-full bg-[var(--glass-3)] text-xs font-semibold ring-1 ring-[var(--line-2)]">
           {initials(user)}
         </span>
         <span className="text-ink hidden max-w-[10rem] truncate text-sm font-medium md:inline">

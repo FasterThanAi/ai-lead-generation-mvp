@@ -232,5 +232,13 @@ export function getFriendlyErrorMessage(err, fallbackMessage = DEFAULT_ERROR_MES
     return "Follow-up sending failed. Please try again.";
   }
 
+  // 4xx and 503 details are written for people ("Gmail OAuth is not
+  // configured. Missing GMAIL_CLIENT_ID") and beat a generic fallback. 500s
+  // may carry raw exception text, so those keep the fallback.
+  const status = err.response.status;
+  if (detail && (status < 500 || status === 503)) {
+    return detail;
+  }
+
   return fallbackMessage || DEFAULT_ERROR_MESSAGE;
 }

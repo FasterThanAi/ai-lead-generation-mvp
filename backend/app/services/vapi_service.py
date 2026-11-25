@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.config import settings
 from app.db.models import CallLog, CallScript, Campaign, EmailDraft, Lead
 from app.services.ai_service import clean_value, extract_json_from_text
+from app.services.gemini import gemini_generate
 from app.services.knowledge_service import build_knowledge_context, search_relevant_knowledge
 from app.utils.time_utils import utc_now
 
@@ -328,7 +329,7 @@ def generate_call_script(db: Session, lead_id: int, campaign_id: int | None = No
     if settings.GEMINI_API_KEY:
         try:
             client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            response = client.models.generate_content(
+            response = gemini_generate(client,
                 model=settings.GEMINI_MODEL,
                 contents=_build_script_prompt(context),
             )
@@ -691,7 +692,7 @@ Transcript:
 
     try:
         client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        response = client.models.generate_content(
+        response = gemini_generate(client,
             model=settings.GEMINI_MODEL,
             contents=prompt,
         )
@@ -1115,7 +1116,7 @@ def _generate_call_followup_payload(db: Session, call_log: CallLog, lead: Lead, 
     if settings.GEMINI_API_KEY:
         try:
             client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            response = client.models.generate_content(
+            response = gemini_generate(client,
                 model=settings.GEMINI_MODEL,
                 contents=_build_call_followup_prompt(call_log, lead, campaign, knowledge_context, previous_context),
             )

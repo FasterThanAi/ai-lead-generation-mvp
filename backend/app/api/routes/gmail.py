@@ -1,12 +1,13 @@
 import time
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import RedirectResponse
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.config import settings
+from app.core.config import primary_frontend_url, settings
 from app.db.database import get_db
 from app.db.models import Campaign, EmailDraft, FollowUpDraft, ReplyResponseDraft
 from app.services.gmail_service import (
@@ -201,11 +202,19 @@ def get_gmail_status(db: Session = Depends(get_db)):
     token_record = get_connected_gmail_token(db)
     scopes = get_connected_gmail_scopes(db)
 
+    oauth = {
+        "oauth_configured": bool(settings.GMAIL_CLIENT_ID and settings.GMAIL_CLIENT_SECRET and settings.GMAIL_REDIRECT_URI),
+        # Shown in Settings so it can be copied into Google Cloud Console's
+        # "Authorized redirect URIs" (a mismatch makes Google block sign-in).
+        "redirect_uri": settings.GMAIL_REDIRECT_URI or None,
+    }
+
     if not token_record:
         return {
             "status": "success",
             "connected": False,
             "reply_tracking_available": False,
+            **oauth,
         }
 
     return {
@@ -213,6 +222,7 @@ def get_gmail_status(db: Session = Depends(get_db)):
         "connected": True,
         "email": token_record.email or settings.GMAIL_SENDER_EMAIL or None,
         "reply_tracking_available": GMAIL_READONLY_SCOPE in scopes,
+        **oauth,
     }
 
 
@@ -221,7 +231,8 @@ def start_gmail_oauth(db: Session = Depends(get_db)):
     try:
         auth_url = build_gmail_oauth_url(db)
     except GmailConfigurationError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        # Missing server configuration is not a crash: say exactly what to set.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except GmailConnectionError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -231,7 +242,15 @@ def start_gmail_oauth(db: Session = Depends(get_db)):
     }
 
 
-@router.get("/oauth/callback", response_class=HTMLResponse)
+def _settings_redirect(outcome: str, message: str | None = None) -> RedirectResponse:
+    """Send the browser back to the app's Settings page with the OAuth outcome."""
+    params = {"gmail": outcome}
+    if message:
+        params["message"] = message[:300]
+    return RedirectResponse(f"{primary_frontend_url()}/settings?{urlencode(params)}", status_code=303)
+
+
+@router.get("/oauth/callback")
 def gmail_oauth_callback(
     code: str | None = None,
     state: str | None = None,
@@ -239,28 +258,18 @@ def gmail_oauth_callback(
     db: Session = Depends(get_db),
 ):
     if error:
-        raise HTTPException(status_code=400, detail=f"Gmail OAuth failed: {error}")
+        reason = "You cancelled the Google sign-in." if error == "access_denied" else f"Google returned: {error}"
+        return _settings_redirect("error", reason)
 
     if not code:
-        raise HTTPException(status_code=400, detail="Gmail OAuth code is missing.")
+        return _settings_redirect("error", "Google did not return an authorization code. Please try again.")
 
     try:
         exchange_code_for_token(code, state, db)
-    except GmailConfigurationError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    except GmailConnectionError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except (GmailConfigurationError, GmailConnectionError) as exc:
+        return _settings_redirect("error", str(exc))
 
-    return HTMLResponse(
-        """
-        <html>
-          <body style="font-family: system-ui, sans-serif; padding: 32px;">
-            <h2>Gmail connected successfully.</h2>
-            <p>You can close this tab and return to the app.</p>
-          </body>
-        </html>
-        """
-    )
+    return _settings_redirect("connected")
 
 
 @router.post("/send-draft/{email_draft_id}")

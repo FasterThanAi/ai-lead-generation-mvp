@@ -71,3 +71,14 @@ test("falls back to the supplied or default message for unknown errors", () => {
     "Could not load campaigns.",
   );
 });
+
+test("shows the server's own message for client and configuration errors", () => {
+  assert.equal(
+    getFriendlyErrorMessage(backendError(503, "Gmail OAuth is not configured. Missing GMAIL_CLIENT_ID."), "Could not start Gmail connection."),
+    "Gmail OAuth is not configured. Missing GMAIL_CLIENT_ID.",
+  );
+  assert.equal(
+    getFriendlyErrorMessage(backendError(409, "An account with this email already exists.")),
+    "An account with this email already exists.",
+  );
+});

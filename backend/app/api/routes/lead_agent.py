@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from typing import Any
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.database import get_db
 from app.db.models import Campaign, DiscoveredLead, DiscoveryJob, Lead
+from app.services.gemini import gemini_generate
 
 logger = logging.getLogger(__name__)
 
@@ -279,10 +281,9 @@ Example output: ["manufacturing company Nagpur", "industrial automation Hingna",
         from google import genai
 
         client = genai.Client(api_key=gemini_api_key)
-        response = client.models.generate_content(
-            model=gemini_model,
-            contents=prompt,
-        )
+        # The SDK call is blocking; run it on a worker thread so this async
+        # endpoint does not stall every other request on the event loop.
+        response = await asyncio.to_thread(gemini_generate, client, model=gemini_model, contents=prompt)
         text = _clean_text(getattr(response, "text", ""))
         text = text.replace("```json", "").replace("```", "").strip()
         queries = json.loads(text)
@@ -350,8 +351,8 @@ async def start_lead_agent(
 
     if not webhook_url:
         raise HTTPException(
-            status_code=500,
-            detail="N8N_WEBHOOK_URL is not configured in the backend environment.",
+            status_code=503,
+            detail="Lead Agent needs n8n: set N8N_WEBHOOK_URL in the backend environment.",
         )
 
     campaign = db.get(Campaign, payload.campaign_id)

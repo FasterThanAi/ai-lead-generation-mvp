@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
  * away from the cursor. Pauses when the tab is hidden, scales with DPR, and
  * draws a single static frame when the user prefers reduced motion.
  */
-export default function ParticleField({ className = "", density = 0.00011, color = "165, 180, 252" }) {
+export default function ParticleField({ className = "", density = 0.00011, color = "237, 238, 240" }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -60,7 +60,7 @@ export default function ParticleField({ className = "", density = 0.00011, color
         }
         context.beginPath();
         context.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        context.fillStyle = `rgba(${color}, 0.8)`;
+        context.fillStyle = `rgba(${color}, 0.55)`;
         context.fill();
       }
       for (let i = 0; i < particles.length; i += 1) {
@@ -69,7 +69,7 @@ export default function ParticleField({ className = "", density = 0.00011, color
           const b = particles[j];
           const distance = Math.hypot(a.x - b.x, a.y - b.y);
           if (distance < 110) {
-            context.strokeStyle = `rgba(${color}, ${0.32 * (1 - distance / 110)})`;
+            context.strokeStyle = `rgba(${color}, ${0.16 * (1 - distance / 110)})`;
             context.lineWidth = 1;
             context.beginPath();
             context.moveTo(a.x, a.y);

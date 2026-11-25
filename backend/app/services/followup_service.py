@@ -12,6 +12,7 @@ from app.services.ai_service import (
     clean_value,
     extract_json_from_text,
 )
+from app.services.gemini import gemini_generate
 from app.services.knowledge_service import build_knowledge_context, search_relevant_knowledge
 from app.services.lead_research_service import build_research_context
 from app.utils.time_utils import utc_now
@@ -264,7 +265,7 @@ def generate_follow_up_content(campaign, lead, original_email_draft, follow_up_n
     prompt = build_follow_up_prompt(campaign, lead, original_email_draft, follow_up_number, knowledge_context)
 
     try:
-        response = client.models.generate_content(
+        response = gemini_generate(client,
             model=settings.GEMINI_MODEL,
             contents=prompt,
         )

@@ -158,8 +158,8 @@ function Funnel({ stats }) {
               <motion.div
                 className="relative h-full overflow-hidden rounded-full"
                 style={{
-                  background: "linear-gradient(90deg, rgb(var(--accent-from)), rgb(var(--accent-to)), #38bdf8)",
-                  opacity: 1 - index * 0.12,
+                  backgroundColor: "var(--accent-solid)",
+                  opacity: 1 - index * 0.14,
                 }}
                 initial={{ width: 0 }}
                 whileInView={{ width: `${Math.max((stage.value / max) * 100, stage.value ? 2 : 0)}%` }}
@@ -230,13 +230,13 @@ function Dashboard() {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
             >
-              <span className="live-dot text-emerald-500" /> Workspace live · {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+              <span className="live-dot text-success" /> Workspace live · {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
             </motion.p>
             <h2 className="text-ink text-3xl font-semibold tracking-tight sm:text-4xl">
               {greeting()}
               {firstName && (
                 <>
-                  , <span className="text-shimmer">{firstName}</span>
+                  , <span>{firstName}</span>
                 </>
               )}
             </h2>

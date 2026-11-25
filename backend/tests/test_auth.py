@@ -109,5 +109,6 @@ def test_webhook_and_oauth_callback_paths_skip_user_auth(client):
     response = client.post("/api/calls/vapi/webhook", content=b"not json",
                            headers={"Content-Type": "application/json"})
     assert response.status_code == 400
-    callback = client.get("/api/gmail/oauth/callback")
-    assert callback.status_code == 400  # missing code, but not 401
+    callback = client.get("/api/gmail/oauth/callback", follow_redirects=False)
+    assert callback.status_code == 303  # not 401: bounced back to Settings with the reason
+    assert "/settings?gmail=error" in callback.headers["location"]
