@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, m as motion } from "framer-motion";
 import api from "../services/api";
 import { apiErrorMessage, timeAgo } from "../utils/format";
 import Badge from "./ui/Badge";
@@ -33,8 +34,22 @@ function Drawer({ lead, onClose, onDelete, children }) {
 
   return (
     <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={`Lead ${lead.company_name}`}>
-      <button type="button" aria-label="Close lead details" className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <aside className="line-1 shadow-deep absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col border-l bg-[var(--bg-0)]">
+      <motion.button
+        type="button"
+        aria-label="Close lead details"
+        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+        onClick={onClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      />
+      <motion.aside
+        className="line-1 shadow-deep absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col border-l bg-[var(--bg-0)]"
+        initial={{ x: "100%", opacity: 0.6 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: "100%", opacity: 0.6 }}
+        transition={{ type: "spring", stiffness: 320, damping: 34 }}
+      >
         <header className="line-1 flex items-center justify-between gap-3 border-b bg-[var(--bg-1)] px-5 py-3.5">
           <div className="min-w-0">
             <p className="text-ink truncate font-semibold">{lead.company_name}</p>
@@ -49,8 +64,15 @@ function Drawer({ lead, onClose, onDelete, children }) {
             </button>
           </div>
         </header>
-        <div className="flex-1 overflow-y-auto p-5">{children}</div>
-      </aside>
+        <motion.div
+          className="flex-1 overflow-y-auto p-5"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12, duration: 0.4 }}
+        >
+          {children}
+        </motion.div>
+      </motion.aside>
     </div>
   );
 }
@@ -193,8 +215,15 @@ export default function LeadGrid({
         </div>
       )}
 
+      <AnimatePresence>
       {selectedIds.length > 0 && (
-        <div className="line-1 flex flex-wrap items-center gap-2 border-y bg-[var(--accent-soft)] px-4 py-2 sm:px-5">
+        <motion.div
+          className="line-1 flex flex-wrap items-center gap-2 overflow-hidden border-y bg-[var(--accent-soft)] px-4 py-2 sm:px-5"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ type: "spring", stiffness: 380, damping: 34 }}
+        >
           <span className="text-ink text-sm font-medium">{selectedIds.length} selected</span>
           <span className="text-faint">·</span>
           {STATUS_OPTIONS.map((status) => (
@@ -209,8 +238,9 @@ export default function LeadGrid({
           <button type="button" className="text-muted ml-auto text-sm hover:underline" onClick={() => setSelected(new Set())}>
             Clear selection
           </button>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {isLoading ? (
         <div className="space-y-2 p-5">
@@ -249,9 +279,12 @@ export default function LeadGrid({
               </tr>
             </thead>
             <tbody className="divide-line divide-y">
-              {pageLeads.map((lead) => (
-                <tr
+              {pageLeads.map((lead, index) => (
+                <motion.tr
                   key={lead.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, delay: Math.min(index, 15) * 0.025, ease: [0.16, 1, 0.3, 1] }}
                   className={["t-row cursor-pointer", selected.has(lead.id) ? "bg-[var(--accent-soft)]" : ""].join(" ")}
                   onClick={() => setOpenLeadId(lead.id)}
                 >
@@ -277,10 +310,20 @@ export default function LeadGrid({
                   <td className="px-3 py-2.5"><Badge variant={lead.status}>{String(lead.status || "new").replace(/_/g, " ")}</Badge></td>
                   <td className={["tabular px-3 py-2.5 text-right font-semibold", scoreTone(lead.ai_score)].join(" ")}>
                     {lead.ai_score ?? "—"}
+                    {lead.ai_score !== null && lead.ai_score !== undefined && (
+                      <span className="mt-1 block h-1 w-12 overflow-hidden rounded-full bg-[var(--glass-3)] ml-auto">
+                        <motion.span
+                          className="block h-full rounded-full bg-current"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min(100, lead.ai_score)}%` }}
+                          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+                        />
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2.5">{lead.ai_priority ? <Badge variant={lead.ai_priority}>{lead.ai_priority}</Badge> : <span className="text-faint">—</span>}</td>
                   <td className="text-muted px-3 py-2.5 text-xs capitalize">{String(lead.research_status || "not researched").replace(/_/g, " ")}</td>
-                </tr>
+                </motion.tr>
               ))}
             </tbody>
           </table>
@@ -306,11 +349,13 @@ export default function LeadGrid({
         </div>
       )}
 
-      {openLead && (
-        <Drawer lead={openLead} onClose={() => setOpenLeadId(null)} onDelete={deleteOne}>
-          {renderDetail(openLead)}
-        </Drawer>
-      )}
+      <AnimatePresence>
+        {openLead && (
+          <Drawer key={openLead.id} lead={openLead} onClose={() => setOpenLeadId(null)} onDelete={deleteOne}>
+            {renderDetail(openLead)}
+          </Drawer>
+        )}
+      </AnimatePresence>
     </Card>
   );
 }

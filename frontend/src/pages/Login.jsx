@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { m as motion } from "framer-motion";
+import ParticleField from "../components/ParticleField";
+import { Magnetic, SplitText, TiltCard } from "../motion/primitives";
 import { useAuth } from "../auth/auth-context";
 import Icon from "../components/ui/Icon";
 import ThemeToggle from "../components/ui/ThemeToggle";
@@ -43,14 +46,13 @@ export default function Login() {
   return (
     <div className="grid min-h-screen lg:grid-cols-[1fr_minmax(0,520px)]">
       <section className="relative hidden overflow-hidden bg-[#0f1222] p-12 text-white lg:flex lg:flex-col lg:justify-between">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-60"
-          style={{
-            background:
-              "radial-gradient(600px 400px at 20% 10%, rgba(99,102,241,0.35), transparent 60%), radial-gradient(500px 400px at 90% 90%, rgba(14,165,233,0.18), transparent 60%)",
-          }}
-        />
+        <div aria-hidden="true" className="aurora aurora-dark">
+          <span />
+          <span />
+          <span />
+        </div>
+        <div aria-hidden="true" className="bg-grid-dark absolute inset-0" />
+        <ParticleField className="absolute inset-0" />
         <div className="relative flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500">
             <Icon name="target" className="h-5 w-5" strokeWidth={2} />
@@ -59,20 +61,39 @@ export default function Login() {
         </div>
 
         <div className="relative max-w-lg">
-          <h2 className="text-4xl font-semibold leading-tight tracking-tight">
-            Find the right leads. Send the right message. Stay in control.
-          </h2>
+          <motion.p
+            className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80 backdrop-blur"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <span className="live-dot text-emerald-400" /> AI agents online
+          </motion.p>
+          <SplitText
+            text="Find the right leads. Send the right message. Stay in control."
+            className="text-5xl font-semibold leading-[1.08] tracking-tight"
+            delay={0.15}
+          />
+          <p className="mt-4 text-lg">
+            <span className="text-shimmer font-medium">Research, score and reach out with AI, on autopilot.</span>
+          </p>
           <ul className="mt-10 space-y-6">
-            {highlights.map((item) => (
-              <li key={item.title} className="flex gap-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
+            {highlights.map((item, index) => (
+              <motion.li
+                key={item.title}
+                className="flex gap-4"
+                initial={{ opacity: 0, x: -24, filter: "blur(6px)" }}
+                animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+                transition={{ duration: 0.7, delay: 0.7 + index * 0.12, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10 shadow-[0_0_24px_-4px_rgba(129,140,248,0.6)] ring-1 ring-white/15 backdrop-blur">
                   <Icon name={item.icon} className="h-5 w-5" />
                 </span>
                 <div>
                   <p className="font-medium">{item.title}</p>
                   <p className="mt-0.5 text-sm text-white/65">{item.text}</p>
                 </div>
-              </li>
+              </motion.li>
             ))}
           </ul>
         </div>
@@ -84,8 +105,17 @@ export default function Login() {
         <div className="flex justify-end p-4">
           <ThemeToggle />
         </div>
-        <div className="flex flex-1 items-center justify-center px-6 pb-16">
-          <form onSubmit={submit} className="w-full max-w-sm" noValidate>
+        <div className="relative flex flex-1 items-center justify-center overflow-hidden px-6 pb-16">
+          <div aria-hidden="true" className="bg-grid absolute inset-0 opacity-60" />
+          <motion.div
+            className="relative w-full max-w-md"
+            initial={{ opacity: 0, y: 30, scale: 0.96, filter: "blur(10px)" }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+          >
+          <div className="glow-border">
+          <TiltCard className="rounded-[calc(var(--radius-card)-1px)] bg-[var(--bg-1)] p-8" max={4}>
+          <form onSubmit={submit} className="w-full" noValidate>
             <div className="bg-accent mb-6 flex h-10 w-10 items-center justify-center rounded-lg text-white lg:hidden">
               <Icon name="target" className="h-5 w-5" strokeWidth={2} />
             </div>
@@ -144,9 +174,13 @@ export default function Login() {
               </div>
             </div>
 
-            <button type="submit" className="btn btn-primary mt-6 w-full" disabled={submitting || !form.email || !form.password}>
-              {submitting ? "Please wait…" : isSetup ? "Create admin account" : isRegister ? "Create account" : "Sign in"}
-            </button>
+            <Magnetic className="mt-6 w-full" strength={0.12}>
+              <button type="submit" className="btn btn-primary w-full" disabled={submitting || !form.email || !form.password}>
+                {submitting && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
+                {submitting ? "Please wait…" : isSetup ? "Create admin account" : isRegister ? "Create account" : "Sign in"}
+                {!submitting && <Icon name="chevronRight" />}
+              </button>
+            </Magnetic>
 
             {!isSetup && canRegister && (
               <p className="text-muted mt-6 text-center text-sm">
@@ -167,6 +201,9 @@ export default function Login() {
               <p className="text-faint mt-6 text-center text-xs">Need access? Ask a workspace admin to invite you.</p>
             )}
           </form>
+          </TiltCard>
+          </div>
+          </motion.div>
         </div>
       </section>
     </div>

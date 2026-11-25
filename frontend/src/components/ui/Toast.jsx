@@ -1,3 +1,4 @@
+import { m as motion } from "framer-motion";
 const toneClasses = {
   success: "tone-block [--tone:var(--t-success)]",
   warning: "tone-block [--tone:var(--t-warn)]",
@@ -18,10 +19,13 @@ function Toast({ tone = "neutral", children, className = "", onClose }) {
   const role = tone === "danger" || tone === "warning" ? "alert" : "status";
 
   return (
-    <div
+    <motion.div
       role={role}
+      initial={{ opacity: 0, y: -8, scale: 0.97, filter: "blur(4px)" }}
+      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+      transition={{ type: "spring", stiffness: 420, damping: 30 }}
       className={[
-        "animate-rise flex items-start gap-2.5 rounded-2xl border px-4 py-3 text-sm font-medium",
+        "flex items-start gap-2.5 rounded-2xl border px-4 py-3 text-sm font-medium",
         toneClasses[tone] || toneClasses.neutral,
         className,
       ].join(" ")}
@@ -49,7 +53,7 @@ function Toast({ tone = "neutral", children, className = "", onClose }) {
           ×
         </button>
       )}
-    </div>
+    </motion.div>
   );
 }
 

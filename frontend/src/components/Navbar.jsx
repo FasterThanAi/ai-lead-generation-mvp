@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../auth/auth-context";
 import Icon from "./ui/Icon";
 import ThemeToggle from "./ui/ThemeToggle";
+import { openCommandPalette } from "./commandPaletteEvents";
 
 function initials(user) {
   const source = user?.full_name || user?.email || "?";
@@ -96,6 +97,18 @@ function Navbar({ pageTitle, onMenuClick }) {
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={openCommandPalette}
+            className="line-2 text-faint hover:text-ink hover:line-3 mr-1 hidden h-9 w-64 items-center gap-2 rounded-lg border bg-[var(--glass-2)] px-3 text-sm transition-colors md:flex"
+          >
+            <Icon name="search" />
+            <span>Search or jump to…</span>
+            <span className="ml-auto flex gap-0.5"><span className="kbd">⌘</span><span className="kbd">K</span></span>
+          </button>
+          <button type="button" onClick={openCommandPalette} className="btn btn-ghost h-9 w-9 p-0 md:hidden" aria-label="Open search">
+            <Icon name="search" className="h-[18px] w-[18px]" />
+          </button>
           <ThemeToggle />
           <UserMenu />
         </div>

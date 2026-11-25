@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { MotionConfig } from "framer-motion";
+import { AnimatePresence, LazyMotion, MotionConfig, m as motion } from "framer-motion";
 import AuthProvider from "./auth/AuthProvider";
 import { useAuth } from "./auth/auth-context";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -9,6 +9,7 @@ import Sidebar from "./components/Sidebar";
 import { pageTitles } from "./components/navigation";
 import Skeleton from "./components/ui/Skeleton";
 import ThemeProvider from "./theme/ThemeProvider";
+import CommandPalette from "./components/CommandPalette";
 
 // Each page is its own chunk: the first load only ships the shell and the page you open.
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -97,6 +98,18 @@ function AppShell() {
         Skip to main content
       </a>
 
+      {/* Gradient progress bar that sweeps across on every navigation. */}
+      <motion.div
+        key={`progress-${location.pathname}`}
+        aria-hidden="true"
+        className="route-progress"
+        initial={{ scaleX: 0, opacity: 1 }}
+        animate={{ scaleX: 1, opacity: [1, 1, 0] }}
+        transition={{ scaleX: { duration: 0.55, ease: [0.16, 1, 0.3, 1] }, opacity: { duration: 0.9, times: [0, 0.7, 1] } }}
+      />
+
+      <CommandPalette />
+
       {isMobileSidebarOpen && (
         <button
           type="button"
@@ -124,8 +137,16 @@ function AppShell() {
         <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 focus:outline-none sm:px-6 lg:px-8 lg:py-8">
           <div className="mx-auto w-full min-w-0 max-w-[1440px]">
             <ErrorBoundary resetKey={location.pathname}>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={location.pathname}
+                  initial={{ opacity: 0, y: 14, filter: "blur(6px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
+                  transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+                >
               <Suspense fallback={<PageFallback />}>
-                <Routes>
+                <Routes location={location}>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/campaigns" element={<Campaigns />} />
                   <Route path="/opportunities" element={<Opportunities />} />
@@ -142,6 +163,8 @@ function AppShell() {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
+                </motion.div>
+              </AnimatePresence>
             </ErrorBoundary>
           </div>
         </main>
@@ -183,9 +206,12 @@ function AuthGate() {
   return <AppShell />;
 }
 
+const loadMotionFeatures = () => import("./motion/features.js").then((module) => module.default);
+
 function App() {
   return (
     <ThemeProvider>
+      <LazyMotion features={loadMotionFeatures}>
       <MotionConfig reducedMotion="user">
         <BrowserRouter>
           <AuthProvider>
@@ -193,6 +219,7 @@ function App() {
           </AuthProvider>
         </BrowserRouter>
       </MotionConfig>
+      </LazyMotion>
     </ThemeProvider>
   );
 }

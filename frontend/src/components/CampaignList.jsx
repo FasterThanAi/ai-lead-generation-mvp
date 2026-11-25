@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { m as motion } from "framer-motion";
 import api from "../services/api";
 import { apiErrorMessage, formatDateTime, timeAgo } from "../utils/format";
 import Button from "./ui/Button";
@@ -171,8 +172,16 @@ function CampaignList({ refreshKey }) {
         <EmptyState title="No matching campaigns" description="Try a different search." />
       ) : (
         <ul className="space-y-3">
-          {visible.map((campaign) => (
-            <li key={campaign.id} className="line-1 hover:line-2 rounded-lg border p-4 transition-colors">
+          {visible.map((campaign, index) => (
+            <motion.li
+              key={campaign.id}
+              layout
+              initial={{ opacity: 0, y: 14, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.5, delay: Math.min(index, 8) * 0.05, ease: [0.16, 1, 0.3, 1] }}
+              whileHover={{ y: -2 }}
+              className="line-1 hover:line-2 rounded-lg border p-4 transition-colors hover:shadow-[var(--sh-2)]"
+            >
               {editingId === campaign.id ? (
                 <EditCampaign
                   campaign={campaign}
@@ -220,7 +229,7 @@ function CampaignList({ refreshKey }) {
                   </div>
                 </div>
               )}
-            </li>
+            </motion.li>
           ))}
         </ul>
       )}
