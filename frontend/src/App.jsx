@@ -187,7 +187,16 @@ function AuthGate() {
   if (status === "offline") {
     return (
       <FullScreenMessage title="Can't reach the server">
-        <p>The API is not responding. On the free hosting tier it can take up to a minute to wake up.</p>
+        {import.meta.env.DEV ? (
+          <>
+            <p>The backend API isn't running. Start it in a second terminal, then try again:</p>
+            <pre className="well text-ink mt-3 overflow-x-auto px-3 py-2 text-left font-mono text-xs">
+              cd backend{"\n"}.venv/bin/uvicorn app.main:app --reload --port 8000
+            </pre>
+          </>
+        ) : (
+          <p>The API is not responding. On the free hosting tier it can take up to a minute to wake up.</p>
+        )}
         <button type="button" className="btn btn-primary mt-5 px-4" onClick={retry}>
           Try again
         </button>
